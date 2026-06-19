@@ -155,6 +155,12 @@ def _create_schema(conn: sqlite3.Connection):
         )
     """)
 
+    # Migration: add reference_no to billing_events for idempotency + audit
+    cols = [row["name"] for row in conn.execute("PRAGMA table_info(billing_events)").fetchall()]
+    if "reference_no" not in cols:
+        conn.execute("ALTER TABLE billing_events ADD COLUMN reference_no TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_billing_reference_no ON billing_events(reference_no)")
+
 
 @contextmanager
 def get_db():
