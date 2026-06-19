@@ -1,10 +1,12 @@
 import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from app.database import get_db
 from app.routers.auth import get_current_user
 from app.services.llm_provider import query_llm
+from app.services.export_service import enqueue_export, get_job
 
 router = APIRouter()
 
@@ -99,3 +101,57 @@ async def update_chapter_content(
             (chapter_id,)
         )
     return {"status": "updated", "summary_generated": True}
+
+
+@router.post("/projects/{project_id}/chapters/{chapter_id}/export", status_code=202)
+async def initiate_export(
+    project_id: str, chapter_id: str, user=Depends(get_current_user)
+):
+    with get_db() as db:
+        proj = db.execute(
+            "SELECT tier FROM users u JOIN projects p ON p.user_id = u.id WHERE p.id=? AND p.user_id=?",
+            (project_id, user["user_id"])
+        ).fetchone()
+        if not proj:
+            raise HTTPException(404, "Projek tidak dijumpai.")
+        if proj["tier"] != "pro":
+            raise HTTPException(403, "Export .docx hanya untuk pengguna Pro.")
+
+        row = db.execute(
+            """SELECT ch.title, cc.content FROM chapters ch
+               JOIN chapter_content cc ON cc.chapter_id = ch.id
+               WHERE ch.id=? AND ch.project_id=?""",
+            (chapter_id, project_id)
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "Bab tidak dijumpai.")
+
+    job_id = enqueue_export(row["title"], row["content"])
+    return {"job_id": job_id, "status": "pending"}
+
+
+@router.get("/projects/{project_id}/chapters/{chapter_id}/export/{job_id}")
+async def poll_export(
+    project_id: str, chapter_id: str, job_id: str, user=Depends(get_current_user)
+):
+    with get_db() as db:
+        proj = db.execute(
+            "SELECT id FROM projects WHERE id=? AND user_id=?",
+            (project_id, user["user_id"])
+        ).fetchone()
+        if not proj:
+            raise HTTPException(404, "Projek tidak dijumpai.")
+
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(404, "Kerja export tidak dijumpai.")
+    if job["status"] == "pending":
+        return {"status": "pending"}
+    if job["status"] == "error":
+        raise HTTPException(500, f"Export gagal: {job.get('error', 'Ralat tidak diketahui.')}")
+
+    return Response(
+        content=job["bytes"],
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{job["filename"]}"'}
+    )

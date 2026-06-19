@@ -1,9 +1,11 @@
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
 from app.routers import auth, projects, documents, rag, credits, account, support, chapters, billing
 from app.services.embedding_pool import embedding_pool
+from app.services.export_service import start_export_worker
 
 app = FastAPI(title="ResearcherHQ API", version="1.0.0")
 
@@ -12,6 +14,7 @@ app = FastAPI(title="ResearcherHQ API", version="1.0.0")
 async def startup():
     init_db()
     await embedding_pool.start()
+    asyncio.create_task(start_export_worker())
 
 @app.on_event("shutdown")
 async def shutdown():
