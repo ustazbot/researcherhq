@@ -1,4 +1,4 @@
-import random
+import secrets
 import string
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
@@ -9,7 +9,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def generate_password(length: int = 8) -> str:
     chars = string.ascii_letters + string.digits
-    return ''.join(random.choices(chars, k=length))
+    return ''.join(secrets.choice(chars) for _ in range(length))
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)

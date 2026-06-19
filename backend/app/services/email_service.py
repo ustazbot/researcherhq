@@ -1,10 +1,11 @@
+import asyncio
 import resend
 from app.config import settings
 
 resend.api_key = settings.resend_api_key
 
 async def send_password_email(to_email: str, password: str):
-    resend.Emails.send({
+    payload = {
         "from": settings.resend_from,
         "to": to_email,
         "subject": "Kata Laluan ResearcherHQ Anda",
@@ -23,4 +24,5 @@ async def send_password_email(to_email: str, password: str):
           </p>
         </div>
         """
-    })
+    }
+    await asyncio.to_thread(resend.Emails.send, payload)
