@@ -12,7 +12,7 @@ from app.services.email_service import send_password_email
 from app.services.turnstile_service import verify_turnstile_token
 
 router = APIRouter()
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 DISPOSABLE_DOMAINS = {
     "mailinator.com", "tempmail.com", "guerrillamail.com",
@@ -85,10 +85,13 @@ def login(body: LoginBody, request: Request):
 
     with get_db() as db:
         user = db.execute(
-            """SELECT id, email, tier, kredit_remaining, password_hash
+            """SELECT id, email, tier, kredit_remaining, password_hash, is_suspended
                FROM users WHERE email = ?""",
             (body.email,)
         ).fetchone()
+
+    if user and user["is_suspended"]:
+        raise HTTPException(403, "Akaun ini telah digantung. Hubungi support.")
 
     if not user or not user["password_hash"] or not verify_password(body.password, user["password_hash"]):
         raise HTTPException(401, "Emel atau kata laluan tidak sah.")
@@ -106,6 +109,8 @@ def login(body: LoginBody, request: Request):
     }
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if not credentials:
+        raise HTTPException(401, "Token diperlukan.")
     try:
         payload = decode_jwt(credentials.credentials)
         return payload

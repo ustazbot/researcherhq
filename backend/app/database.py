@@ -150,6 +150,17 @@ def _create_schema(conn: sqlite3.Connection):
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_rate_limit_scope_time ON rate_limit_events(scope_key, created_at);
+
+    CREATE TABLE IF NOT EXISTS admin_action_log (
+      id TEXT PRIMARY KEY,
+      admin_email TEXT NOT NULL,
+      action TEXT NOT NULL,
+      target_type TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      details TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_admin_log_target ON admin_action_log(target_type, target_id);
     """)
 
     # chunk_vectors virtual table — created separately from executescript
@@ -167,6 +178,11 @@ def _create_schema(conn: sqlite3.Connection):
     if "reference_no" not in cols:
         conn.execute("ALTER TABLE billing_events ADD COLUMN reference_no TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_billing_reference_no ON billing_events(reference_no)")
+
+    # Migration: add is_suspended to users for admin suspend action
+    user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "is_suspended" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN is_suspended INTEGER DEFAULT 0")
 
 
 @contextmanager

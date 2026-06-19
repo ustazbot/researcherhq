@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     embedding_workers: int = 3
     embedding_batch_size: int = 8
+    admin_email: str = ""
 
     class Config:
         env_file = ".env"
