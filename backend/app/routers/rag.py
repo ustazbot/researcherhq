@@ -1,19 +1,82 @@
 import uuid
 import json
 import hashlib
+import struct
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+import app.database as _db_module
 from app.database import get_db
 from app.config import settings
 from app.routers.auth import get_current_user
 from app.services.embedding_pool import embedding_pool
-from app.services.rag_pipeline import retrieve_chunks
+from app.services.rag_pipeline import retrieve_chunks, cosine_similarity
 from app.services.llm_provider import query_llm, KREDIT_COST
 
 router = APIRouter()
 
 OUTPUT_MODES = {"qa", "literature_review", "executive_summary", "key_findings", "research_gap"}
+
+NEAR_MATCH_THRESHOLD = 0.95
+
+
+def normalize_query(query: str) -> str:
+    return " ".join(query.lower().strip().split())
+
+
+def _cache_key(query: str, project_id: str, doc_version: int) -> str:
+    raw = f"{normalize_query(query)}|{project_id}|{doc_version}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _emb_to_blob(emb: list) -> bytes:
+    return struct.pack(f"{len(emb)}f", *emb)
+
+
+def _blob_to_emb(blob: bytes) -> list:
+    n = len(blob) // 4
+    return list(struct.unpack(f"{n}f", blob))
+
+
+def _check_cache(project_id: str, query: str, query_embedding: list, doc_version: int, db):
+    key = _cache_key(query, project_id, doc_version)
+    # Exact match
+    cached = db.execute(
+        "SELECT response, source_chunks FROM query_cache WHERE id = ? AND document_set_version = ?",
+        (key, doc_version),
+    ).fetchone()
+    if cached:
+        return cached
+
+    # Near-match: cosine similarity > 0.95
+    recent = db.execute(
+        "SELECT query_embedding, response, source_chunks FROM query_cache WHERE project_id = ? AND document_set_version = ?",
+        (project_id, doc_version),
+    ).fetchmany(50)
+    for row in recent:
+        if row["query_embedding"]:
+            stored_emb = _blob_to_emb(row["query_embedding"])
+            if cosine_similarity(query_embedding, stored_emb) > NEAR_MATCH_THRESHOLD:
+                return row
+
+    return None
+
+
+def _store_cache(key: str, project_id: str, query: str, query_embedding: list,
+                 doc_version: int, response: str, source_chunks: list, db):
+    db.execute(
+        """INSERT OR REPLACE INTO query_cache
+           (id, project_id, query_normalized, query_embedding, document_set_version,
+            response, source_chunks, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            key, project_id, normalize_query(query),
+            _emb_to_blob(query_embedding),
+            doc_version, response,
+            json.dumps([c["chunk_id"] for c in source_chunks]),
+            datetime.utcnow().isoformat(),
+        ),
+    )
 
 class QueryRequest(BaseModel):
     query: str
@@ -53,12 +116,28 @@ async def query_project(
     # Embed query
     query_embedding = await embedding_pool.embed(body.query)
 
+    # Cache check — before LLM call (free hit)
+    with get_db() as db:
+        doc_version = db.execute(
+            "SELECT document_set_version FROM projects WHERE id = ?", (project_id,)
+        ).fetchone()["document_set_version"]
+        cached = _check_cache(project_id, body.query, query_embedding, doc_version, db)
+
+    if cached:
+        return {
+            "answer": cached["response"],
+            "sources": json.loads(cached["source_chunks"] or "[]"),
+            "kredit_used": 0,
+            "kredit_remaining": user_row["kredit_remaining"],
+            "cache_hit": True,
+        }
+
     # Retrieve relevant chunks
     chunks = await retrieve_chunks(
         project_id=project_id,
         query_embedding=query_embedding,
         query_type=body.query_type,
-        db_path=settings.database_url,
+        db_path=_db_module._db_path,
     )
 
     if not chunks:
@@ -106,6 +185,12 @@ async def query_project(
         output_mode=body.output_mode,
         query_type=body.query_type,
     )
+
+    # Store response in cache for future hits
+    cache_key_val = _cache_key(body.query, project_id, doc_version)
+    with get_db() as db:
+        _store_cache(cache_key_val, project_id, body.query, query_embedding,
+                     doc_version, result["content"], chunks, db)
 
     # Deduct kredit, save message, log interaction
     with get_db() as db:
