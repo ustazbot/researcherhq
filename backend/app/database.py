@@ -1,0 +1,172 @@
+import sqlite3
+import sqlite_vec
+from contextlib import contextmanager
+from app.config import settings
+
+_db_path: str = settings.database_url
+
+
+def init_db(db_path: str = None) -> sqlite3.Connection:
+    path = db_path or _db_path
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    sqlite_vec.load(conn)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys = ON")
+    _create_schema(conn)
+    conn.commit()
+    return conn
+
+
+def _create_schema(conn: sqlite3.Connection):
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT,
+      tier TEXT DEFAULT 'free',
+      kredit_remaining INTEGER DEFAULT 50,
+      kredit_total INTEGER DEFAULT 50,
+      tokens_used_internal INTEGER DEFAULT 0,
+      reset_date TEXT,
+      fingerprint TEXT,
+      created_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT,
+      research_mode TEXT DEFAULT 'general',
+      field TEXT,
+      document_set_version INTEGER DEFAULT 1,
+      created_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS documents (
+      id TEXT PRIMARY KEY,
+      project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      filename TEXT,
+      category TEXT,
+      page_count INTEGER,
+      chunk_count INTEGER,
+      is_ocr INTEGER DEFAULT 0,
+      uploaded_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS chunks (
+      id TEXT PRIMARY KEY,
+      doc_id TEXT REFERENCES documents(id) ON DELETE CASCADE,
+      page_number INTEGER,
+      chunk_index INTEGER,
+      text TEXT,
+      created_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS chapters (
+      id TEXT PRIMARY KEY,
+      project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      title TEXT,
+      chapter_order INTEGER,
+      status TEXT DEFAULT 'draft',
+      created_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS chapter_content (
+      id TEXT PRIMARY KEY,
+      chapter_id TEXT REFERENCES chapters(id) ON DELETE CASCADE,
+      content TEXT,
+      summary TEXT,
+      source_citations TEXT,
+      updated_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      role TEXT,
+      content TEXT,
+      output_mode TEXT,
+      source_chunks TEXT,
+      kredit_used INTEGER,
+      tokens_used_internal INTEGER,
+      created_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS query_cache (
+      id TEXT PRIMARY KEY,
+      project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      query_normalized TEXT,
+      query_embedding BLOB,
+      document_set_version INTEGER,
+      response TEXT,
+      source_chunks TEXT,
+      created_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS billing_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id),
+      event_type TEXT,
+      amount REAL,
+      kredit_added INTEGER,
+      created_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS user_interactions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      event_type TEXT,
+      research_mode TEXT,
+      output_mode TEXT,
+      response_rating INTEGER,
+      query_length INTEGER,
+      kredit_used INTEGER,
+      session_id TEXT,
+      created_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS app_learnings (
+      id TEXT PRIMARY KEY,
+      pattern TEXT,
+      confidence REAL,
+      action_suggested TEXT,
+      created_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS support_reports (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      category TEXT,
+      description TEXT,
+      project_id TEXT,
+      status TEXT DEFAULT 'open',
+      created_at TEXT
+    );
+    """)
+
+    # chunk_vectors virtual table — created separately from executescript
+    # because executescript commits the transaction before each statement,
+    # and some sqlite-vec versions require the extension to be loaded first.
+    conn.execute("""
+        CREATE VIRTUAL TABLE IF NOT EXISTS chunk_vectors USING vec0(
+          chunk_id TEXT,
+          embedding FLOAT[384]
+        )
+    """)
+
+
+@contextmanager
+def get_db():
+    conn = sqlite3.connect(_db_path)
+    conn.row_factory = sqlite3.Row
+    sqlite_vec.load(conn)
+    conn.execute("PRAGMA foreign_keys = ON")
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

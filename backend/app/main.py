@@ -1,9 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.database import init_db
 from app.routers import auth, projects, documents, rag, credits, account, support
 
 app = FastAPI(title="ResearcherHQ API", version="1.0.0")
+
+
+@app.on_event("startup")
+async def startup():
+    init_db()
 
 app.add_middleware(
     CORSMiddleware,
