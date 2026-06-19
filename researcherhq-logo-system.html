@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<title>ResearcherHQ — Logo System (Stamp Badge)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=DM+Sans:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F8F6F1;
+    --ink:#1C1B19;
+    --ink-soft:#4A463F;
+    --accent:#F97316;
+    --accent-soft:#FCE3D0;
+    --line:#E3DFD5;
+    --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    font-family:'DM Sans',sans-serif;
+    color:var(--ink);
+    padding:48px 24px 80px;
+  }
+  .intro{ max-width:680px; margin:0 auto 48px; }
+  .eyebrow{
+    font-family:'DM Mono',monospace;
+    font-size:12px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:10px;
+  }
+  h1{ font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:28px; margin:0 0 8px; }
+  .intro p{ font-size:15px; line-height:1.6; color:var(--ink-soft); margin:0; }
+
+  section{ max-width:980px; margin:0 auto 40px; }
+  .section-label{
+    font-family:'DM Mono',monospace; font-size:12px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--ink-soft); margin-bottom:14px;
+    border-bottom:1px solid var(--line); padding-bottom:10px;
+  }
+
+  /* primary lockup */
+  .primary-card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:64px 32px; display:flex; align-items:center; justify-content:center;
+  }
+  .lockup{ display:flex; align-items:center; gap:12px; }
+  .lockup .word{ font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; font-size:44px; color:var(--ink); }
+  .lockup .badge{
+    font-family:'DM Mono',monospace; font-weight:500; font-size:18px; letter-spacing:0.05em;
+    background:var(--ink); color:var(--bg); padding:7px 14px; border-radius:8px; transform:translateY(-3px);
+  }
+  .lockup.dark .word{ color:var(--bg); }
+  .lockup.dark .badge{ background:var(--accent); color:var(--ink); }
+  .lockup.mono .badge{ background:var(--ink); }
+  .lockup.mono.dark .word{ color:#fff; }
+  .lockup.mono.dark .badge{ background:#fff; color:var(--ink); }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .variant-card{
+    border-radius:16px; padding:48px 24px; display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--line);
+  }
+  .variant-card.on-light{ background:var(--bg); }
+  .variant-card.on-dark{ background:var(--ink); }
+  .variant-card.on-cream{ background:var(--card); }
+  .caption{ font-family:'DM Mono',monospace; font-size:11px; color:var(--ink-soft); text-align:center; margin-top:10px; }
+
+  /* app icon standalone */
+  .icon-row{ display:flex; gap:18px; align-items:flex-end; flex-wrap:wrap; }
+  .icon-box{
+    width:96px; height:96px; border-radius:22px; background:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .icon-box .hq{
+    font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:30px;
+    color:var(--accent); letter-spacing:0.01em;
+  }
+  .icon-box.small{ width:56px; height:56px; border-radius:14px; }
+  .icon-box.small .hq{ font-size:18px; }
+  .icon-box.alt{ background:var(--accent); }
+  .icon-box.alt .hq{ color:var(--ink); }
+
+  /* clear space / min size note */
+  .rule-list{ font-size:14px; line-height:1.8; color:var(--ink-soft); }
+  .rule-list b{ color:var(--ink); }
+
+  .tagline-strip{
+    background:var(--ink); border-radius:16px; padding:48px; text-align:center;
+  }
+  .tagline-strip .lockup{ justify-content:center; }
+  .tagline-strip .tagline{
+    font-family:'DM Sans',sans-serif; font-size:15px; color:#C9C4B8; margin-top:14px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="intro">
+    <div class="eyebrow">Logo system — final direction</div>
+    <h1>ResearcherHQ — Stamp Badge</h1>
+    <p>Lockup terpilih: "Researcher" dalam Plus Jakarta Sans Bold + "HQ" sebagai stamp/badge berasingan dalam DM Mono. Ini sistem penuh untuk pelbagai konteks guna.</p>
+  </div>
+
+  <section>
+    <div class="section-label">01 — Primary lockup</div>
+    <div class="primary-card">
+      <div class="lockup"><span class="word">Researcher</span><span class="badge">HQ</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">02 — Background variants</div>
+    <div class="grid2">
+      <div>
+        <div class="variant-card on-light">
+          <div class="lockup"><span class="word">Researcher</span><span class="badge">HQ</span></div>
+        </div>
+        <div class="caption">on warm off-white — default</div>
+      </div>
+      <div>
+        <div class="variant-card on-dark">
+          <div class="lockup dark"><span class="word">Researcher</span><span class="badge">HQ</span></div>
+        </div>
+        <div class="caption">on dark — badge flips to accent orange</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">03 — Monochrome fallback (print / single-colour contexts)</div>
+    <div class="grid2">
+      <div>
+        <div class="variant-card on-light">
+          <div class="lockup mono"><span class="word">Researcher</span><span class="badge">HQ</span></div>
+        </div>
+        <div class="caption">mono on light</div>
+      </div>
+      <div>
+        <div class="variant-card on-dark">
+          <div class="lockup mono dark"><span class="word">Researcher</span><span class="badge">HQ</span></div>
+        </div>
+        <div class="caption">mono on dark</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">04 — App icon / favicon (badge standalone)</div>
+    <div class="icon-row">
+      <div class="icon-box"><span class="hq">HQ</span></div>
+      <div class="icon-box alt"><span class="hq">HQ</span></div>
+      <div class="icon-box small"><span class="hq">HQ</span></div>
+      <div class="icon-box small alt"><span class="hq">HQ</span></div>
+    </div>
+    <p class="caption" style="text-align:left;margin-top:14px;">Badge "HQ" boleh berdiri sendiri tanpa "Researcher" untuk app icon, favicon, dan profile picture social media — ruang terlalu kecil untuk wordmark penuh terbaca jelas.</p>
+  </section>
+
+  <section>
+    <div class="section-label">05 — Usage rules</div>
+    <ul class="rule-list">
+      <li><b>Clear space:</b> kosongkan ruang sekeliling lockup minimum setinggi huruf "R" — elak logo lain/teks terlalu rapat.</li>
+      <li><b>Min size:</b> wordmark penuh jangan kurang dari 120px lebar (digital) / 25mm (cetak) — bawah tu, "HQ" badge jadi tak terbaca.</li>
+      <li><b>Badge tak boleh:</b> diasingkan warna sendiri di luar 2 versi (ink-on-cream / accent-on-ink) — elak inconsistent across produk lain Bos.</li>
+      <li><b>Jangan:</b> stretch, tambah shadow/gradient, atau tukar font badge ke selain DM Mono — itu yang bagi kesan "stamp rasmi," tukar font hilang kesan tu.</li>
+    </ul>
+  </section>
+
+  <section style="margin-bottom:0;">
+    <div class="section-label">06 — With tagline (hero usage)</div>
+    <div class="tagline-strip">
+      <div class="lockup dark"><span class="word">Researcher</span><span class="badge">HQ</span></div>
+      <div class="tagline">Tesis siap, minda tenang</div>
+    </div>
+  </section>
+
+</body>
+</html>
