@@ -18,20 +18,19 @@ class ProjectCreate(BaseModel):
 
 def _ensure_user_exists(db, user_id: str, email: str):
     """Create user row if it doesn't exist yet (auth creates it on /request-password, but tests may skip that)."""
-    existing = db.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
-    if not existing:
-        from datetime import date
-        today = date.today()
-        if today.month == 12:
-            reset_date = date(today.year + 1, 1, 1).isoformat()
-        else:
-            reset_date = date(today.year, today.month + 1, 1).isoformat()
-        db.execute(
-            """INSERT INTO users (id, email, tier, kredit_remaining, kredit_total,
-               tokens_used_internal, reset_date, created_at)
-               VALUES (?, ?, 'free', 50, 50, 0, ?, ?)""",
-            (user_id, email, reset_date, datetime.utcnow().isoformat())
-        )
+    from datetime import date
+    today = date.today()
+    if today.month == 12:
+        reset_date = date(today.year + 1, 1, 1).isoformat()
+    else:
+        reset_date = date(today.year, today.month + 1, 1).isoformat()
+
+    db.execute(
+        """INSERT OR IGNORE INTO users
+           (id, email, tier, kredit_remaining, kredit_total, tokens_used_internal, reset_date, created_at)
+           VALUES (?, ?, 'free', 50, 50, 0, ?, ?)""",
+        (user_id, email, reset_date, datetime.utcnow().isoformat())
+    )
 
 @router.post("", status_code=201)
 def create_project(body: ProjectCreate, user=Depends(get_current_user)):
