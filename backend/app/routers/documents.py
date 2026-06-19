@@ -2,14 +2,15 @@ import asyncio
 import sqlite3
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+import app.database as _db_module
 from app.database import get_db
 from app.routers.auth import get_current_user
 from app.services.rag_pipeline import chunk_text
+from app.services.ocr_service import is_scanned_pdf
 import sqlite_vec as _sqlite_vec
-from app.config import settings as _settings
 
 router = APIRouter()
 
@@ -20,7 +21,7 @@ async def _embed_and_store_chunks(doc_id: str, chunk_texts: List[str], chunk_ids
     from app.services.embedding_pool import embedding_pool
     try:
         embeddings = await embedding_pool.embed_batch(chunk_texts)
-        conn = sqlite3.connect(_settings.database_url)
+        conn = sqlite3.connect(_db_module._db_path)
         _sqlite_vec.load(conn)
         conn.execute("PRAGMA foreign_keys = ON")
         for chunk_id, embedding in zip(chunk_ids, embeddings):
@@ -48,6 +49,18 @@ class DocumentUpload(BaseModel):
 async def upload_document(body: DocumentUpload, user=Depends(get_current_user)):
     if body.category not in VALID_CATEGORIES:
         raise HTTPException(400, f"Kategori tidak sah: {body.category}")
+
+    # Scanned PDF check — based on avg token count per page
+    pages_as_dicts = [{"text": p.text} for p in body.pages]
+    if is_scanned_pdf(pages_as_dicts):
+        with get_db() as db:
+            user_row = db.execute("SELECT tier FROM users WHERE id = ?", (user["user_id"],)).fetchone()
+            tier_check = user_row["tier"] if user_row else "free"
+        if tier_check != "pro":
+            raise HTTPException(
+                403,
+                "PDF ini nampak seperti dokumen imbasan. Naik taraf ke Pro untuk proses PDF imbasan."
+            )
 
     with get_db() as db:
         proj = db.execute(
