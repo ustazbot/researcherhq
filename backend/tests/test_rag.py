@@ -165,3 +165,46 @@ def test_get_retrieval_k_many_docs():
 
 def test_get_retrieval_k_few_docs():
     assert get_retrieval_k("normal", 5) == 6
+
+
+# --- Task 14: Output Modes Verify ---
+
+def test_output_mode_kredit_costs():
+    from app.services.llm_provider import KREDIT_COST
+    assert KREDIT_COST["qa"] == 1
+    assert KREDIT_COST["qa_deep"] == 3
+    assert KREDIT_COST["key_findings"] == 3
+    assert KREDIT_COST["executive_summary"] == 5
+    assert KREDIT_COST["literature_review"] == 10
+
+
+def test_invalid_output_mode_rejected():
+    """Invalid output mode patut return 400."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from unittest.mock import patch
+    from fastapi.testclient import TestClient
+    from app.services.auth_service import create_jwt
+
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        db_path = os.path.join(tmp, "test.db")
+        with patch("app.database._db_path", db_path):
+            from app.database import init_db
+            init_db(db_path)
+            from app.main import app
+            headers = {"Authorization": f"Bearer {create_jwt({'user_id':'u1','email':'u@t.com'})}"}
+            with TestClient(app) as c:
+                c.post("/projects", json={"title": "T", "research_mode": "general"}, headers=headers)
+                projects = c.get("/projects", headers=headers).json()
+                pid = projects[0]["id"]
+                r = c.post(f"/projects/{pid}/query",
+                           json={"query": "test", "output_mode": "invalid_mode"},
+                           headers=headers)
+                assert r.status_code == 400
+
+
+def test_all_valid_output_modes_accepted():
+    from app.routers.rag import OUTPUT_MODES
+    expected = {"qa", "literature_review", "executive_summary", "key_findings", "research_gap"}
+    assert OUTPUT_MODES == expected

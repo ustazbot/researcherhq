@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
-from app.routers import auth, projects, documents, rag, credits, account, support
+from app.routers import auth, projects, documents, rag, credits, account, support, chapters
 from app.services.embedding_pool import embedding_pool
 
 app = FastAPI(title="ResearcherHQ API", version="1.0.0")
@@ -38,3 +38,4 @@ app.include_router(rag.router, prefix="/projects", tags=["rag"])
 app.include_router(credits.router, prefix="/credits", tags=["credits"])
 app.include_router(account.router, prefix="/account", tags=["account"])
 app.include_router(support.router, prefix="/support", tags=["support"])
+app.include_router(chapters.router, tags=["chapters"])
