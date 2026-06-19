@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ProfileMenu } from '../components/ProfileMenu'
 import { CitationCard } from '../components/CitationCard'
+import { SourcePanel } from '../components/SourcePanel'
+import { ThesisPanel } from '../components/ThesisPanel'
 import api from '../api/client'
 
 const OUTPUT_MODES = [
@@ -17,6 +19,8 @@ export function ProjectPage() {
   const nav = useNavigate()
   const [project, setProject] = useState(null)
   const [messages, setMessages] = useState([])
+  const [documents, setDocuments] = useState([])
+  const [chapters, setChapters] = useState([])
   const [query, setQuery] = useState('')
   const [outputMode, setOutputMode] = useState('qa')
   const [loading, setLoading] = useState(false)
@@ -31,10 +35,14 @@ export function ProjectPage() {
       api.get(`/projects/${id}`),
       api.get(`/projects/${id}/messages`),
       api.get('/credits'),
-    ]).then(([p, m, c]) => {
+      api.get(`/documents?project_id=${id}`),
+      api.get(`/projects/${id}/chapters`),
+    ]).then(([p, m, c, docs, chaps]) => {
       setProject(p.data)
       setMessages(m.data)
       setCredits(c.data)
+      setDocuments(docs.data)
+      setChapters(chaps.data)
     }).catch(() => nav('/'))
   }, [id])
 
@@ -71,13 +79,16 @@ export function ProjectPage() {
     if (!file) return
     setUploading(true)
     try {
-      // MVP: alert user that full PDF.js extraction is pending
       alert(`Dokumen "${file.name}" sedang diproses. (PDF.js extraction dalam fasa penuh)`)
     } catch {
       alert('Gagal muat naik dokumen.')
     }
     setUploading(false)
     fileRef.current.value = ''
+  }
+
+  async function handleExport(chapterId) {
+    alert(`Export .docx untuk bab ini akan tersedia tidak lama lagi.`)
   }
 
   if (!project) return (
@@ -109,97 +120,107 @@ export function ProjectPage() {
         </div>
       </header>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px', maxWidth: 800, width: '100%', margin: '0 auto' }}>
-        {messages.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--ink-soft)' }}>
-            <p style={{ fontSize: 18, fontWeight: 500 }}>Muat naik dokumen dan mula bertanya.</p>
-            <p style={{ fontSize: 14 }}>Semua jawapan akan bersumberkan dokumen anda sahaja.</p>
-          </div>
-        )}
-        {messages.map(msg => (
-          <div key={msg.id} style={{
-            marginBottom: 24, display: 'flex', flexDirection: 'column',
-            alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
-          }}>
-            <div style={{
-              maxWidth: '85%',
-              background: msg.role === 'user' ? 'var(--ink)' : msg.role === 'error' ? '#FEF2F2' : 'var(--card)',
-              color: msg.role === 'user' ? 'var(--bg)' : msg.role === 'error' ? '#EF4444' : 'var(--ink)',
-              border: msg.role === 'user' ? 'none' : `1px solid ${msg.role === 'error' ? '#FECACA' : 'var(--line)'}`,
-              borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
-              padding: '14px 18px', fontFamily: 'var(--font-body)', fontSize: 15,
-              lineHeight: 1.6, whiteSpace: 'pre-wrap',
-            }}>
-              {msg.content}
-              {msg.kredit_used && (
-                <span style={{ display: 'block', marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6 }}>
-                  {msg.kredit_used} kredit digunakan
-                </span>
-              )}
-            </div>
-            {msg.sources && msg.sources.length > 0 && (
-              <div style={{ marginTop: 8, maxWidth: '85%', width: '100%' }}>
-                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Sumber ({msg.sources.length})
-                </p>
-                {msg.sources.map(s => <CitationCard key={s.chunk_id} source={s} />)}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
+        <SourcePanel
+          documents={documents}
+          onUpload={() => fileRef.current?.click()}
+          tier={user?.tier}
+        />
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ flex: 1, overflow: 'auto', padding: '24px', maxWidth: 800, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+            {messages.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--ink-soft)' }}>
+                <p style={{ fontSize: 18, fontWeight: 500 }}>Muat naik dokumen dan mula bertanya.</p>
+                <p style={{ fontSize: 14 }}>Semua jawapan akan bersumberkan dokumen anda sahaja.</p>
               </div>
             )}
+            {messages.map(msg => (
+              <div key={msg.id} style={{
+                marginBottom: 24, display: 'flex', flexDirection: 'column',
+                alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              }}>
+                <div style={{
+                  maxWidth: '85%',
+                  background: msg.role === 'user' ? 'var(--ink)' : msg.role === 'error' ? '#FEF2F2' : 'var(--card)',
+                  color: msg.role === 'user' ? 'var(--bg)' : msg.role === 'error' ? '#EF4444' : 'var(--ink)',
+                  border: msg.role === 'user' ? 'none' : `1px solid ${msg.role === 'error' ? '#FECACA' : 'var(--line)'}`,
+                  borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
+                  padding: '14px 18px', fontFamily: 'var(--font-body)', fontSize: 15,
+                  lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                }}>
+                  {msg.content}
+                  {msg.kredit_used && (
+                    <span style={{ display: 'block', marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6 }}>
+                      {msg.kredit_used} kredit digunakan
+                    </span>
+                  )}
+                </div>
+                {msg.sources && msg.sources.length > 0 && (
+                  <div style={{ marginTop: 8, maxWidth: '85%', width: '100%' }}>
+                    <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      Sumber ({msg.sources.length})
+                    </p>
+                    {msg.sources.map(s => <CitationCard key={s.chunk_id} source={s} />)}
+                  </div>
+                )}
+              </div>
+            ))}
+            {loading && (
+              <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 24 }}>
+                <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '4px 16px 16px 16px', padding: '14px 18px' }}>
+                  <span style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>Berfikir...</span>
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
           </div>
-        ))}
-        {loading && (
-          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 24 }}>
-            <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '4px 16px 16px 16px', padding: '14px 18px' }}>
-              <span style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>Berfikir...</span>
+
+          <div style={{ borderTop: '1px solid var(--line)', padding: '16px 24px', background: 'var(--card)', flexShrink: 0 }}>
+            <div style={{ maxWidth: 800, margin: '0 auto' }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+                {OUTPUT_MODES.map(m => (
+                  <button key={m.value} onClick={() => setOutputMode(m.value)} style={{
+                    padding: '4px 10px',
+                    background: outputMode === m.value ? 'var(--ink)' : 'transparent',
+                    color: outputMode === m.value ? 'var(--bg)' : 'var(--ink-soft)',
+                    border: `1px solid ${outputMode === m.value ? 'var(--ink)' : 'var(--line)'}`,
+                    borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer',
+                  }}>
+                    {m.label} ({m.credits} kr)
+                  </button>
+                ))}
+              </div>
+              <form onSubmit={handleQuery} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={query} onChange={e => setQuery(e.target.value)}
+                  placeholder="Tanya soalan berdasarkan dokumen anda..."
+                  disabled={loading}
+                  style={{
+                    flex: 1, padding: '12px 16px',
+                    border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)',
+                    fontFamily: 'var(--font-body)', fontSize: 15, background: 'var(--bg)', outline: 'none',
+                  }}
+                />
+                <button type="submit" disabled={loading || !query.trim()} style={{
+                  padding: '12px 20px', background: 'var(--accent)', color: 'var(--ink)',
+                  border: 'none', borderRadius: 'var(--radius-sm)',
+                  fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, cursor: 'pointer',
+                }}>
+                  →
+                </button>
+              </form>
             </div>
           </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      <div style={{ borderTop: '1px solid var(--line)', padding: '16px 24px', background: 'var(--card)', flexShrink: 0 }}>
-        <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-            {OUTPUT_MODES.map(m => (
-              <button key={m.value} onClick={() => setOutputMode(m.value)} style={{
-                padding: '4px 10px',
-                background: outputMode === m.value ? 'var(--ink)' : 'transparent',
-                color: outputMode === m.value ? 'var(--bg)' : 'var(--ink-soft)',
-                border: `1px solid ${outputMode === m.value ? 'var(--ink)' : 'var(--line)'}`,
-                borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer',
-              }}>
-                {m.label} ({m.credits} kr)
-              </button>
-            ))}
-            <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
-            <button onClick={() => fileRef.current?.click()} style={{
-              padding: '4px 10px', marginLeft: 'auto',
-              background: 'var(--accent-soft)', border: '1px solid var(--accent)',
-              borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer',
-            }}>
-              {uploading ? 'Memuat...' : '+ Dokumen'}
-            </button>
-          </div>
-          <form onSubmit={handleQuery} style={{ display: 'flex', gap: 8 }}>
-            <input
-              value={query} onChange={e => setQuery(e.target.value)}
-              placeholder="Tanya soalan berdasarkan dokumen anda..."
-              disabled={loading}
-              style={{
-                flex: 1, padding: '12px 16px',
-                border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)',
-                fontFamily: 'var(--font-body)', fontSize: 15, background: 'var(--bg)', outline: 'none',
-              }}
-            />
-            <button type="submit" disabled={loading || !query.trim()} style={{
-              padding: '12px 20px', background: 'var(--accent)', color: 'var(--ink)',
-              border: 'none', borderRadius: 'var(--radius-sm)',
-              fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, cursor: 'pointer',
-            }}>
-              →
-            </button>
-          </form>
         </div>
+
+        <ThesisPanel
+          chapters={chapters}
+          onExport={handleExport}
+          tier={user?.tier}
+          projectId={id}
+        />
       </div>
     </div>
   )
