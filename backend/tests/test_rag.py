@@ -137,3 +137,31 @@ async def test_embed_consistent():
         assert e1 == e2
     finally:
         await pool.stop()
+
+from app.services.rag_pipeline import mmr_rerank, get_retrieval_k
+
+def test_mmr_returns_k_results():
+    candidates = [
+        {"chunk_id": f"c{i}", "text": f"text {i}", "similarity": 0.9 - i*0.05, "embedding": []}
+        for i in range(5)
+    ]
+    result = mmr_rerank(candidates, k=3)
+    assert len(result) == 3
+
+def test_mmr_respects_similarity_order():
+    candidates = [
+        {"chunk_id": "a", "text": "high sim", "similarity": 0.95, "embedding": []},
+        {"chunk_id": "b", "text": "low sim", "similarity": 0.50, "embedding": []},
+    ]
+    result = mmr_rerank(candidates, k=2)
+    # Highest similarity should be first
+    assert result[0]["chunk_id"] == "a"
+
+def test_get_retrieval_k_deep():
+    assert get_retrieval_k("deep", 5) == 12
+
+def test_get_retrieval_k_many_docs():
+    assert get_retrieval_k("normal", 15) == 10
+
+def test_get_retrieval_k_few_docs():
+    assert get_retrieval_k("normal", 5) == 6
