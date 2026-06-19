@@ -143,6 +143,13 @@ def _create_schema(conn: sqlite3.Connection):
       status TEXT DEFAULT 'open',
       created_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS rate_limit_events (
+      id TEXT PRIMARY KEY,
+      scope_key TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_rate_limit_scope_time ON rate_limit_events(scope_key, created_at);
     """)
 
     # chunk_vectors virtual table — created separately from executescript

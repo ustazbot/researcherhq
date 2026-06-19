@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.services.rate_limiter import enforce_rate_limit, get_client_ip
 from pydantic import BaseModel, EmailStr
 from app.database import get_db
 from app.services.auth_service import (
@@ -27,7 +28,11 @@ class LoginBody(BaseModel):
     password: str
 
 @router.post("/request-password")
-async def request_password(body: RequestPasswordBody):
+async def request_password(body: RequestPasswordBody, request: Request):
+    ip = get_client_ip(request)
+    enforce_rate_limit(f"request_password:ip:{ip}", max_attempts=10, window_minutes=60)
+    enforce_rate_limit(f"request_password:email:{body.email.lower()}", max_attempts=3, window_minutes=15)
+
     domain = body.email.split("@")[1].lower()
     if domain in DISPOSABLE_DOMAINS:
         raise HTTPException(400, "Domain emel tidak dibenarkan.")
@@ -68,7 +73,11 @@ async def request_password(body: RequestPasswordBody):
     return {"message": "Kata laluan telah dihantar ke emel anda."}
 
 @router.post("/login")
-def login(body: LoginBody):
+def login(body: LoginBody, request: Request):
+    ip = get_client_ip(request)
+    enforce_rate_limit(f"login:ip:{ip}", max_attempts=20, window_minutes=60)
+    enforce_rate_limit(f"login:email:{body.email.lower()}", max_attempts=5, window_minutes=15)
+
     with get_db() as db:
         user = db.execute(
             """SELECT id, email, tier, kredit_remaining, password_hash
