@@ -9,6 +9,7 @@ from app.services.auth_service import (
     generate_password, hash_password, verify_password, create_jwt, decode_jwt
 )
 from app.services.email_service import send_password_email
+from app.services.turnstile_service import verify_turnstile_token
 
 router = APIRouter()
 security = HTTPBearer()
@@ -22,6 +23,7 @@ DISPOSABLE_DOMAINS = {
 
 class RequestPasswordBody(BaseModel):
     email: EmailStr
+    turnstile_token: str
 
 class LoginBody(BaseModel):
     email: EmailStr
@@ -32,6 +34,9 @@ async def request_password(body: RequestPasswordBody, request: Request):
     ip = get_client_ip(request)
     enforce_rate_limit(f"request_password:ip:{ip}", max_attempts=10, window_minutes=60)
     enforce_rate_limit(f"request_password:email:{body.email.lower()}", max_attempts=3, window_minutes=15)
+
+    if not await verify_turnstile_token(body.turnstile_token, remoteip=ip):
+        raise HTTPException(400, "Verifikasi keselamatan gagal. Sila cuba lagi.")
 
     domain = body.email.split("@")[1].lower()
     if domain in DISPOSABLE_DOMAINS:

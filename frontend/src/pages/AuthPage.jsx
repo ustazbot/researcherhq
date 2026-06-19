@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
+import { TurnstileWidget } from '../components/TurnstileWidget'
 import api from '../api/client'
 
 export function AuthPage() {
@@ -11,16 +12,22 @@ export function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState('')
 
   async function handleRequestPassword(e) {
     e.preventDefault()
+    if (!turnstileToken) {
+      setError('Sila lengkapkan verifikasi sebelum hantar.')
+      return
+    }
     setLoading(true); setError('')
     try {
-      await api.post('/auth/request-password', { email })
+      await api.post('/auth/request-password', { email, turnstile_token: turnstileToken })
       setInfo('Kata laluan telah dihantar ke emel anda.')
       setStep('password')
     } catch (err) {
       setError(err.response?.data?.detail || 'Ralat berlaku.')
+      setTurnstileToken('')  // token lama dah invalid lepas satu attempt
     }
     setLoading(false)
   }
@@ -66,8 +73,12 @@ export function AuthPage() {
               placeholder="emel@universiti.edu.my" required
               style={inputStyle}
             />
+            <TurnstileWidget
+              onVerify={setTurnstileToken}
+              onExpire={() => setTurnstileToken('')}
+            />
             {error && <p style={{ color: '#EF4444', fontSize: 13, margin: '8px 0 0' }}>{error}</p>}
-            <button type="submit" disabled={loading} style={btnStyle}>
+            <button type="submit" disabled={loading || !turnstileToken} style={btnStyle}>
               {loading ? 'Menghantar...' : 'Hantar Kata Laluan →'}
             </button>
           </form>
@@ -89,7 +100,7 @@ export function AuthPage() {
             <button type="submit" disabled={loading} style={btnStyle}>
               {loading ? 'Log masuk...' : 'Log Masuk →'}
             </button>
-            <button type="button" onClick={() => { setStep('email'); setInfo('') }}
+            <button type="button" onClick={() => { setStep('email'); setInfo(''); setTurnstileToken('') }}
               style={{ ...btnStyle, background: 'transparent', color: 'var(--ink-soft)', marginTop: 8 }}>
               ← Guna emel lain
             </button>

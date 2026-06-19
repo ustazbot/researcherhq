@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     telegram_chat_id: str = "placeholder"
     toyyibpay_secret_key: str = ""
     toyyibpay_category_code: str = ""
+    turnstile_secret_key: str = "1x0000000000000000000000000000000AA"
     frontend_url: str = "http://localhost:5173"
     embedding_workers: int = 3
     embedding_batch_size: int = 8

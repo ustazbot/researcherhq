@@ -9,6 +9,8 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 
+from unittest.mock import AsyncMock
+
 async def _noop_send_email(*args, **kwargs):
     pass
 
@@ -17,7 +19,8 @@ async def _noop_send_email(*args, **kwargs):
 def client(tmp_path):
     db_path = str(tmp_path / "rl_test.db")
     with patch("app.database._db_path", db_path), \
-         patch("app.routers.auth.send_password_email", new=_noop_send_email):
+         patch("app.routers.auth.send_password_email", new=_noop_send_email), \
+         patch("app.routers.auth.verify_turnstile_token", new=AsyncMock(return_value=True)):
         from app.database import init_db
         init_db(db_path)
         from app.main import app
@@ -28,7 +31,7 @@ def client(tmp_path):
 def _req_password(client, email, ip="1.2.3.4"):
     return client.post(
         "/auth/request-password",
-        json={"email": email},
+        json={"email": email, "turnstile_token": "dummy-always-passes"},
         headers={"x-real-ip": ip},
     )
 
@@ -79,7 +82,8 @@ def test_login_email_rate_limit(client):
 def test_login_rate_limit_window_expiry(tmp_path):
     db_path = str(tmp_path / "rl_expiry.db")
     with patch("app.database._db_path", db_path), \
-         patch("app.routers.auth.send_password_email", new=_noop_send_email):
+         patch("app.routers.auth.send_password_email", new=_noop_send_email), \
+         patch("app.routers.auth.verify_turnstile_token", new=AsyncMock(return_value=True)):
         from app.database import init_db
         init_db(db_path)
         from app.main import app
