@@ -109,13 +109,17 @@ async def query_project(
 
     # Deduct kredit, save message, log interaction
     with get_db() as db:
-        new_kredit = user_row["kredit_remaining"] - kredit_cost
-        db.execute(
-            """UPDATE users SET kredit_remaining = ?,
-               tokens_used_internal = tokens_used_internal + ?
-               WHERE id = ?""",
-            (new_kredit, result["tokens_used"], user["user_id"]),
+        result_update = db.execute(
+            """UPDATE users
+               SET kredit_remaining = kredit_remaining - ?,
+                   tokens_used_internal = tokens_used_internal + ?
+               WHERE id = ? AND kredit_remaining >= ?""",
+            (kredit_cost, result["tokens_used"], user["user_id"], kredit_cost),
         )
+        if result_update.rowcount == 0:
+            # Kredit habis antara check dan deduct (race condition)
+            raise HTTPException(402, "Kredit Kajian tidak mencukupi.")
+        new_kredit = user_row["kredit_remaining"] - kredit_cost
         msg_id = str(uuid.uuid4())
         db.execute(
             """INSERT INTO messages
