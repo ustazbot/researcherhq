@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "./researcherhq.db"
-    jwt_secret: str = "dev-secret-change-in-production"
+    jwt_secret: str  # required — must be set in .env
     jwt_expire_days: int = 30
     resend_api_key: str = "re_placeholder"
     resend_from: str = "noreply@researcherhq.com"
