@@ -95,3 +95,45 @@ def test_document_set_version_bumped(client_with_project):
 
     proj_after = client.get(f"/projects/{project_id}", headers=headers).json()
     assert proj_after["document_set_version"] == version_before + 1
+
+
+import asyncio
+
+@pytest.mark.asyncio
+async def test_embed_single():
+    from app.services.embedding_pool import EmbeddingPool
+    pool = EmbeddingPool(num_workers=1)
+    await pool.start()
+    try:
+        embedding = await pool.embed("ini adalah teks ujian untuk embedding")
+        assert len(embedding) == 384
+        assert isinstance(embedding[0], float)
+    finally:
+        await pool.stop()
+
+@pytest.mark.asyncio
+async def test_embed_batch():
+    from app.services.embedding_pool import EmbeddingPool
+    pool = EmbeddingPool(num_workers=1)
+    await pool.start()
+    try:
+        texts = ["teks pertama", "teks kedua", "teks ketiga"]
+        embeddings = await pool.embed_batch(texts)
+        assert len(embeddings) == 3
+        assert all(len(e) == 384 for e in embeddings)
+    finally:
+        await pool.stop()
+
+@pytest.mark.asyncio
+async def test_embed_consistent():
+    from app.services.embedding_pool import EmbeddingPool
+    pool = EmbeddingPool(num_workers=1)
+    await pool.start()
+    try:
+        text = "kajian kuantitatif untuk penyelidikan"
+        e1 = await pool.embed(text)
+        e2 = await pool.embed(text)
+        # Same text should produce same embedding (deterministic)
+        assert e1 == e2
+    finally:
+        await pool.stop()

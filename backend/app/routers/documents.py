@@ -1,3 +1,5 @@
+import asyncio
+import sqlite3
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -6,10 +8,31 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.routers.auth import get_current_user
 from app.services.rag_pipeline import chunk_text
+import sqlite_vec as _sqlite_vec
+from app.config import settings as _settings
 
 router = APIRouter()
 
 VALID_CATEGORIES = {"artikel", "catatan_sv", "draf", "data"}
+
+async def _embed_and_store_chunks(doc_id: str, chunk_texts: List[str], chunk_ids: List[str]):
+    """Background task: embed chunks and store in chunk_vectors."""
+    from app.services.embedding_pool import embedding_pool
+    try:
+        embeddings = await embedding_pool.embed_batch(chunk_texts)
+        conn = sqlite3.connect(_settings.database_url)
+        _sqlite_vec.load(conn)
+        conn.execute("PRAGMA foreign_keys = ON")
+        for chunk_id, embedding in zip(chunk_ids, embeddings):
+            conn.execute(
+                "INSERT INTO chunk_vectors (chunk_id, embedding) VALUES (?, ?)",
+                (chunk_id, embedding)
+            )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        # Log but don't crash — embedding is best-effort in background
+        print(f"Embedding error for doc {doc_id}: {e}")
 
 class PageData(BaseModel):
     page_number: int
@@ -78,8 +101,21 @@ async def upload_document(body: DocumentUpload, user=Depends(get_current_user)):
             (body.project_id,)
         )
 
-    # Queue embedding (will be implemented in Task 6)
-    # For now, return immediately
+        # Collect chunk IDs for background embedding
+        saved_chunk_ids = [
+            row["id"] for row in db.execute(
+                "SELECT id FROM chunks WHERE doc_id = ? ORDER BY chunk_index",
+                (doc_id,)
+            ).fetchall()
+        ]
+        chunk_texts_for_embedding = [c["text"] for c in all_chunks]
+
+    # Schedule background embedding (outside get_db context)
+    if chunk_texts_for_embedding:
+        asyncio.create_task(
+            _embed_and_store_chunks(doc_id, chunk_texts_for_embedding, saved_chunk_ids)
+        )
+
     return {
         "id": doc_id,
         "filename": body.filename,

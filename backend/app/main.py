@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
 from app.routers import auth, projects, documents, rag, credits, account, support
+from app.services.embedding_pool import embedding_pool
 
 app = FastAPI(title="ResearcherHQ API", version="1.0.0")
 
@@ -10,6 +11,11 @@ app = FastAPI(title="ResearcherHQ API", version="1.0.0")
 @app.on_event("startup")
 async def startup():
     init_db()
+    await embedding_pool.start()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await embedding_pool.stop()
 
 app.add_middleware(
     CORSMiddleware,
