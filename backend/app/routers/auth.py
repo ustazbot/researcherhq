@@ -90,11 +90,11 @@ def login(body: LoginBody, request: Request):
             (body.email,)
         ).fetchone()
 
-    if user and user["is_suspended"]:
-        raise HTTPException(403, "Akaun ini telah digantung. Hubungi support.")
-
     if not user or not user["password_hash"] or not verify_password(body.password, user["password_hash"]):
         raise HTTPException(401, "Emel atau kata laluan tidak sah.")
+
+    if user["is_suspended"]:
+        raise HTTPException(403, "Akaun ini telah digantung. Hubungi support.")
 
     token = create_jwt({"user_id": user["id"], "email": user["email"]})
     return {

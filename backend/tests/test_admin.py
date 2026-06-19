@@ -204,6 +204,26 @@ def test_login_suspended_user(setup):
     assert "digantung" in r.json()["detail"]
 
 
+# --- Test 6b: Login suspended user, password SALAH → 401 (bukan 403) ---
+# Detect enumeration bug: password salah tak patut dedah status suspended
+def test_login_wrong_password_suspended_user_returns_401(setup):
+    s = setup
+    from app.services.auth_service import hash_password
+    conn = sqlite3.connect(s["db_path"])
+    conn.execute(
+        "UPDATE users SET is_suspended = 1, password_hash = ? WHERE id = ?",
+        (hash_password("betulpass999"), s["user_id"])
+    )
+    conn.commit()
+    conn.close()
+
+    r = s["client"].post(
+        "/auth/login",
+        json={"email": "pengguna@test.com", "password": "salahpass000"}
+    )
+    assert r.status_code == 401, f"Password salah + suspended sepatutnya 401, dapat {r.status_code}"
+
+
 # --- Test 7: Manual adjustment valid → 200, kredit updated, new billing row ---
 def test_manual_credit_adjustment(setup):
     s = setup
