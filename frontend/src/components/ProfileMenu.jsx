@@ -65,7 +65,7 @@ export function ProfileMenu({ user, tier: tierProp }) {
             <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{user?.email}</p>
             {credits && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>
-                {credits.kredit_remaining} kredit tersisa
+                Baki Kredit Kajian: {credits.kredit_remaining}
               </p>
             )}
           </div>
