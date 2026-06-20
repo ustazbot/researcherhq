@@ -5,6 +5,7 @@ import api from '../api/client'
 export function ProfileMenu({ user }) {
   const [open, setOpen] = useState(false)
   const [credits, setCredits] = useState(null)
+  const [topping, setTopping] = useState(false)
   const nav = useNavigate()
   const ref = useRef()
 
@@ -69,13 +70,30 @@ export function ProfileMenu({ user }) {
           </div>
           {[
             { label: 'Tetapan Akaun', action: () => {} },
-            { label: 'Urus Langganan', action: () => {} },
             { label: 'Laporkan Isu', action: () => nav('/support') },
           ].map(item => (
             <button key={item.label} onClick={item.action} style={menuItemStyle}>
               {item.label}
             </button>
           ))}
+          {user?.tier === 'pro' && (
+            <button
+              onClick={async () => {
+                setTopping(true)
+                try {
+                  const { data } = await api.post('/billing/topup/initiate')
+                  window.location.href = data.payment_url
+                } catch {
+                  alert('Gagal memulakan topup. Sila cuba lagi.')
+                  setTopping(false)
+                }
+              }}
+              disabled={topping}
+              style={{ ...menuItemStyle, color: 'var(--accent)', fontWeight: 600, opacity: topping ? 0.7 : 1 }}
+            >
+              {topping ? 'Memproses...' : 'Topup +200 kredit — RM10'}
+            </button>
+          )}
           <button onClick={logout} style={{ ...menuItemStyle, color: '#EF4444', borderTop: '1px solid var(--line)', marginTop: 4 }}>
             Log Keluar
           </button>

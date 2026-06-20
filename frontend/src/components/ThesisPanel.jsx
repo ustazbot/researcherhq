@@ -1,7 +1,11 @@
+import { useState } from 'react'
+import api from '../api/client'
+
 const STATUS_LABEL = { draft: 'Draf', dalam_proses: 'Dalam Proses', siap: 'Siap' }
 const STATUS_COLOR = { draft: 'var(--line)', dalam_proses: 'var(--accent-soft)', siap: '#D1FAE5' }
 
 export function ThesisPanel({ chapters, onExport, tier, projectId }) {
+  const [upgrading, setUpgrading] = useState(false)
   const done = (chapters || []).filter(c => c.status === 'siap').length
   const total = (chapters || []).length
 
@@ -28,14 +32,24 @@ export function ThesisPanel({ chapters, onExport, tier, projectId }) {
             Urus bab, assign output AI, dan export .docx — hanya untuk Pro.
           </p>
           <button
-            onClick={() => window.location.href = '/upgrade'}
+            onClick={async () => {
+              setUpgrading(true)
+              try {
+                const { data } = await api.post('/billing/upgrade/initiate')
+                window.location.href = data.payment_url
+              } catch {
+                alert('Gagal memulakan pembayaran. Sila cuba lagi.')
+                setUpgrading(false)
+              }
+            }}
+            disabled={upgrading}
             style={{
               padding: '10px 20px', background: 'var(--accent)', border: 'none',
-              borderRadius: 'var(--radius-sm)', fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'var(--font-heading)', fontSize: 14,
+              borderRadius: 'var(--radius-sm)', fontWeight: 700, cursor: upgrading ? 'wait' : 'pointer',
+              fontFamily: 'var(--font-heading)', fontSize: 14, opacity: upgrading ? 0.7 : 1,
             }}
           >
-            Naik taraf ke Pro — RM39/bulan
+            {upgrading ? 'Memproses...' : 'Naik taraf ke Pro — RM39/bulan'}
           </button>
         </div>
       )}

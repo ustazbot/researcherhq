@@ -177,3 +177,101 @@ def test_hash_formula_matches_toyyibpay_spec():
         assert verify_toyyibpay_callback(status, order_id, refno, expected_hash) is True
         assert verify_toyyibpay_callback(status, order_id, refno, "wronghash") is False
         assert verify_toyyibpay_callback("0", order_id, refno, expected_hash) is False
+
+
+@pytest.fixture
+def client_with_upgrade_initiated(tmp_path):
+    """Client with a free user + one upgrade_initiated billing_event pre-seeded."""
+    db_path = str(tmp_path / "upgrade_test.db")
+    with patch("app.database._db_path", db_path):
+        from app.database import init_db
+        init_db(db_path)
+        from app.main import app
+        with TestClient(app) as c:
+            headers = make_headers()
+            c.post("/projects", json={"title": "T", "research_mode": "general"}, headers=headers)
+
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            order_ref = "UPGRADE-user-bil-CCDD3344"
+            conn.execute(
+                "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, 'upgrade_initiated', ?, ?, ?, datetime('now'))",
+                (str(uuid.uuid4()), "user-bill", 39.0, 500, order_ref)
+            )
+            conn.commit()
+            conn.close()
+            yield c, order_ref, db_path
+
+
+# --- Test 7: upgrade webhook valid → tier=pro, kredit=500 ---
+def test_webhook_upgrade_sets_pro_tier(client_with_upgrade_initiated):
+    c, order_ref, db_path = client_with_upgrade_initiated
+    refno = "REFUPG1"
+    status = "1"
+    good_hash = _valid_hash(status, order_ref, refno)
+
+    resp = c.post("/billing/webhook", data={
+        "status": status, "order_id": order_ref, "refno": refno, "hash": good_hash,
+    })
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
+
+    credits = c.get("/credits", headers=make_headers()).json()
+    assert credits["tier"] == "pro"
+    assert credits["kredit_remaining"] == 500
+    assert credits["kredit_total"] == 500
+
+
+# --- Test 8: upgrade webhook idempotency → tier kekal pro, kredit tak tambah dua kali ---
+def test_webhook_upgrade_idempotency(client_with_upgrade_initiated):
+    c, order_ref, db_path = client_with_upgrade_initiated
+    refno = "REFUPG2"
+    status = "1"
+    good_hash = _valid_hash(status, order_ref, refno)
+    payload = {"status": status, "order_id": order_ref, "refno": refno, "hash": good_hash}
+
+    r1 = c.post("/billing/webhook", data=payload)
+    assert r1.json()["status"] == "ok"
+
+    r2 = c.post("/billing/webhook", data=payload)
+    assert r2.json()["status"] == "already_processed"
+
+    credits = c.get("/credits", headers=make_headers()).json()
+    assert credits["kredit_remaining"] == 500
+
+
+# --- Test 9: topup endpoint tolak free user (403) ---
+def test_topup_rejected_for_free_user(tmp_path):
+    db_path = str(tmp_path / "free_topup.db")
+    with patch("app.database._db_path", db_path):
+        from app.database import init_db
+        init_db(db_path)
+        from app.main import app
+        with TestClient(app) as c:
+            headers = make_headers()
+            c.post("/projects", json={"title": "T", "research_mode": "general"}, headers=headers)
+            with patch("app.routers.billing._create_toyyibpay_bill", return_value="FAKECODE"):
+                resp = c.post("/billing/topup/initiate", headers=headers)
+    assert resp.status_code == 403
+
+
+# --- Test 10: upgrade endpoint tolak pro user (400) ---
+def test_upgrade_rejected_for_pro_user(tmp_path):
+    db_path = str(tmp_path / "pro_upgrade.db")
+    with patch("app.database._db_path", db_path):
+        from app.database import init_db
+        init_db(db_path)
+        from app.main import app
+        with TestClient(app) as c:
+            headers = make_headers()
+            c.post("/projects", json={"title": "T", "research_mode": "general"}, headers=headers)
+            # Upgrade user to pro directly in DB
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            conn.execute("UPDATE users SET tier = 'pro' WHERE id = 'user-bill'")
+            conn.commit()
+            conn.close()
+            with patch("app.routers.billing._create_toyyibpay_bill", return_value="FAKECODE"):
+                resp = c.post("/billing/upgrade/initiate", headers=headers)
+    assert resp.status_code == 400
