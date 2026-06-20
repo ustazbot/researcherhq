@@ -87,7 +87,7 @@ def _delete_user_account(user_id: str, db_path: str = None):
 def get_account(user=Depends(get_current_user)):
     with get_db() as db:
         row = db.execute(
-            "SELECT id, email, tier, kredit_remaining, kredit_total, reset_date, created_at FROM users WHERE id = ?",
+            "SELECT id, email, tier, kredit_remaining, kredit_total, reset_date, created_at, password_is_permanent FROM users WHERE id = ?",
             (user["user_id"],)
         ).fetchone()
 
@@ -102,6 +102,7 @@ def get_account(user=Depends(get_current_user)):
         "kredit_total": row["kredit_total"],
         "reset_date": row["reset_date"],
         "created_at": row["created_at"],
+        "password_is_permanent": row["password_is_permanent"],
     }
 
 

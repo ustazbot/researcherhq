@@ -184,6 +184,10 @@ def _create_schema(conn: sqlite3.Connection):
     if "is_suspended" not in user_cols:
         conn.execute("ALTER TABLE users ADD COLUMN is_suspended INTEGER DEFAULT 0")
 
+    # Migration: add password_is_permanent for Opsyen B login model
+    if "password_is_permanent" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN password_is_permanent INTEGER DEFAULT 0")
+
 
 @contextmanager
 def get_db():

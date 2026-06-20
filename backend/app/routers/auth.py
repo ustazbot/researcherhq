@@ -54,7 +54,7 @@ async def request_password(body: RequestPasswordBody, request: Request):
 
         if existing:
             db.execute(
-                "UPDATE users SET password_hash = ? WHERE email = ?",
+                "UPDATE users SET password_hash = ?, password_is_permanent = 0 WHERE email = ?",
                 (hashed, body.email)
             )
         else:
@@ -116,3 +116,19 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         return payload
     except ValueError:
         raise HTTPException(401, "Token tidak sah atau luput.")
+
+class SetPasswordBody(BaseModel):
+    new_password: str
+
+@router.post("/set-password")
+def set_password(body: SetPasswordBody, user=Depends(get_current_user)):
+    if len(body.new_password) < 8:
+        raise HTTPException(400, "Kata laluan mesti sekurang-kurangnya 8 aksara.")
+
+    hashed = hash_password(body.new_password)
+    with get_db() as db:
+        db.execute(
+            "UPDATE users SET password_hash = ?, password_is_permanent = 1 WHERE id = ?",
+            (hashed, user["user_id"])
+        )
+    return {"message": "Kata laluan tetap berjaya ditetapkan."}
