@@ -7,6 +7,7 @@ import { SourcePanel } from '../components/SourcePanel'
 import { ThesisPanel } from '../components/ThesisPanel'
 import api from '../api/client'
 import { extractPdfPages } from '../utils/pdfExtract'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 
 const OUTPUT_MODES = [
   { value: 'qa', label: 'Soal-Jawab', credits: 1 },
@@ -30,6 +31,8 @@ export function ProjectPage() {
   const fileRef = useRef()
   const bottomRef = useRef()
   const user = JSON.parse(localStorage.getItem('rhq_user') || '{}')
+  const isMobile = useMediaQuery('(max-width: 768px)')
+  const [mobileTab, setMobileTab] = useState('chat') // 'source' | 'chat' | 'structure'
 
   useEffect(() => {
     Promise.all([
@@ -134,107 +137,141 @@ export function ProjectPage() {
         </div>
       </header>
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
-        <SourcePanel
-          documents={documents}
-          onUpload={() => fileRef.current?.click()}
-          tier={credits?.tier ?? user?.tier}
-          uploading={uploading}
-        />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ flex: 1, overflow: 'auto', padding: '24px', maxWidth: 800, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
-            {messages.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--ink-soft)' }}>
-                <p style={{ fontSize: 18, fontWeight: 500 }}>Muat naik dokumen dan mula bertanya.</p>
-                <p style={{ fontSize: 14 }}>Semua jawapan akan bersumberkan dokumen anda sahaja.</p>
-              </div>
-            )}
-            {messages.map(msg => (
-              <div key={msg.id} style={{
-                marginBottom: 24, display: 'flex', flexDirection: 'column',
-                alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              }}>
-                <div style={{
-                  maxWidth: '85%',
-                  background: msg.role === 'user' ? 'var(--ink)' : msg.role === 'error' ? '#FEF2F2' : 'var(--card)',
-                  color: msg.role === 'user' ? 'var(--bg)' : msg.role === 'error' ? '#EF4444' : 'var(--ink)',
-                  border: msg.role === 'user' ? 'none' : `1px solid ${msg.role === 'error' ? '#FECACA' : 'var(--line)'}`,
-                  borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
-                  padding: '14px 18px', fontFamily: 'var(--font-body)', fontSize: 15,
-                  lineHeight: 1.6, whiteSpace: 'pre-wrap',
-                }}>
-                  {msg.content}
-                  {msg.kredit_used && (
-                    <span style={{ display: 'block', marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6 }}>
-                      {msg.kredit_used} kredit digunakan
-                    </span>
-                  )}
-                </div>
-                {msg.sources && msg.sources.length > 0 && (
-                  <div style={{ marginTop: 8, maxWidth: '85%', width: '100%' }}>
-                    <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      Sumber ({msg.sources.length})
-                    </p>
-                    {msg.sources.map(s => <CitationCard key={s.chunk_id} source={s} />)}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {isMobile && (
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
+            {[
+              { key: 'source', label: 'Sumber' },
+              { key: 'chat', label: 'Chat' },
+              { key: 'structure', label: 'Struktur' },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setMobileTab(tab.key)}
+                style={{
+                  flex: 1, padding: '10px 0',
+                  background: mobileTab === tab.key ? 'var(--ink)' : 'transparent',
+                  color: mobileTab === tab.key ? 'var(--bg)' : 'var(--ink-soft)',
+                  border: 'none', fontFamily: 'var(--font-body)', fontSize: 13,
+                  cursor: 'pointer', borderBottom: mobileTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
+
+          {(!isMobile || mobileTab === 'source') && (
+            <SourcePanel
+              documents={documents}
+              onUpload={() => fileRef.current?.click()}
+              tier={credits?.tier ?? user?.tier}
+              uploading={uploading}
+            />
+          )}
+
+          {(!isMobile || mobileTab === 'chat') && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div style={{ flex: 1, overflow: 'auto', padding: '24px', maxWidth: 800, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+                {messages.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--ink-soft)' }}>
+                    <p style={{ fontSize: 18, fontWeight: 500 }}>Muat naik dokumen dan mula bertanya.</p>
+                    <p style={{ fontSize: 14 }}>Semua jawapan akan bersumberkan dokumen anda sahaja.</p>
                   </div>
                 )}
+                {messages.map(msg => (
+                  <div key={msg.id} style={{
+                    marginBottom: 24, display: 'flex', flexDirection: 'column',
+                    alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  }}>
+                    <div style={{
+                      maxWidth: '85%',
+                      background: msg.role === 'user' ? 'var(--ink)' : msg.role === 'error' ? '#FEF2F2' : 'var(--card)',
+                      color: msg.role === 'user' ? 'var(--bg)' : msg.role === 'error' ? '#EF4444' : 'var(--ink)',
+                      border: msg.role === 'user' ? 'none' : `1px solid ${msg.role === 'error' ? '#FECACA' : 'var(--line)'}`,
+                      borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
+                      padding: '14px 18px', fontFamily: 'var(--font-body)', fontSize: 15,
+                      lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                    }}>
+                      {msg.content}
+                      {msg.kredit_used && (
+                        <span style={{ display: 'block', marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6 }}>
+                          {msg.kredit_used} kredit digunakan
+                        </span>
+                      )}
+                    </div>
+                    {msg.sources && msg.sources.length > 0 && (
+                      <div style={{ marginTop: 8, maxWidth: '85%', width: '100%' }}>
+                        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          Sumber ({msg.sources.length})
+                        </p>
+                        {msg.sources.map(s => <CitationCard key={s.chunk_id} source={s} />)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {loading && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 24 }}>
+                    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '4px 16px 16px 16px', padding: '14px 18px' }}>
+                      <span style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>Berfikir...</span>
+                    </div>
+                  </div>
+                )}
+                <div ref={bottomRef} />
               </div>
-            ))}
-            {loading && (
-              <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 24 }}>
-                <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '4px 16px 16px 16px', padding: '14px 18px' }}>
-                  <span style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>Berfikir...</span>
+
+              <div style={{ borderTop: '1px solid var(--line)', padding: '16px 24px', background: 'var(--card)', flexShrink: 0 }}>
+                <div style={{ maxWidth: 800, margin: '0 auto' }}>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+                    {OUTPUT_MODES.map(m => (
+                      <button key={m.value} onClick={() => setOutputMode(m.value)} style={{
+                        padding: '4px 10px',
+                        background: outputMode === m.value ? 'var(--ink)' : 'transparent',
+                        color: outputMode === m.value ? 'var(--bg)' : 'var(--ink-soft)',
+                        border: `1px solid ${outputMode === m.value ? 'var(--ink)' : 'var(--line)'}`,
+                        borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer',
+                      }}>
+                        {m.label} ({m.credits} kr)
+                      </button>
+                    ))}
+                  </div>
+                  <form onSubmit={handleQuery} style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      value={query} onChange={e => setQuery(e.target.value)}
+                      placeholder="Tanya soalan berdasarkan dokumen anda..."
+                      disabled={loading}
+                      style={{
+                        flex: 1, padding: '12px 16px',
+                        border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)',
+                        fontFamily: 'var(--font-body)', fontSize: 15, background: 'var(--bg)', outline: 'none',
+                      }}
+                    />
+                    <button type="submit" disabled={loading || !query.trim()} style={{
+                      padding: '12px 20px', background: 'var(--accent)', color: 'var(--ink)',
+                      border: 'none', borderRadius: 'var(--radius-sm)',
+                      fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, cursor: 'pointer',
+                    }}>
+                      →
+                    </button>
+                  </form>
                 </div>
               </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-
-          <div style={{ borderTop: '1px solid var(--line)', padding: '16px 24px', background: 'var(--card)', flexShrink: 0 }}>
-            <div style={{ maxWidth: 800, margin: '0 auto' }}>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-                {OUTPUT_MODES.map(m => (
-                  <button key={m.value} onClick={() => setOutputMode(m.value)} style={{
-                    padding: '4px 10px',
-                    background: outputMode === m.value ? 'var(--ink)' : 'transparent',
-                    color: outputMode === m.value ? 'var(--bg)' : 'var(--ink-soft)',
-                    border: `1px solid ${outputMode === m.value ? 'var(--ink)' : 'var(--line)'}`,
-                    borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer',
-                  }}>
-                    {m.label} ({m.credits} kr)
-                  </button>
-                ))}
-              </div>
-              <form onSubmit={handleQuery} style={{ display: 'flex', gap: 8 }}>
-                <input
-                  value={query} onChange={e => setQuery(e.target.value)}
-                  placeholder="Tanya soalan berdasarkan dokumen anda..."
-                  disabled={loading}
-                  style={{
-                    flex: 1, padding: '12px 16px',
-                    border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)',
-                    fontFamily: 'var(--font-body)', fontSize: 15, background: 'var(--bg)', outline: 'none',
-                  }}
-                />
-                <button type="submit" disabled={loading || !query.trim()} style={{
-                  padding: '12px 20px', background: 'var(--accent)', color: 'var(--ink)',
-                  border: 'none', borderRadius: 'var(--radius-sm)',
-                  fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, cursor: 'pointer',
-                }}>
-                  →
-                </button>
-              </form>
             </div>
-          </div>
-        </div>
+          )}
 
-        <ThesisPanel
-          chapters={chapters}
-          onExport={handleExport}
-          tier={credits?.tier ?? user?.tier}
-          projectId={id}
-        />
+          {(!isMobile || mobileTab === 'structure') && (
+            <ThesisPanel
+              chapters={chapters}
+              onExport={handleExport}
+              tier={credits?.tier ?? user?.tier}
+              projectId={id}
+            />
+          )}
+        </div>
       </div>
     </div>
   )
