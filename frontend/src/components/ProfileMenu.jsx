@@ -70,7 +70,7 @@ export function ProfileMenu({ user, tier: tierProp }) {
             )}
           </div>
           {[
-            { label: 'Tetapan Akaun', action: () => {} },
+            { label: 'Tetapan Akaun', action: () => nav('/account') },
             { label: 'Laporkan Isu', action: () => nav('/support') },
           ].map(item => (
             <button key={item.label} onClick={item.action} style={menuItemStyle}>
