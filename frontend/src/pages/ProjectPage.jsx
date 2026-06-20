@@ -2,19 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ProfileMenu } from '../components/ProfileMenu'
-import { CitationCard } from '../components/CitationCard'
 import { SourcePanel } from '../components/SourcePanel'
 import { ThesisPanel } from '../components/ThesisPanel'
+import { ChapterEditor } from '../components/ChapterEditor'
+import { ChatPanel } from '../components/ChatPanel'
 import api from '../api/client'
 import { extractPdfPages } from '../utils/pdfExtract'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-
-const OUTPUT_MODES = [
-  { value: 'qa', label: 'Soal-Jawab', credits: 1 },
-  { value: 'key_findings', label: 'Dapatan Utama', credits: 3 },
-  { value: 'executive_summary', label: 'Ringkasan Eksekutif', credits: 5 },
-  { value: 'literature_review', label: 'Sorotan Kajian', credits: 10 },
-]
 
 export function ProjectPage() {
   const { id } = useParams()
@@ -28,11 +22,25 @@ export function ProjectPage() {
   const [loading, setLoading] = useState(false)
   const [credits, setCredits] = useState(null)
   const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  // Editor state
+  const [activeChapterId, setActiveChapterId] = useState(null)
+  const [activeChapterContent, setActiveChapterContent] = useState('')
+  const [contentLoading, setContentLoading] = useState(false)
+  const [pendingSuggestion, setPendingSuggestion] = useState(null) // { text: string } | null
+
+  // Layout state
+  const [sourceCollapsed, setSourceCollapsed] = useState(false)
+
+  // Mobile state
+  const isMobile = useMediaQuery('(max-width: 768px)')
+  const [mobileView, setMobileView] = useState('editor') // 'editor' | 'chat'
+  const [drawerOpen, setDrawerOpen] = useState(false) // source + navigator drawer
+
   const fileRef = useRef()
   const bottomRef = useRef()
   const user = JSON.parse(localStorage.getItem('rhq_user') || '{}')
-  const isMobile = useMediaQuery('(max-width: 768px)')
-  const [mobileTab, setMobileTab] = useState('chat') // 'source' | 'chat' | 'structure'
 
   useEffect(() => {
     Promise.all([
@@ -53,6 +61,27 @@ export function ProjectPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Fetch chapter content bila active chapter bertukar
+  useEffect(() => {
+    if (!activeChapterId) {
+      setActiveChapterContent('')
+      return
+    }
+    setContentLoading(true)
+    api.get(`/projects/${id}/chapters/${activeChapterId}`)
+      .then(r => setActiveChapterContent(r.data.content || ''))
+      .catch(() => setActiveChapterContent(''))
+      .finally(() => setContentLoading(false))
+  }, [activeChapterId, id])
+
+  function handleSetActive(chapterId) {
+    if (pendingSuggestion && chapterId !== activeChapterId) {
+      if (!window.confirm('Ada cadangan AI yang belum disimpan. Tukar bab sekarang akan buang cadangan ini.')) return
+      setPendingSuggestion(null)
+    }
+    setActiveChapterId(chapterId)
+  }
 
   async function handleQuery(e) {
     e.preventDefault()
@@ -90,22 +119,108 @@ export function ProjectPage() {
     try {
       const pages = await extractPdfPages(file)
       const { data } = await api.post('/documents/upload', {
-        project_id: id,
-        filename: file.name,
-        category: 'artikel',
-        pages,
+        project_id: id, filename: file.name, category: 'artikel', pages,
       })
       setDocuments(prev => [...prev, data])
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Gagal proses dokumen. Cuba lagi.'
-      alert(msg)
+      alert(err.response?.data?.detail || 'Gagal proses dokumen. Cuba lagi.')
     }
     setUploading(false)
     fileRef.current.value = ''
   }
 
+  async function handleDeleteDoc(docId) {
+    try {
+      await api.delete(`/documents/${docId}`)
+      setDocuments(prev => prev.filter(d => d.id !== docId))
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Gagal padam dokumen. Cuba lagi.')
+    }
+  }
+
+  async function handleAddChapter(title) {
+    const nextOrder = chapters.length > 0 ? Math.max(...chapters.map(c => c.chapter_order)) + 1 : 1
+    try {
+      const { data } = await api.post(`/projects/${id}/chapters`, { title, chapter_order: nextOrder })
+      setChapters(prev => [...prev, data])
+      setActiveChapterId(data.id)
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Gagal tambah bab. Cuba lagi.')
+    }
+  }
+
+  async function handleDeleteChapter(chapterId) {
+    try {
+      await api.delete(`/projects/${id}/chapters/${chapterId}`)
+      setChapters(prev => prev.filter(c => c.id !== chapterId))
+      if (activeChapterId === chapterId) {
+        setActiveChapterId(null)
+        setPendingSuggestion(null)
+      }
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Gagal padam bab. Cuba lagi.')
+    }
+  }
+
+  async function handleReorderChapter(chapterId, direction) {
+    const sorted = [...chapters].sort((a, b) => a.chapter_order - b.chapter_order)
+    const idx = sorted.findIndex(c => c.id === chapterId)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= sorted.length) return
+
+    const curr = sorted[idx]
+    const swap = sorted[swapIdx]
+    const newOrderCurr = swap.chapter_order
+    const newOrderSwap = curr.chapter_order
+
+    try {
+      await Promise.all([
+        api.patch(`/projects/${id}/chapters/${curr.id}`, { chapter_order: newOrderCurr }),
+        api.patch(`/projects/${id}/chapters/${swap.id}`, { chapter_order: newOrderSwap }),
+      ])
+      setChapters(prev => prev.map(c => {
+        if (c.id === curr.id) return { ...c, chapter_order: newOrderCurr }
+        if (c.id === swap.id) return { ...c, chapter_order: newOrderSwap }
+        return c
+      }))
+    } catch (err) {
+      alert('Gagal susun semula bab. Cuba lagi.')
+    }
+  }
+
+  async function handleAcceptSuggestion(text) {
+    if (!activeChapterId) return
+    setSaving(true)
+    try {
+      await api.patch(`/projects/${id}/chapters/${activeChapterId}/content`, { content: text })
+      setActiveChapterContent(text)
+      setChapters(prev => prev.map(c =>
+        c.id === activeChapterId ? { ...c, status: 'dalam_proses' } : c
+      ))
+      setPendingSuggestion(null)
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Gagal simpan cadangan. Cuba lagi.')
+    }
+    setSaving(false)
+  }
+
+  async function handleSaveContent(text) {
+    if (!activeChapterId) return
+    setSaving(true)
+    try {
+      await api.patch(`/projects/${id}/chapters/${activeChapterId}/content`, { content: text })
+      setActiveChapterContent(text)
+      setChapters(prev => prev.map(c =>
+        c.id === activeChapterId ? { ...c, status: 'dalam_proses' } : c
+      ))
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Gagal simpan kandungan. Cuba lagi.')
+    }
+    setSaving(false)
+  }
+
   async function handleExport(chapterId) {
-    alert(`Export .docx untuk bab ini akan tersedia tidak lama lagi.`)
+    alert('Export .docx untuk bab ini akan tersedia tidak lama lagi.')
   }
 
   if (!project) return (
@@ -114,6 +229,135 @@ export function ProjectPage() {
     </div>
   )
 
+  const activeChapter = chapters.find(c => c.id === activeChapterId) || null
+  const sortedChapters = [...chapters].sort((a, b) => a.chapter_order - b.chapter_order)
+
+  // ── MOBILE LAYOUT ──────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
+        {/* Header */}
+        <header style={{
+          borderBottom: '1px solid var(--line)', padding: '0 16px',
+          height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'var(--card)', flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={() => nav('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 18 }}>←</button>
+            <Logo size="sm" />
+            <button
+              onClick={() => setDrawerOpen(true)}
+              title="Buka panel Sumber & Struktur"
+              style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, cursor: 'pointer', padding: '4px 8px', fontSize: 12, color: 'var(--ink-soft)' }}
+            >☰ Sumber</button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {credits && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: credits.kredit_remaining < 10 ? '#EF4444' : 'var(--ink-soft)' }}>
+                {credits.kredit_remaining} kr
+              </span>
+            )}
+            <ProfileMenu user={user} tier={credits?.tier} />
+          </div>
+        </header>
+
+        {/* Mobile toggle bar */}
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
+          {[
+            { key: 'editor', label: activeChapter ? activeChapter.title.slice(0, 20) + (activeChapter.title.length > 20 ? '…' : '') : 'Editor' },
+            { key: 'chat', label: 'Chat AI' },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setMobileView(tab.key)}
+              style={{
+                flex: 1, padding: '10px 0',
+                background: mobileView === tab.key ? 'var(--ink)' : 'transparent',
+                color: mobileView === tab.key ? 'var(--bg)' : 'var(--ink-soft)',
+                border: 'none', fontFamily: 'var(--font-body)', fontSize: 13,
+                cursor: 'pointer', borderBottom: mobileView === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Mobile views */}
+        <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
+
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          {mobileView === 'editor' && (
+            <ChapterEditor
+              chapter={activeChapter}
+              content={contentLoading ? '' : activeChapterContent}
+              pendingSuggestion={pendingSuggestion}
+              onAccept={handleAcceptSuggestion}
+              onReject={() => setPendingSuggestion(null)}
+              onSave={handleSaveContent}
+              saving={saving}
+            />
+          )}
+          {mobileView === 'chat' && (
+            <ChatPanel
+              messages={messages} loading={loading}
+              query={query} onQueryChange={setQuery}
+              onSubmit={handleQuery}
+              outputMode={outputMode} onOutputModeChange={setOutputMode}
+              credits={credits}
+              onSendToEditor={text => { setPendingSuggestion({ text }); setMobileView('editor') }}
+              hasActiveChapter={!!activeChapterId}
+              bottomRef={bottomRef}
+            />
+          )}
+        </div>
+
+        {/* Drawer — Source + Navigator */}
+        {drawerOpen && (
+          <>
+            <div
+              onClick={() => setDrawerOpen(false)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 40 }}
+            />
+            <div style={{
+              position: 'fixed', top: 0, left: 0, bottom: 0, width: 280,
+              background: 'var(--card)', zIndex: 50, display: 'flex', flexDirection: 'column',
+              overflowY: 'auto',
+            }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15 }}>Sumber & Struktur</span>
+                <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-soft)' }}>×</button>
+              </div>
+              {/* SourcePanel inlined for drawer */}
+              <SourcePanel
+                documents={documents}
+                onUpload={() => { fileRef.current?.click(); setDrawerOpen(false) }}
+                tier={credits?.tier ?? user?.tier}
+                uploading={uploading}
+                collapsed={false}
+                onToggleCollapse={() => {}}
+                onDeleteDoc={handleDeleteDoc}
+              />
+              <div style={{ borderTop: '2px solid var(--line)' }} />
+              <ThesisPanel
+                chapters={sortedChapters}
+                onExport={handleExport}
+                tier={credits?.tier ?? user?.tier}
+                projectId={id}
+                activeChapterId={activeChapterId}
+                onSetActive={ch => { handleSetActive(ch); setDrawerOpen(false); setMobileView('editor') }}
+                onAddChapter={handleAddChapter}
+                onDeleteChapter={handleDeleteChapter}
+                onReorderChapter={handleReorderChapter}
+              />
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // ── DESKTOP LAYOUT ─────────────────────────────────────────────
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
       <header style={{
@@ -137,141 +381,57 @@ export function ProjectPage() {
         </div>
       </header>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {isMobile && (
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
-            {[
-              { key: 'source', label: 'Sumber' },
-              { key: 'chat', label: 'Chat' },
-              { key: 'structure', label: 'Struktur' },
-            ].map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setMobileTab(tab.key)}
-                style={{
-                  flex: 1, padding: '10px 0',
-                  background: mobileTab === tab.key ? 'var(--ink)' : 'transparent',
-                  color: mobileTab === tab.key ? 'var(--bg)' : 'var(--ink-soft)',
-                  border: 'none', fontFamily: 'var(--font-body)', fontSize: 13,
-                  cursor: 'pointer', borderBottom: mobileTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        )}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
 
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
+        {/* Source sidebar — collapsible */}
+        <SourcePanel
+          documents={documents}
+          onUpload={() => fileRef.current?.click()}
+          tier={credits?.tier ?? user?.tier}
+          uploading={uploading}
+          collapsed={sourceCollapsed}
+          onToggleCollapse={() => setSourceCollapsed(c => !c)}
+          onDeleteDoc={handleDeleteDoc}
+        />
 
-          {(!isMobile || mobileTab === 'source') && (
-            <SourcePanel
-              documents={documents}
-              onUpload={() => fileRef.current?.click()}
-              tier={credits?.tier ?? user?.tier}
-              uploading={uploading}
-            />
-          )}
+        {/* ChapterEditor — main pane */}
+        <ChapterEditor
+          chapter={activeChapter}
+          content={contentLoading ? '' : activeChapterContent}
+          pendingSuggestion={pendingSuggestion}
+          onAccept={handleAcceptSuggestion}
+          onReject={() => setPendingSuggestion(null)}
+          onSave={handleSaveContent}
+          saving={saving}
+        />
 
-          {(!isMobile || mobileTab === 'chat') && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ flex: 1, overflow: 'auto', padding: '24px', maxWidth: 800, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
-                {messages.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--ink-soft)' }}>
-                    <p style={{ fontSize: 18, fontWeight: 500 }}>Muat naik dokumen dan mula bertanya.</p>
-                    <p style={{ fontSize: 14 }}>Semua jawapan akan bersumberkan dokumen anda sahaja.</p>
-                  </div>
-                )}
-                {messages.map(msg => (
-                  <div key={msg.id} style={{
-                    marginBottom: 24, display: 'flex', flexDirection: 'column',
-                    alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  }}>
-                    <div style={{
-                      maxWidth: '85%',
-                      background: msg.role === 'user' ? 'var(--ink)' : msg.role === 'error' ? '#FEF2F2' : 'var(--card)',
-                      color: msg.role === 'user' ? 'var(--bg)' : msg.role === 'error' ? '#EF4444' : 'var(--ink)',
-                      border: msg.role === 'user' ? 'none' : `1px solid ${msg.role === 'error' ? '#FECACA' : 'var(--line)'}`,
-                      borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
-                      padding: '14px 18px', fontFamily: 'var(--font-body)', fontSize: 15,
-                      lineHeight: 1.6, whiteSpace: 'pre-wrap',
-                    }}>
-                      {msg.content}
-                      {msg.kredit_used && (
-                        <span style={{ display: 'block', marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6 }}>
-                          {msg.kredit_used} kredit digunakan
-                        </span>
-                      )}
-                    </div>
-                    {msg.sources && msg.sources.length > 0 && (
-                      <div style={{ marginTop: 8, maxWidth: '85%', width: '100%' }}>
-                        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                          Sumber ({msg.sources.length})
-                        </p>
-                        {msg.sources.map(s => <CitationCard key={s.chunk_id} source={s} />)}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {loading && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 24 }}>
-                    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '4px 16px 16px 16px', padding: '14px 18px' }}>
-                      <span style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>Berfikir...</span>
-                    </div>
-                  </div>
-                )}
-                <div ref={bottomRef} />
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--line)', padding: '16px 24px', background: 'var(--card)', flexShrink: 0 }}>
-                <div style={{ maxWidth: 800, margin: '0 auto' }}>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-                    {OUTPUT_MODES.map(m => (
-                      <button key={m.value} onClick={() => setOutputMode(m.value)} style={{
-                        padding: '4px 10px',
-                        background: outputMode === m.value ? 'var(--ink)' : 'transparent',
-                        color: outputMode === m.value ? 'var(--bg)' : 'var(--ink-soft)',
-                        border: `1px solid ${outputMode === m.value ? 'var(--ink)' : 'var(--line)'}`,
-                        borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer',
-                      }}>
-                        {m.label} ({m.credits} kr)
-                      </button>
-                    ))}
-                  </div>
-                  <form onSubmit={handleQuery} style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      value={query} onChange={e => setQuery(e.target.value)}
-                      placeholder="Tanya soalan berdasarkan dokumen anda..."
-                      disabled={loading}
-                      style={{
-                        flex: 1, padding: '12px 16px',
-                        border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)',
-                        fontFamily: 'var(--font-body)', fontSize: 15, background: 'var(--bg)', outline: 'none',
-                      }}
-                    />
-                    <button type="submit" disabled={loading || !query.trim()} style={{
-                      padding: '12px 20px', background: 'var(--accent)', color: 'var(--ink)',
-                      border: 'none', borderRadius: 'var(--radius-sm)',
-                      fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, cursor: 'pointer',
-                    }}>
-                      →
-                    </button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {(!isMobile || mobileTab === 'structure') && (
-            <ThesisPanel
-              chapters={chapters}
-              onExport={handleExport}
-              tier={credits?.tier ?? user?.tier}
-              projectId={id}
-            />
-          )}
+        {/* Chat — right sidebar */}
+        <div style={{ width: 320, flexShrink: 0, borderLeft: '1px solid var(--line)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <ChatPanel
+            messages={messages} loading={loading}
+            query={query} onQueryChange={setQuery}
+            onSubmit={handleQuery}
+            outputMode={outputMode} onOutputModeChange={setOutputMode}
+            credits={credits}
+            onSendToEditor={text => setPendingSuggestion({ text })}
+            hasActiveChapter={!!activeChapterId}
+            bottomRef={bottomRef}
+          />
         </div>
+
+        {/* Thesis navigator — far right */}
+        <ThesisPanel
+          chapters={sortedChapters}
+          onExport={handleExport}
+          tier={credits?.tier ?? user?.tier}
+          projectId={id}
+          activeChapterId={activeChapterId}
+          onSetActive={handleSetActive}
+          onAddChapter={handleAddChapter}
+          onDeleteChapter={handleDeleteChapter}
+          onReorderChapter={handleReorderChapter}
+        />
       </div>
     </div>
   )
