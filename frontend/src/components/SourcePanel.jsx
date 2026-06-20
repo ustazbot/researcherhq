@@ -7,7 +7,7 @@ const CATEGORIES = [
   { value: 'data', label: 'Data / Transkrip', icon: '📊' },
 ]
 
-export function SourcePanel({ documents, onUpload, tier }) {
+export function SourcePanel({ documents, onUpload, tier, uploading }) {
   const [activeCategory, setActiveCategory] = useState('artikel')
   const uploadDisabled = tier !== 'pro' && (documents || []).length >= 1
 
@@ -60,20 +60,20 @@ export function SourcePanel({ documents, onUpload, tier }) {
       </div>
       <div style={{ padding: 12, borderTop: '1px solid var(--line)' }}>
         <button
-          onClick={uploadDisabled ? undefined : onUpload}
-          disabled={uploadDisabled}
+          onClick={uploadDisabled || uploading ? undefined : onUpload}
+          disabled={uploadDisabled || uploading}
           title={uploadDisabled ? 'Free tier: 1 PDF sahaja. Naik taraf ke Pro untuk sehingga 5 PDF.' : ''}
           style={{
             width: '100%', padding: '8px 0',
             background: uploadDisabled ? 'var(--line)' : 'var(--accent-soft)',
             border: `1px solid ${uploadDisabled ? 'var(--line)' : 'var(--accent)'}`,
             borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: 13,
-            cursor: uploadDisabled ? 'not-allowed' : 'pointer',
+            cursor: uploadDisabled || uploading ? 'not-allowed' : 'pointer',
             color: uploadDisabled ? 'var(--ink-soft)' : 'var(--ink)',
-            opacity: uploadDisabled ? 0.6 : 1,
+            opacity: uploadDisabled || uploading ? 0.6 : 1,
           }}
         >
-          {uploadDisabled ? '🔒 Had Dicapai' : '+ Muat naik'}
+          {uploadDisabled ? '🔒 Had Dicapai' : uploading ? 'Memproses...' : '+ Muat naik'}
         </button>
       </div>
     </div>

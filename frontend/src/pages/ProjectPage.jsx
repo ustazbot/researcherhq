@@ -6,6 +6,7 @@ import { CitationCard } from '../components/CitationCard'
 import { SourcePanel } from '../components/SourcePanel'
 import { ThesisPanel } from '../components/ThesisPanel'
 import api from '../api/client'
+import { extractPdfPages } from '../utils/pdfExtract'
 
 const OUTPUT_MODES = [
   { value: 'qa', label: 'Soal-Jawab', credits: 1 },
@@ -77,11 +78,24 @@ export function ProjectPage() {
   async function handleFileUpload(e) {
     const file = e.target.files[0]
     if (!file) return
+    if (file.type !== 'application/pdf') {
+      alert('Sila muat naik fail PDF sahaja.')
+      fileRef.current.value = ''
+      return
+    }
     setUploading(true)
     try {
-      alert(`Dokumen "${file.name}" sedang diproses. (PDF.js extraction dalam fasa penuh)`)
-    } catch {
-      alert('Gagal muat naik dokumen.')
+      const pages = await extractPdfPages(file)
+      const { data } = await api.post('/documents/upload', {
+        project_id: id,
+        filename: file.name,
+        category: 'artikel',
+        pages,
+      })
+      setDocuments(prev => [...prev, data])
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Gagal proses dokumen. Cuba lagi.'
+      alert(msg)
     }
     setUploading(false)
     fileRef.current.value = ''
@@ -126,6 +140,7 @@ export function ProjectPage() {
           documents={documents}
           onUpload={() => fileRef.current?.click()}
           tier={credits?.tier ?? user?.tier}
+          uploading={uploading}
         />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '24px', maxWidth: 800, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
