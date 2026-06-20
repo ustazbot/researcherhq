@@ -10,10 +10,40 @@ export function AccountSettingsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [error, setError] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [pwLoading, setPwLoading] = useState(false)
+  const [pwSuccess, setPwSuccess] = useState('')
+  const [pwError, setPwError] = useState('')
 
   useEffect(() => {
     api.get('/account').then(r => setAccount(r.data)).catch(() => setError('Gagal muatkan maklumat akaun.'))
   }, [])
+
+  async function handleSetPassword(e) {
+    e.preventDefault()
+    setPwError('')
+    setPwSuccess('')
+    if (newPassword.length < 8) {
+      setPwError('Kata laluan mesti sekurang-kurangnya 8 aksara.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPwError('Kata laluan tidak sepadan.')
+      return
+    }
+    setPwLoading(true)
+    try {
+      const { data } = await api.post('/auth/set-password', { new_password: newPassword })
+      setPwSuccess(data.message)
+      setAccount(prev => ({ ...prev, password_is_permanent: 1 }))
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (err) {
+      setPwError(err.response?.data?.detail || 'Gagal tetapkan kata laluan. Cuba lagi.')
+    }
+    setPwLoading(false)
+  }
 
   async function handleDeleteAccount() {
     if (deleteInput !== 'PADAM') return
@@ -96,9 +126,41 @@ export function AccountSettingsPage() {
           )}
         </section>
 
-        {/* Tukar Kata Laluan — will be extended in Task 6 */}
-        <section style={sectionStyle} id="password-section">
-          {/* Placeholder — Task 6 extends this */}
+        {/* Tukar Kata Laluan */}
+        <section style={sectionStyle}>
+          <h2 style={sectionHeadingStyle}>Tukar Kata Laluan</h2>
+          {!account.password_is_permanent && (
+            <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+              <p style={{ fontSize: 13, color: '#C2410C', margin: 0 }}>
+                Anda belum tetapkan kata laluan tetap. Tetapkan sekarang supaya tak perlu emel setiap kali log masuk.
+              </p>
+            </div>
+          )}
+          <form onSubmit={handleSetPassword}>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="Kata Laluan Baharu (min. 8 aksara)"
+              style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--ink)', marginBottom: 10, boxSizing: 'border-box' }}
+            />
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="Sahkan Kata Laluan Baharu"
+              style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--ink)', marginBottom: 10, boxSizing: 'border-box' }}
+            />
+            {pwError && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 10px' }}>{pwError}</p>}
+            {pwSuccess && <p style={{ color: '#16A34A', fontSize: 13, margin: '0 0 10px' }}>{pwSuccess}</p>}
+            <button
+              type="submit"
+              disabled={pwLoading || !newPassword || !confirmPassword}
+              style={{ padding: '10px 20px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: 'pointer' }}
+            >
+              {pwLoading ? 'Menyimpan...' : account.password_is_permanent ? 'Kemaskini Kata Laluan' : 'Tetapkan Kata Laluan Tetap'}
+            </button>
+          </form>
         </section>
 
         {/* Padam Akaun */}
