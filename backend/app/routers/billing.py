@@ -30,7 +30,7 @@ async def initiate_topup(user=Depends(get_current_user)):
                 "billPayorInfo": 1,
                 "billAmount": int(TOPUP_AMOUNT * 100),
                 "billReturnUrl": f"{settings.frontend_url}/billing/success",
-                "billCallbackUrl": "https://api.researcherhq.com/billing/webhook",
+                "billCallbackUrl": settings.frontend_url.replace("/app", "") + "/api/billing/webhook",
                 "billExternalReferenceNo": order_ref,
                 "billTo": user["email"],
                 "billEmail": user["email"],
