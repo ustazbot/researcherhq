@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ProfileMenu } from '../components/ProfileMenu'
 import api from '../api/client'
@@ -14,6 +14,9 @@ const MODES = [
 
 export function DashboardPage() {
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
+  const showSetPasswordNudge = searchParams.get('setup_password') === '1'
+  const [nudgeDismissed, setNudgeDismissed] = useState(false)
   const [projects, setProjects] = useState([])
   const [creating, setCreating] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -47,6 +50,27 @@ export function DashboardPage() {
         <Logo size="md" />
         <ProfileMenu user={user} />
       </header>
+
+      {showSetPasswordNudge && !nudgeDismissed && (
+        <div style={{
+          background: '#FFF7ED', borderBottom: '1px solid #FED7AA',
+          padding: '12px 24px', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', flexShrink: 0,
+        }}>
+          <p style={{ margin: 0, fontSize: 14, color: '#C2410C' }}>
+            Tetapkan kata laluan tetap supaya anda tidak perlu emel setiap kali log masuk.{' '}
+            <a href="/app/account" style={{ color: '#C2410C', fontWeight: 600, textDecoration: 'underline' }}>
+              Tetapkan sekarang →
+            </a>
+          </p>
+          <button
+            onClick={() => setNudgeDismissed(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C2410C', fontSize: 18, padding: '0 4px' }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <main style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
