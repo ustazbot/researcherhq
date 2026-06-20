@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
+from typing import Optional
 from pydantic import BaseModel
 from app.database import get_db
 from app.routers.auth import get_current_user
@@ -18,6 +19,11 @@ class ChapterCreate(BaseModel):
 
 class ChapterContentUpdate(BaseModel):
     content: str
+
+
+class ChapterUpdate(BaseModel):
+    title: Optional[str] = None
+    chapter_order: Optional[int] = None
 
 
 @router.post("/projects/{project_id}/chapters", status_code=201)
@@ -57,6 +63,74 @@ def list_chapters(project_id: str, user=Depends(get_current_user)):
             (project_id,)
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+@router.get("/projects/{project_id}/chapters/{chapter_id}")
+def get_chapter(project_id: str, chapter_id: str, user=Depends(get_current_user)):
+    with get_db() as db:
+        proj = db.execute(
+            "SELECT id FROM projects WHERE id=? AND user_id=?",
+            (project_id, user["user_id"])
+        ).fetchone()
+        if not proj:
+            raise HTTPException(404, "Projek tidak dijumpai.")
+        row = db.execute(
+            """SELECT ch.id, ch.title, ch.chapter_order, ch.status, cc.content
+               FROM chapters ch
+               LEFT JOIN chapter_content cc ON cc.chapter_id = ch.id
+               WHERE ch.id=? AND ch.project_id=?""",
+            (chapter_id, project_id)
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "Bab tidak dijumpai.")
+    return dict(row)
+
+
+@router.delete("/projects/{project_id}/chapters/{chapter_id}", status_code=204)
+def delete_chapter(project_id: str, chapter_id: str, user=Depends(get_current_user)):
+    with get_db() as db:
+        proj = db.execute(
+            "SELECT id FROM projects WHERE id=? AND user_id=?",
+            (project_id, user["user_id"])
+        ).fetchone()
+        if not proj:
+            raise HTTPException(404, "Projek tidak dijumpai.")
+        chap = db.execute(
+            "SELECT id FROM chapters WHERE id=? AND project_id=?",
+            (chapter_id, project_id)
+        ).fetchone()
+        if not chap:
+            raise HTTPException(404, "Bab tidak dijumpai.")
+        db.execute("DELETE FROM chapters WHERE id=?", (chapter_id,))
+        # chapter_content cascades via FK ON DELETE CASCADE
+
+
+@router.patch("/projects/{project_id}/chapters/{chapter_id}")
+def update_chapter(
+    project_id: str, chapter_id: str,
+    body: ChapterUpdate,
+    user=Depends(get_current_user)
+):
+    with get_db() as db:
+        proj = db.execute(
+            "SELECT id FROM projects WHERE id=? AND user_id=?",
+            (project_id, user["user_id"])
+        ).fetchone()
+        if not proj:
+            raise HTTPException(404, "Projek tidak dijumpai.")
+        chap = db.execute(
+            "SELECT id, title, chapter_order FROM chapters WHERE id=? AND project_id=?",
+            (chapter_id, project_id)
+        ).fetchone()
+        if not chap:
+            raise HTTPException(404, "Bab tidak dijumpai.")
+        new_title = body.title if body.title is not None else chap["title"]
+        new_order = body.chapter_order if body.chapter_order is not None else chap["chapter_order"]
+        db.execute(
+            "UPDATE chapters SET title=?, chapter_order=? WHERE id=?",
+            (new_title, new_order, chapter_id)
+        )
+    return {"id": chapter_id, "title": new_title, "chapter_order": new_order}
 
 
 @router.patch("/projects/{project_id}/chapters/{chapter_id}/content")

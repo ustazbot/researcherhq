@@ -164,3 +164,35 @@ def get_document(doc_id: str, user=Depends(get_current_user)):
     if not doc:
         raise HTTPException(404, "Dokumen tidak dijumpai.")
     return dict(doc)
+
+
+@router.delete("/{doc_id}", status_code=204)
+def delete_document(doc_id: str, user=Depends(get_current_user)):
+    with get_db() as db:
+        doc = db.execute(
+            """SELECT d.id, d.project_id FROM documents d
+               JOIN projects p ON d.project_id = p.id
+               WHERE d.id=? AND p.user_id=?""",
+            (doc_id, user["user_id"])
+        ).fetchone()
+        if not doc:
+            raise HTTPException(404, "Dokumen tidak dijumpai.")
+        project_id = doc["project_id"]
+
+        # chunk_vectors adalah virtual table — tiada FK cascade, perlu padam manual
+        chunk_ids = [
+            row["id"] for row in db.execute(
+                "SELECT id FROM chunks WHERE doc_id=?", (doc_id,)
+            ).fetchall()
+        ]
+        for chunk_id in chunk_ids:
+            db.execute("DELETE FROM chunk_vectors WHERE chunk_id=?", (chunk_id,))
+
+        # padam dokumen — chunks cascade via FK ON DELETE CASCADE
+        db.execute("DELETE FROM documents WHERE id=?", (doc_id,))
+
+        # invalidate query cache
+        db.execute(
+            "UPDATE projects SET document_set_version = document_set_version + 1 WHERE id=?",
+            (project_id,)
+        )
