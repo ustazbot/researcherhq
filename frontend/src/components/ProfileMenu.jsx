@@ -2,10 +2,11 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 
-export function ProfileMenu({ user }) {
+export function ProfileMenu({ user, tier: tierProp }) {
   const [open, setOpen] = useState(false)
   const [credits, setCredits] = useState(null)
   const [topping, setTopping] = useState(false)
+  const tier = tierProp ?? credits?.tier ?? user?.tier
   const nav = useNavigate()
   const ref = useRef()
 
@@ -46,10 +47,10 @@ export function ProfileMenu({ user }) {
         </span>
         <span style={{
           fontFamily: 'var(--font-mono)', fontSize: 11,
-          background: user?.tier === 'pro' ? 'var(--accent)' : 'var(--line)',
+          background: tier === 'pro' ? 'var(--accent)' : 'var(--line)',
           padding: '2px 6px', borderRadius: 4,
         }}>
-          {user?.tier === 'pro' ? 'PRO' : 'FREE'}
+          {tier === 'pro' ? 'PRO' : 'FREE'}
         </span>
       </button>
 
@@ -76,7 +77,7 @@ export function ProfileMenu({ user }) {
               {item.label}
             </button>
           ))}
-          {user?.tier === 'pro' && (
+          {tier === 'pro' && (
             <button
               onClick={async () => {
                 setTopping(true)

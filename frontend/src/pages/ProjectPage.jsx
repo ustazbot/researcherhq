@@ -116,7 +116,7 @@ export function ProjectPage() {
               {credits.kredit_remaining} kredit
             </span>
           )}
-          <ProfileMenu user={user} />
+          <ProfileMenu user={user} tier={credits?.tier} />
         </div>
       </header>
 
@@ -125,9 +125,8 @@ export function ProjectPage() {
         <SourcePanel
           documents={documents}
           onUpload={() => fileRef.current?.click()}
-          tier={user?.tier}
+          tier={credits?.tier ?? user?.tier}
         />
-
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '24px', maxWidth: 800, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
             {messages.length === 0 && (
@@ -218,7 +217,7 @@ export function ProjectPage() {
         <ThesisPanel
           chapters={chapters}
           onExport={handleExport}
-          tier={user?.tier}
+          tier={credits?.tier ?? user?.tier}
           projectId={id}
         />
       </div>
