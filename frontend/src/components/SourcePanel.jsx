@@ -7,7 +7,7 @@ const CATEGORIES = [
   { value: 'data', label: 'Data / Transkrip', icon: '📊' },
 ]
 
-export function SourcePanel({ documents, onUpload, tier, uploading }) {
+export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, onToggleCollapse, onDeleteDoc }) {
   const [activeCategory, setActiveCategory] = useState('artikel')
   const uploadDisabled = tier !== 'pro' && (documents || []).length >= 1
 
@@ -16,17 +16,49 @@ export function SourcePanel({ documents, onUpload, tier, uploading }) {
     docs: (documents || []).filter(d => d.category === cat.value)
   }))
 
+  function handleDelete(e, docId, filename) {
+    e.stopPropagation()
+    if (window.confirm(`Padam "${filename}"? Semua chunk dan embedding dokumen ini akan dibuang.`)) {
+      onDeleteDoc(docId)
+    }
+  }
+
+  if (collapsed) {
+    return (
+      <div style={{
+        width: 36, flexShrink: 0, borderRight: '1px solid var(--line)',
+        background: 'var(--card)', display: 'flex', flexDirection: 'column', alignItems: 'center',
+        paddingTop: 12,
+      }}>
+        <button
+          onClick={onToggleCollapse}
+          title="Buka panel Sumber"
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--ink-soft)', fontSize: 16, padding: 4,
+          }}
+        >›</button>
+      </div>
+    )
+  }
+
   return (
     <div style={{
       width: 260, flexShrink: 0, borderRight: '1px solid var(--line)',
       display: 'flex', flexDirection: 'column', background: 'var(--card)',
       overflow: 'hidden',
     }}>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)' }}>
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
           Sumber
         </span>
+        <button
+          onClick={onToggleCollapse}
+          title="Tutup panel Sumber"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 16, padding: 0 }}
+        >‹</button>
       </div>
+
       <div style={{ flex: 1, overflow: 'auto', padding: '8px 0' }}>
         {grouped.map(cat => (
           <div key={cat.value}>
@@ -47,17 +79,31 @@ export function SourcePanel({ documents, onUpload, tier, uploading }) {
             {activeCategory === cat.value && cat.docs.map(doc => (
               <div key={doc.id} style={{
                 padding: '6px 16px 6px 32px',
-                fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--ink-soft)',
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4,
               }}>
-                {doc.filename}
-                <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
-                  {doc.chunk_count} chunk
-                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--ink-soft)', wordBreak: 'break-word' }}>
+                    {doc.filename}
+                  </p>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}>
+                    {doc.chunk_count} chunk
+                  </span>
+                </div>
+                <button
+                  onClick={e => handleDelete(e, doc.id, doc.filename)}
+                  title="Padam dokumen ini"
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--ink-soft)', fontSize: 14, padding: '2px 4px',
+                    flexShrink: 0, lineHeight: 1,
+                  }}
+                >×</button>
               </div>
             ))}
           </div>
         ))}
       </div>
+
       <div style={{ padding: 12, borderTop: '1px solid var(--line)' }}>
         <button
           onClick={uploadDisabled || uploading ? undefined : onUpload}
