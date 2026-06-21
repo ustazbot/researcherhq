@@ -14,7 +14,7 @@ import sqlite_vec as _sqlite_vec
 
 router = APIRouter()
 
-VALID_CATEGORIES = {"artikel", "catatan_sv", "draf", "data"}
+VALID_CATEGORIES = {"artikel", "catatan_sv", "draf", "data", "proposal"}
 
 async def _embed_and_store_chunks(doc_id: str, chunk_texts: List[str], chunk_ids: List[str]):
     """Background task: embed chunks and store in chunk_vectors."""

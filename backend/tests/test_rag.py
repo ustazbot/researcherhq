@@ -206,5 +206,66 @@ def test_invalid_output_mode_rejected():
 
 def test_all_valid_output_modes_accepted():
     from app.routers.rag import OUTPUT_MODES
-    expected = {"qa", "literature_review", "executive_summary", "key_findings", "research_gap"}
+    expected = {"qa", "literature_review", "executive_summary", "key_findings", "research_gap", "discovery", "proposal_extract"}
     assert OUTPUT_MODES == expected
+
+
+# --- Task 3: Discovery + Proposal modes ---
+
+import tempfile
+
+@pytest.fixture
+def client(tmp_path):
+    db_path = str(tmp_path / "test_task3.db")
+    with patch("app.database._db_path", db_path):
+        from app.database import init_db
+        init_db(db_path)
+        from app.main import app
+        with TestClient(app) as c:
+            yield c
+
+@pytest.fixture
+def auth_headers():
+    from app.services.auth_service import create_jwt
+    token = create_jwt({"user_id": "user-t3", "email": "t3@test.com"})
+    return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture
+def project_id(client, auth_headers):
+    r = client.post("/projects", json={"title": "Task3 Project", "research_mode": "general"}, headers=auth_headers)
+    return r.json()["id"]
+
+
+def test_discovery_mode_rejected_for_unknown_output_mode(client, auth_headers, project_id):
+    # sanity check — typo mode ditolak
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "isu penyelidikan saya", "output_mode": "discover"},
+                    headers=auth_headers)
+    assert r.status_code == 400
+
+def test_discovery_mode_accepted(client, auth_headers, project_id, monkeypatch):
+    async def mock_llm(*args, **kwargs):
+        return {"content": "Discovery response", "tokens_used": 10, "model": "mock"}
+    async def mock_embed(*args, **kwargs):
+        return [0.1] * 384
+    monkeypatch.setattr("app.routers.rag.embedding_pool.embed", mock_embed)
+    monkeypatch.setattr("app.routers.rag.query_llm", mock_llm)
+    # Need at least one chunk — create via upload first
+    # (tes ini assume chunks sedia ada, skip jika empty-chunk path diambil)
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "isu penyelidikan saya", "output_mode": "discovery"},
+                    headers=auth_headers)
+    # Either 200 (chunks exist) or the "tiada dokumen" 200 path — both are fine, just not 400
+    assert r.status_code == 200
+
+def test_proposal_extract_mode_accepted(client, auth_headers, project_id, monkeypatch):
+    async def mock_llm(*args, **kwargs):
+        return {"content": "Ekstrak proposal", "tokens_used": 20, "model": "mock"}
+    async def mock_embed(*args, **kwargs):
+        return [0.1] * 384
+    monkeypatch.setattr("app.routers.rag.embedding_pool.embed", mock_embed)
+    monkeypatch.setattr("app.routers.rag.query_llm", mock_llm)
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "ekstrak proposal", "output_mode": "proposal_extract"},
+                    headers=auth_headers)
+    assert r.status_code == 200

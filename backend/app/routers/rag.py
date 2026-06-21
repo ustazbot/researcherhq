@@ -15,7 +15,7 @@ from app.services.llm_provider import query_llm, KREDIT_COST
 
 router = APIRouter()
 
-OUTPUT_MODES = {"qa", "literature_review", "executive_summary", "key_findings", "research_gap"}
+OUTPUT_MODES = {"qa", "literature_review", "executive_summary", "key_findings", "research_gap", "discovery", "proposal_extract"}
 
 NEAR_MATCH_THRESHOLD = 0.95
 
@@ -105,6 +105,10 @@ async def query_project(
             (user["user_id"],),
         ).fetchone()
 
+        tier = user_row["tier"]
+        # ponytail: server-side only — client cannot influence this via request fields
+        is_discovery_lite = (body.output_mode == "discovery" and tier != "pro")
+
         mode_key = "qa_deep" if (body.query_type == "deep" and body.output_mode == "qa") else body.output_mode
         kredit_cost = KREDIT_COST.get(mode_key, 1)
 
@@ -172,10 +176,15 @@ async def query_project(
             )
             context = f"RINGKASAN BAB SEDIA ADA:\n{summary_context}\n\n---\n\n" + context
 
+    # Tier-gated discovery lite — determined server-side from DB tier, never from client input
+    effective_query = body.query
+    if is_discovery_lite:
+        effective_query = f"[MODE LITE AKTIF — hanya langkah 1-2, output nota ringkas]\n\n{body.query}"
+
     messages = [
         {
             "role": "user",
-            "content": f"KONTEKS DOKUMEN:\n\n{context}\n\n---\n\nSOALAN: {body.query}",
+            "content": f"KONTEKS DOKUMEN:\n\n{context}\n\n---\n\nSOALAN: {effective_query}",
         }
     ]
 
