@@ -2,6 +2,8 @@ import sqlite3
 import sqlite_vec
 import app.database as _db_module
 from fastapi import APIRouter, Depends, HTTPException, Response
+from pydantic import BaseModel
+from typing import Optional
 from app.database import get_db
 from app.routers.auth import get_current_user
 
@@ -87,7 +89,7 @@ def _delete_user_account(user_id: str, db_path: str = None):
 def get_account(user=Depends(get_current_user)):
     with get_db() as db:
         row = db.execute(
-            "SELECT id, email, tier, kredit_remaining, kredit_total, reset_date, created_at, password_is_permanent FROM users WHERE id = ?",
+            "SELECT id, email, tier, kredit_remaining, kredit_total, reset_date, created_at, password_is_permanent, name, institution FROM users WHERE id = ?",
             (user["user_id"],)
         ).fetchone()
 
@@ -103,7 +105,27 @@ def get_account(user=Depends(get_current_user)):
         "reset_date": row["reset_date"],
         "created_at": row["created_at"],
         "password_is_permanent": row["password_is_permanent"],
+        "name": row["name"],
+        "institution": row["institution"],
     }
+
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    institution: Optional[str] = None
+
+@router.patch("/profile")
+def update_profile(body: ProfileUpdate, user=Depends(get_current_user)):
+    with get_db() as db:
+        db.execute(
+            "UPDATE users SET name = ?, institution = ? WHERE id = ?",
+            (body.name, body.institution, user["user_id"])
+        )
+        row = db.execute(
+            "SELECT name, institution FROM users WHERE id = ?",
+            (user["user_id"],)
+        ).fetchone()
+    return {"name": row["name"], "institution": row["institution"]}
 
 
 @router.delete("", status_code=204)

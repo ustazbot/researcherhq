@@ -80,3 +80,46 @@ def test_delete_project(client):
 def test_invalid_research_mode(client):
     r = client.post("/projects", json={"title": "T", "research_mode": "invalid_mode"}, headers=make_headers())
     assert r.status_code == 400
+
+@pytest.fixture
+def auth_headers():
+    return make_headers()
+
+def test_create_project_with_onboarding_fields(client, auth_headers):
+    r = client.post("/projects", json={
+        "title": "Tesis Onboarding",
+        "research_mode": "general",
+        "output_target": "thesis",
+        "degree_level": "master",
+        "proposal_status": "belum"
+    }, headers=auth_headers)
+    assert r.status_code == 201
+    data = r.json()
+    assert data["output_target"] == "thesis"
+    assert data["degree_level"] == "master"
+    assert data["proposal_status"] == "belum"
+
+def test_create_second_project_prefills_from_first(client, auth_headers):
+    import app.database as _db_module
+    import sqlite3
+    # Projek 1
+    r1 = client.post("/projects", json={
+        "title": "Projek Pertama",
+        "research_mode": "qualitative",
+        "output_target": "article",
+        "degree_level": "phd",
+        "proposal_status": "lulus"
+    }, headers=auth_headers)
+    assert r1.status_code == 201
+    # Naik taraf ke pro supaya boleh buat projek kedua
+    conn = sqlite3.connect(_db_module._db_path)
+    conn.execute("UPDATE users SET tier = 'pro' WHERE id = 'user-1'")
+    conn.commit()
+    conn.close()
+    # Projek 2 — tiada field baru
+    r = client.post("/projects", json={"title": "Projek Kedua", "research_mode": "general"}, headers=auth_headers)
+    assert r.status_code == 201
+    data = r.json()
+    # pre-fill dari projek pertama
+    assert data["output_target"] == "article"
+    assert data["degree_level"] == "phd"
