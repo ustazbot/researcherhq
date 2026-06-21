@@ -54,3 +54,21 @@ def test_users_schema(tmp_path):
     required = {"id", "email", "password_hash", "tier", "kredit_remaining", "kredit_total", "reset_date", "created_at"}
     assert required.issubset(cols), f"Missing columns: {required - cols}"
     conn.close()
+
+def test_migration_user_profile_columns(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    conn = init_db(db_path)
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+    assert "name" in cols
+    assert "institution" in cols
+    conn.close()
+
+def test_migration_project_onboarding_columns(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    conn = init_db(db_path)
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
+    assert "output_target" in cols
+    assert "degree_level" in cols
+    assert "proposal_status" in cols
+    assert "citation_style" in cols
+    conn.close()

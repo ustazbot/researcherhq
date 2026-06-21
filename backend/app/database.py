@@ -188,6 +188,23 @@ def _create_schema(conn: sqlite3.Connection):
     if "password_is_permanent" not in user_cols:
         conn.execute("ALTER TABLE users ADD COLUMN password_is_permanent INTEGER DEFAULT 0")
 
+    # Migration: Task 1 — profile columns for onboarding redesign
+    if "name" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN name TEXT")
+    if "institution" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN institution TEXT")
+
+    # Migration: Task 1 — project onboarding metadata columns
+    proj_cols = [row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()]
+    if "output_target" not in proj_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN output_target TEXT DEFAULT 'thesis'")
+    if "degree_level" not in proj_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN degree_level TEXT")
+    if "proposal_status" not in proj_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN proposal_status TEXT")
+    if "citation_style" not in proj_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN citation_style TEXT DEFAULT 'APA7'")
+
 
 @contextmanager
 def get_db():
