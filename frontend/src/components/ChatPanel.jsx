@@ -6,15 +6,27 @@ const OUTPUT_MODES = [
   { value: 'key_findings', label: 'Dapatan Utama', credits: 3 },
   { value: 'executive_summary', label: 'Ringkasan Eksekutif', credits: 5 },
   { value: 'literature_review', label: 'Sorotan Kajian', credits: 10 },
+  { value: 'discovery', label: 'Mod Penemuan Topik', credits: 1 },
 ]
 
-export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, outputMode, onOutputModeChange, credits, onSendToEditor, hasActiveChapter, bottomRef }) {
+export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, outputMode, onOutputModeChange, credits, onSendToEditor, hasActiveChapter, bottomRef, tier, isDiscoveryMode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
       <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
           Chat AI
         </span>
+        {isDiscoveryMode && (
+          <div style={{ marginTop: 4 }}>
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: 10,
+              background: tier === 'pro' ? 'var(--accent)' : 'var(--accent-soft)',
+              color: 'var(--ink)', padding: '2px 8px', borderRadius: 4,
+            }}>
+              {tier === 'pro' ? 'Discovery Penuh' : 'Discovery Ringkas (Free)'}
+            </span>
+          </div>
+        )}
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: '20px 16px' }}>

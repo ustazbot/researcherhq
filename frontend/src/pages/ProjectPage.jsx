@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ProfileMenu } from '../components/ProfileMenu'
 import { SourcePanel } from '../components/SourcePanel'
@@ -10,15 +10,24 @@ import api from '../api/client'
 import { extractPdfPages } from '../utils/pdfExtract'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 
+// Split proposal_extract output into Bab 1 (pengenalan) and Bab 3 (metodologi) parts
+function splitProposalExtract(text) {
+  const idx = text.indexOf('**METODOLOGI:**')
+  if (idx === -1) return { bab1: text, bab3: null }
+  return { bab1: text.slice(0, idx).trim(), bab3: text.slice(idx).trim() }
+}
+
 export function ProjectPage() {
   const { id } = useParams()
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
+  const initMode = searchParams.get('mode')  // 'discovery' | 'proposal_upload' | null
   const [project, setProject] = useState(null)
   const [messages, setMessages] = useState([])
   const [documents, setDocuments] = useState([])
   const [chapters, setChapters] = useState([])
   const [query, setQuery] = useState('')
-  const [outputMode, setOutputMode] = useState('qa')
+  const [outputMode, setOutputMode] = useState(initMode === 'discovery' ? 'discovery' : 'qa')
   const [loading, setLoading] = useState(false)
   const [credits, setCredits] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -28,7 +37,11 @@ export function ProjectPage() {
   const [activeChapterId, setActiveChapterId] = useState(null)
   const [activeChapterContent, setActiveChapterContent] = useState('')
   const [contentLoading, setContentLoading] = useState(false)
-  const [pendingSuggestion, setPendingSuggestion] = useState(null) // { text: string } | null
+  const [pendingSuggestion, setPendingSuggestion] = useState(null) // { text: string, stageLabel?: string } | null
+  const [showProposalUpload, setShowProposalUpload] = useState(initMode === 'proposal_upload')
+  const [proposalUploading, setProposalUploading] = useState(false)
+  // Two-stage proposal: stores Bab 3 text pending after user Terima Bab 1
+  const [proposalBab3Text, setProposalBab3Text] = useState(null)
 
   // Layout state
   const [sourceCollapsed, setSourceCollapsed] = useState(false)
@@ -138,6 +151,29 @@ export function ProjectPage() {
     }
   }
 
+  async function handleProposalUpload(file) {
+    const pages = await extractPdfPages(file)
+    await api.post('/documents/upload', {
+      project_id: id,
+      filename: file.name,
+      category: 'proposal',
+      pages,
+    })
+    const extractRes = await api.post(`/projects/${id}/query`, {
+      query: 'Sila ekstrak semua komponen utama dari proposal ini.',
+      output_mode: 'proposal_extract',
+    })
+    if (!extractRes.data?.answer) return
+
+    // Two-stage: set Bab 1 as first pendingSuggestion, queue Bab 3
+    const { bab1, bab3 } = splitProposalExtract(extractRes.data.answer)
+    setPendingSuggestion({
+      text: bab1,
+      stageLabel: 'Peringkat 1 / 2 — Bab 1 (Pengenalan)',
+    })
+    if (bab3) setProposalBab3Text(bab3)
+  }
+
   async function handleAddChapter(title) {
     const nextOrder = chapters.length > 0 ? Math.max(...chapters.map(c => c.chapter_order)) + 1 : 1
     try {
@@ -198,6 +234,14 @@ export function ProjectPage() {
         c.id === activeChapterId ? { ...c, status: 'dalam_proses' } : c
       ))
       setPendingSuggestion(null)
+      // Two-stage proposal: after Bab 1 accepted, auto-queue Bab 3
+      if (proposalBab3Text) {
+        setPendingSuggestion({
+          text: proposalBab3Text,
+          stageLabel: 'Peringkat 2 / 2 — Bab 3 (Metodologi & Persampelan)',
+        })
+        setProposalBab3Text(null)
+      }
     } catch (err) {
       alert(err.response?.data?.detail || 'Gagal simpan cadangan. Cuba lagi.')
     }
@@ -287,7 +331,49 @@ export function ProjectPage() {
         <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          {mobileView === 'editor' && (
+          {showProposalUpload && mobileView === 'editor' && (
+            <div style={{
+              background: 'var(--card)', border: '1px solid var(--accent)',
+              borderRadius: 'var(--radius-md)', padding: 24, margin: 16,
+            }}>
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 8px', fontSize: 16 }}>
+                Muat Naik Proposal
+              </h3>
+              <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 16px' }}>
+                Muat naik proposal yang telah lulus. Sistem akan mengekstrak maklumat penting — kemudian verify sebelum masuk ke bab.
+              </p>
+              <input
+                type="file"
+                accept=".pdf"
+                disabled={proposalUploading}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  setProposalUploading(true)
+                  try {
+                    await handleProposalUpload(file)
+                    setShowProposalUpload(false)
+                  } catch (err) {
+                    console.error('Upload proposal gagal:', err)
+                  } finally {
+                    setProposalUploading(false)
+                  }
+                }}
+                style={{ display: 'block', marginBottom: 12 }}
+              />
+              {proposalUploading && (
+                <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Mengekstrak proposal... (mungkin ambil masa 30–60 saat)</p>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowProposalUpload(false)}
+                style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
+              >
+                Langkau buat masa ini
+              </button>
+            </div>
+          )}
+          {mobileView === 'editor' && !showProposalUpload && (
             <ChapterEditor
               chapter={activeChapter}
               content={contentLoading ? '' : activeChapterContent}
@@ -308,6 +394,8 @@ export function ProjectPage() {
               onSendToEditor={text => { setPendingSuggestion({ text }); setMobileView('editor') }}
               hasActiveChapter={!!activeChapterId}
               bottomRef={bottomRef}
+              tier={user?.tier || 'free'}
+              isDiscoveryMode={outputMode === 'discovery'}
             />
           )}
         </div>
@@ -395,6 +483,51 @@ export function ProjectPage() {
           onDeleteDoc={handleDeleteDoc}
         />
 
+        {/* Proposal Upload Panel */}
+        {showProposalUpload && (
+          <div style={{
+            position: 'absolute', top: 60, left: 200, right: 320, zIndex: 10,
+            background: 'var(--card)', border: '1px solid var(--accent)',
+            borderRadius: 'var(--radius-md)', padding: 24, margin: 16,
+          }}>
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 8px', fontSize: 16 }}>
+              Muat Naik Proposal
+            </h3>
+            <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 16px' }}>
+              Muat naik proposal yang telah lulus. Sistem akan mengekstrak maklumat penting — kemudian verify sebelum masuk ke bab.
+            </p>
+            <input
+              type="file"
+              accept=".pdf"
+              disabled={proposalUploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                setProposalUploading(true)
+                try {
+                  await handleProposalUpload(file)
+                  setShowProposalUpload(false)
+                } catch (err) {
+                  console.error('Upload proposal gagal:', err)
+                } finally {
+                  setProposalUploading(false)
+                }
+              }}
+              style={{ display: 'block', marginBottom: 12 }}
+            />
+            {proposalUploading && (
+              <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Mengekstrak proposal... (mungkin ambil masa 30–60 saat)</p>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowProposalUpload(false)}
+              style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
+            >
+              Langkau buat masa ini
+            </button>
+          </div>
+        )}
+
         {/* ChapterEditor — main pane */}
         <ChapterEditor
           chapter={activeChapter}
@@ -417,6 +550,8 @@ export function ProjectPage() {
             onSendToEditor={text => setPendingSuggestion({ text })}
             hasActiveChapter={!!activeChapterId}
             bottomRef={bottomRef}
+            tier={user?.tier || 'free'}
+            isDiscoveryMode={outputMode === 'discovery'}
           />
         </div>
 

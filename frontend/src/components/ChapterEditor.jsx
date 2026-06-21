@@ -77,7 +77,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
           <span style={{ fontSize: 18 }}>💡</span>
           <div style={{ flex: 1 }}>
             <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}>
-              Ni cadangan AI — klik <strong>Terima</strong> untuk masuk ke bab, atau <strong>Tolak</strong> untuk buang.
+              Ni cadangan AI{pendingSuggestion.stageLabel ? ` — ${pendingSuggestion.stageLabel}` : ''} — klik <strong>Terima</strong> untuk masuk ke bab, atau <strong>Tolak</strong> untuk buang.
               Sama macam Track Changes dalam Word yang penyelia guna untuk bagi maklum balas.
             </p>
           </div>
