@@ -540,7 +540,7 @@ export function ProjectPage() {
           content={contentLoading ? '' : activeChapterContent}
           pendingSuggestion={pendingSuggestion}
           onAccept={handleAcceptSuggestion}
-          onReject={() => setPendingSuggestion(null)}
+          onReject={handleRejectSuggestion}
           onSave={handleSaveContent}
           saving={saving}
         />

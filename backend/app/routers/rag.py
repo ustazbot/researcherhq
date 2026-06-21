@@ -225,6 +225,19 @@ async def query_project(
             # Kredit habis antara check dan deduct (race condition)
             raise HTTPException(402, "Kredit Kajian tidak mencukupi.")
         new_kredit = user_row["kredit_remaining"] - kredit_cost
+        now = datetime.utcnow().isoformat()
+        # Save user message for discovery mode (enables multi-turn history)
+        if body.output_mode == "discovery":
+            db.execute(
+                """INSERT INTO messages
+                   (id, project_id, role, content, output_mode, source_chunks,
+                    kredit_used, tokens_used_internal, created_at)
+                   VALUES (?, ?, 'user', ?, ?, ?, 0, 0, ?)""",
+                (
+                    str(uuid.uuid4()), project_id, body.query, body.output_mode,
+                    json.dumps([]), now,
+                ),
+            )
         msg_id = str(uuid.uuid4())
         db.execute(
             """INSERT INTO messages
@@ -234,7 +247,7 @@ async def query_project(
             (
                 msg_id, project_id, result["content"], body.output_mode,
                 json.dumps([c["chunk_id"] for c in chunks]),
-                kredit_cost, result["tokens_used"], datetime.utcnow().isoformat(),
+                kredit_cost, result["tokens_used"], now,
             ),
         )
         db.execute(
