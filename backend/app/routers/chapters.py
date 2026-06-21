@@ -154,27 +154,32 @@ async def update_chapter_content(
         if not chap:
             raise HTTPException(404, "Bab tidak dijumpai.")
 
-    # Generate summary for hierarchical context
-    messages = [{
-        "role": "user",
-        "content": (
-            f"Ringkaskan kandungan bab berikut dalam 150-200 patah perkataan sahaja, "
-            f"fokus pada argumen utama dan dapatan:\n\n{body.content[:3000]}"
-        )
-    }]
-    summary_result = await query_llm(messages, output_mode="qa")
+    # Generate summary for hierarchical context (best-effort — save content regardless)
+    summary = ""
+    try:
+        messages = [{
+            "role": "user",
+            "content": (
+                f"Ringkaskan kandungan bab berikut dalam 150-200 patah perkataan sahaja, "
+                f"fokus pada argumen utama dan dapatan:\n\n{body.content[:3000]}"
+            )
+        }]
+        summary_result = await query_llm(messages, output_mode="qa")
+        summary = summary_result["content"]
+    except Exception:
+        pass  # ponytail: summary is non-critical, content save must not be blocked
 
     now = datetime.utcnow().isoformat()
     with get_db() as db:
         db.execute(
             "UPDATE chapter_content SET content=?, summary=?, updated_at=? WHERE chapter_id=?",
-            (body.content, summary_result["content"], now, chapter_id)
+            (body.content, summary, now, chapter_id)
         )
         db.execute(
             "UPDATE chapters SET status='dalam_proses' WHERE id=?",
             (chapter_id,)
         )
-    return {"status": "updated", "summary_generated": True}
+    return {"status": "updated", "summary_generated": bool(summary)}
 
 
 @router.post("/projects/{project_id}/chapters/{chapter_id}/export", status_code=202)
