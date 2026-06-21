@@ -135,9 +135,14 @@ export function DashboardPage() {
               disabled={!profileName.trim() || savingProfile}
               onClick={async () => {
                 setSavingProfile(true)
-                await api.patch('/account/profile', { name: profileName.trim(), institution: profileIpt.trim() })
-                setShowStep0(false)
-                setSavingProfile(false)
+                try {
+                  await api.patch('/account/profile', { name: profileName.trim(), institution: profileIpt.trim() })
+                  setShowStep0(false)
+                } catch {
+                  // ponytail: silent fail — user can retry, button re-enables
+                } finally {
+                  setSavingProfile(false)
+                }
               }}
               style={{
                 width: '100%', padding: '12px', background: 'var(--ink)', color: 'var(--bg)',
