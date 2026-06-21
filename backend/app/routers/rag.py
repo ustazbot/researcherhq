@@ -181,12 +181,23 @@ async def query_project(
     if is_discovery_lite:
         effective_query = f"[MODE LITE AKTIF — hanya langkah 1-2, output nota ringkas]\n\n{body.query}"
 
-    messages = [
-        {
-            "role": "user",
-            "content": f"KONTEKS DOKUMEN:\n\n{context}\n\n---\n\nSOALAN: {effective_query}",
-        }
-    ]
+    # For discovery mode: load conversation history so AI can track which step we're on
+    history_messages = []
+    if body.output_mode == "discovery":
+        with get_db() as db:
+            history_rows = db.execute(
+                """SELECT role, content FROM messages
+                   WHERE project_id = ? AND output_mode = 'discovery'
+                   ORDER BY created_at ASC LIMIT 20""",
+                (project_id,)
+            ).fetchall()
+        history_messages = [{"role": r["role"], "content": r["content"]} for r in history_rows]
+
+    current_message = {
+        "role": "user",
+        "content": f"KONTEKS DOKUMEN:\n\n{context}\n\n---\n\nSOALAN: {effective_query}",
+    }
+    messages = history_messages + [current_message]
 
     result = await query_llm(
         messages=messages,

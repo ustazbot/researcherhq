@@ -102,7 +102,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
       {/* Input area */}
       <div style={{ borderTop: '1px solid var(--line)', padding: '12px 16px', background: 'var(--card)', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
-          {OUTPUT_MODES.map(m => (
+          {OUTPUT_MODES.filter(m => m.value !== 'discovery' || isDiscoveryMode).map(m => (
             <button key={m.value} onClick={() => onOutputModeChange(m.value)} style={{
               padding: '3px 8px',
               background: outputMode === m.value ? 'var(--ink)' : 'transparent',

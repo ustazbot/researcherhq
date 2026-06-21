@@ -92,6 +92,7 @@ export function ProjectPage() {
     if (pendingSuggestion && chapterId !== activeChapterId) {
       if (!window.confirm('Ada cadangan AI yang belum disimpan. Tukar bab sekarang akan buang cadangan ini.')) return
       setPendingSuggestion(null)
+      setProposalBab3Text(null)
     }
     setActiveChapterId(chapterId)
   }
@@ -222,6 +223,11 @@ export function ProjectPage() {
     } catch (err) {
       alert('Gagal susun semula bab. Cuba lagi.')
     }
+  }
+
+  function handleRejectSuggestion() {
+    setPendingSuggestion(null)
+    setProposalBab3Text(null)
   }
 
   async function handleAcceptSuggestion(text) {
@@ -379,7 +385,7 @@ export function ProjectPage() {
               content={contentLoading ? '' : activeChapterContent}
               pendingSuggestion={pendingSuggestion}
               onAccept={handleAcceptSuggestion}
-              onReject={() => setPendingSuggestion(null)}
+              onReject={handleRejectSuggestion}
               onSave={handleSaveContent}
               saving={saving}
             />

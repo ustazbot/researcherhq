@@ -153,6 +153,15 @@ export function DashboardPage() {
             >
               {savingProfile ? 'Menyimpan...' : 'Teruskan →'}
             </button>
+            <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: 'var(--ink-soft)' }}>
+              <button
+                type="button"
+                onClick={() => setShowStep0(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13, textDecoration: 'underline', padding: 0 }}
+              >
+                Langkau buat masa ini
+              </button>
+            </p>
           </div>
         </div>
       )}
