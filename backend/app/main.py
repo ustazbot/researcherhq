@@ -20,9 +20,10 @@ async def startup():
 async def shutdown():
     await embedding_pool.stop()
 
+_www = settings.frontend_url.replace("https://", "https://www.", 1)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url],
+    allow_origins=[settings.frontend_url, _www],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
