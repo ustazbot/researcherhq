@@ -53,13 +53,13 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
       editor.commands.setContent(content || '')
       lastSavedContent.current = content || ''
     }
-  }, [content, chapter?.id, pendingSuggestion])
+  }, [content, chapter?.id, pendingSuggestion, editor])
 
   // Toggle editable bila pendingSuggestion berubah
   useEffect(() => {
     if (!editor) return
     editor.setEditable(!pendingSuggestion)
-  }, [pendingSuggestion])
+  }, [pendingSuggestion, editor])
 
   // Cleanup saveTimer on unmount
   useEffect(() => {
@@ -91,7 +91,12 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
 
   function handleAccept() {
     if (!editor) return
-    editor.commands.setContent(pendingSuggestion.text)
+    const htmlContent = '<p>' + pendingSuggestion.text
+      .split('\n\n')
+      .map(p => p.trim())
+      .filter(Boolean)
+      .join('</p><p>') + '</p>'
+    editor.commands.setContent(htmlContent)
     onAccept(editor.getHTML())
   }
 

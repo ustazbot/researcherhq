@@ -25,8 +25,9 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
       setPreviewText(data)
     } catch {
       setPreviewError(true)
+    } finally {
+      setPreviewLoading(false)
     }
-    setPreviewLoading(false)
   }
 
   const uploadDisabled = tier !== 'pro' && (documents || []).length >= 1
