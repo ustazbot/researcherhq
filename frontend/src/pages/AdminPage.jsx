@@ -57,6 +57,18 @@ function UsersTab() {
     }
   }
 
+  async function grantPro(uid, email) {
+    if (!window.confirm(`Naik taraf ${email} ke PRO tanpa bayaran (500 kredit)?`)) return
+    setError(''); setMsg('')
+    try {
+      await adminApi.grantPro(uid)
+      setMsg(`${email} kini PRO (500 kredit).`)
+      load()
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Gagal naik taraf.')
+    }
+  }
+
   async function deleteUser(uid, email) {
     if (!window.confirm(`Padam akaun ${email}? Tindakan tak boleh undo.`)) return
     setError(''); setMsg('')
@@ -113,6 +125,9 @@ function UsersTab() {
                   ) : (
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => startEdit(u)} style={btn({ background: '#EFF6FF', color: '#1D4ED8' })}>Edit</button>
+                      {u.tier !== 'pro' && (
+                        <button onClick={() => grantPro(u.id, u.email)} style={btn({ background: '#F0FDF4', color: '#15803D' })}>Naik Pro</button>
+                      )}
                       <button onClick={() => deleteUser(u.id, u.email)} style={btn({ background: '#FEF2F2', color: '#DC2626' })}>Padam</button>
                     </div>
                   )}

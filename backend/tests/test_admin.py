@@ -153,6 +153,32 @@ def test_patch_user_invalid_tier(setup):
     assert r.status_code == 400
 
 
+# --- grant-pro: free user naik Pro tanpa bayaran, kredit penuh, audit log ---
+def test_grant_pro_upgrades_free_user(setup):
+    s = setup
+    r = s["client"].post(f"/admin/users/{s['user_id']}/grant-pro", headers=_admin_headers(s))
+    assert r.status_code == 200
+    body = r.json()
+    assert body["tier"] == "pro" and body["kredit"] == 500
+
+    conn = sqlite3.connect(s["db_path"])
+    row = conn.execute("SELECT tier, kredit_remaining, kredit_total FROM users WHERE id = ?", (s["user_id"],)).fetchone()
+    assert row == ("pro", 500, 500)
+    log_count = conn.execute(
+        "SELECT COUNT(*) FROM admin_action_log WHERE action = 'grant_pro' AND target_id = ?",
+        (s["user_id"],)
+    ).fetchone()[0]
+    assert log_count == 1
+    conn.close()
+
+
+def test_grant_pro_already_pro_returns_400(setup):
+    s = setup
+    s["client"].post(f"/admin/users/{s['user_id']}/grant-pro", headers=_admin_headers(s))
+    r = s["client"].post(f"/admin/users/{s['user_id']}/grant-pro", headers=_admin_headers(s))
+    assert r.status_code == 400
+
+
 # --- Test 5: DELETE user → PDPA cascade (user gone, projects gone, billing anonymized) ---
 def test_delete_user_pdpa_cascade(setup):
     s = setup

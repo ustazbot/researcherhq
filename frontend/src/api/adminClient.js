@@ -4,6 +4,7 @@ export const adminApi = {
   listUsers: (params) => api.get('/admin/users', { params }),
   updateUser: (id, data) => api.patch(`/admin/users/${id}`, data),
   deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  grantPro: (id) => api.post(`/admin/users/${id}/grant-pro`),
 
   listSupportReports: (params) => api.get('/admin/support-reports', { params }),
   updateSupportReport: (id, data) => api.patch(`/admin/support-reports/${id}`, data),

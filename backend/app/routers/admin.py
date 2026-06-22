@@ -7,6 +7,7 @@ from app.database import get_db
 from app.services.admin_auth import require_admin
 from app.services.admin_log import log_admin_action
 from app.routers.account import _delete_user_account
+from app.routers.billing import UPGRADE_KREDIT
 
 router = APIRouter()
 
@@ -65,6 +66,23 @@ def update_user(target_user_id: str, body: UserUpdateBody, admin=Depends(require
 
     log_admin_action(admin["email"], "user_update", "user", target_user_id, updates)
     return {"status": "ok", "updated_fields": list(updates.keys())}
+
+
+@router.post("/users/{target_user_id}/grant-pro")
+def grant_pro(target_user_id: str, admin=Depends(require_admin)):
+    """Naik taraf user ke Pro tanpa bayaran (pilot/influencer). Set kredit penuh Pro."""
+    with get_db() as db:
+        existing = db.execute("SELECT id, tier FROM users WHERE id = ?", (target_user_id,)).fetchone()
+        if not existing:
+            raise HTTPException(404, "User tidak dijumpai.")
+        if existing["tier"] == "pro":
+            raise HTTPException(400, "User sudah Pro.")
+        db.execute(
+            "UPDATE users SET tier = 'pro', kredit_remaining = ?, kredit_total = ? WHERE id = ?",
+            (UPGRADE_KREDIT, UPGRADE_KREDIT, target_user_id)
+        )
+    log_admin_action(admin["email"], "grant_pro", "user", target_user_id, {"kredit": UPGRADE_KREDIT})
+    return {"status": "ok", "tier": "pro", "kredit": UPGRADE_KREDIT}
 
 
 @router.delete("/users/{target_user_id}", status_code=204)
