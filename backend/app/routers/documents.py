@@ -166,6 +166,31 @@ def get_document(doc_id: str, user=Depends(get_current_user)):
     return dict(doc)
 
 
+@router.get("/{doc_id}/preview")
+def get_document_preview(doc_id: str, user=Depends(get_current_user)):
+    with get_db() as db:
+        doc = db.execute(
+            """SELECT d.id, d.filename, d.chunk_count FROM documents d
+               JOIN projects p ON d.project_id = p.id
+               WHERE d.id = ? AND p.user_id = ?""",
+            (doc_id, user["user_id"])
+        ).fetchone()
+        if not doc:
+            raise HTTPException(404, "Dokumen tidak dijumpai.")
+        chunks = db.execute(
+            "SELECT text FROM chunks WHERE doc_id = ? ORDER BY page_number, chunk_index LIMIT 20",
+            (doc_id,)
+        ).fetchall()
+    preview_text = "\n\n---\n\n".join(row["text"] for row in chunks)
+    return {
+        "doc_id": doc_id,
+        "filename": doc["filename"],
+        "preview_text": preview_text,
+        "chunk_count": doc["chunk_count"],
+        "showing_chunks": len(chunks),
+    }
+
+
 @router.delete("/{doc_id}", status_code=204)
 def delete_document(doc_id: str, user=Depends(get_current_user)):
     with get_db() as db:

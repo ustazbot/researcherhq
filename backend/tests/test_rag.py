@@ -267,3 +267,50 @@ def test_proposal_extract_mode_accepted(rag3_client, rag3_auth, rag3_project, mo
                     json={"query": "ekstrak proposal", "output_mode": "proposal_extract"},
                     headers=rag3_auth)
     assert r.status_code == 200
+
+
+def test_document_preview_endpoint(tmp_path):
+    """GET /documents/{doc_id}/preview return preview_text dan 404 kalau bukan milik user."""
+    import os
+    from fastapi.testclient import TestClient
+    from app.services.auth_service import create_jwt
+
+    db_path = str(tmp_path / "preview_test.db")
+    with patch("app.database._db_path", db_path):
+        from app.database import init_db
+        init_db(db_path)
+        from app.main import app
+
+        token1 = create_jwt({"user_id": "u-preview-1", "email": "p1@test.com"})
+        token2 = create_jwt({"user_id": "u-preview-2", "email": "p2@test.com"})
+        h1 = {"Authorization": f"Bearer {token1}"}
+        h2 = {"Authorization": f"Bearer {token2}"}
+
+        with TestClient(app) as c:
+            # Buat project dan upload dokumen untuk user 1
+            proj = c.post("/projects", json={"title": "Preview Test", "research_mode": "general"}, headers=h1).json()
+            pid = proj["id"]
+            upload = c.post("/documents/upload", json={
+                "project_id": pid,
+                "filename": "preview.pdf",
+                "category": "artikel",
+                "pages": [
+                    {"page_number": 1, "text": " ".join(["kata"] * 200)},
+                    {"page_number": 2, "text": " ".join(["perkataan"] * 200)},
+                ]
+            }, headers=h1)
+            assert upload.status_code == 201
+            doc_id = upload.json()["id"]
+
+            # User 1 boleh preview
+            r = c.get(f"/documents/{doc_id}/preview", headers=h1)
+            assert r.status_code == 200, r.text
+            data = r.json()
+            assert "preview_text" in data
+            assert data["showing_chunks"] >= 1
+            assert "chunk_count" in data
+            assert data["filename"] == "preview.pdf"
+
+            # User 2 tidak boleh preview dokumen user 1 — 404
+            r2 = c.get(f"/documents/{doc_id}/preview", headers=h2)
+            assert r2.status_code == 404

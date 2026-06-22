@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import api from '../api/client'
 
 const CATEGORIES = [
   { value: 'artikel', label: 'Artikel Rujukan', icon: '📄' },
@@ -9,6 +10,25 @@ const CATEGORIES = [
 
 export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, onToggleCollapse, onDeleteDoc }) {
   const [activeCategory, setActiveCategory] = useState('artikel')
+  const [previewDocId, setPreviewDocId] = useState(null)
+  const [previewText, setPreviewText] = useState(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState(false)
+
+  async function handlePreviewDoc(docId) {
+    if (previewDocId === docId) {
+      setPreviewDocId(null); setPreviewText(null); return
+    }
+    setPreviewDocId(docId); setPreviewLoading(true); setPreviewError(false)
+    try {
+      const { data } = await api.get(`/documents/${docId}/preview`)
+      setPreviewText(data)
+    } catch {
+      setPreviewError(true)
+    }
+    setPreviewLoading(false)
+  }
+
   const uploadDisabled = tier !== 'pro' && (documents || []).length >= 1
 
   const grouped = CATEGORIES.map(cat => ({
@@ -77,27 +97,50 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
               </span>
             </button>
             {activeCategory === cat.value && cat.docs.map(doc => (
-              <div key={doc.id} style={{
-                padding: '6px 16px 6px 32px',
-                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4,
-              }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--ink-soft)', wordBreak: 'break-word' }}>
-                    {doc.filename}
-                  </p>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}>
-                    {doc.chunk_count} chunk
-                  </span>
+              <div key={doc.id} style={{ padding: '6px 16px 6px 32px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      onClick={() => handlePreviewDoc(doc.id)}
+                      style={{
+                        margin: 0, fontFamily: 'var(--font-body)', fontSize: 12,
+                        color: previewDocId === doc.id ? 'var(--accent)' : 'var(--ink-soft)',
+                        wordBreak: 'break-word', cursor: 'pointer', textDecoration: previewDocId === doc.id ? 'underline' : 'none',
+                      }}
+                    >
+                      {doc.filename}
+                    </p>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}>
+                      {doc.chunk_count} chunk
+                    </span>
+                  </div>
+                  <button
+                    onClick={e => handleDelete(e, doc.id, doc.filename)}
+                    title="Padam dokumen ini"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 14, padding: '2px 4px', flexShrink: 0, lineHeight: 1 }}
+                  >×</button>
                 </div>
-                <button
-                  onClick={e => handleDelete(e, doc.id, doc.filename)}
-                  title="Padam dokumen ini"
-                  style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--ink-soft)', fontSize: 14, padding: '2px 4px',
-                    flexShrink: 0, lineHeight: 1,
-                  }}
-                >×</button>
+
+                {/* Preview block */}
+                {previewDocId === doc.id && (
+                  <div style={{
+                    marginTop: 6, background: 'var(--bg)', border: '1px solid var(--line)',
+                    borderRadius: 'var(--radius-sm)', padding: '10px 12px',
+                    fontSize: 12, maxHeight: 200, overflowY: 'auto', whiteSpace: 'pre-wrap',
+                    fontFamily: 'var(--font-body)', color: 'var(--ink-soft)',
+                  }}>
+                    {previewLoading && 'Memuatkan pratonton...'}
+                    {previewError && 'Gagal memuatkan — cuba lagi.'}
+                    {!previewLoading && !previewError && previewText && (
+                      <>
+                        <p style={{ margin: '0 0 6px', whiteSpace: 'pre-wrap' }}>{previewText.preview_text}</p>
+                        <p style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}>
+                          Menunjukkan {previewText.showing_chunks} daripada {previewText.chunk_count} bahagian
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
