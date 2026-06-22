@@ -26,3 +26,6 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 .gstack/
+
+# Deploy script local — ada IP origin, jangan commit ke repo public
+deploy/deploy.sh
