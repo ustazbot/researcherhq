@@ -41,7 +41,7 @@ VENV_DIR="${BACKEND_DIR}/venv"
 # Nilai PRODUCTION — ditulis ke .env.production sebelum build
 PROD_API_URL="https://researcherhq.com/api"
 PROD_FRONTEND_URL="https://researcherhq.com"
-PROD_ADMIN_EMAIL="otbnetwork@gmail.com"
+PROD_ADMIN_EMAIL="planetrizq@gmail.com"
 # Turnstile site key produksi — GANTI dengan key sebenar (bukan test key)
 PROD_TURNSTILE_SITE_KEY="0x4AAAAAADpNkWviQf3m0t2_"
 
