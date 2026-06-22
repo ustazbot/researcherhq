@@ -17,7 +17,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('rhq_token')
       localStorage.removeItem('rhq_user')
-      window.location.href = '/auth'
+      window.location.href = import.meta.env.BASE_URL + 'auth'  // BASE_URL = '/app/'
     }
     return Promise.reject(err)
   }
