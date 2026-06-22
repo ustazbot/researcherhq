@@ -4,13 +4,32 @@ import api from '../api/client'
 const STATUS_LABEL = { draft: 'Draf', dalam_proses: 'Dalam Proses', siap: 'Siap' }
 const STATUS_COLOR = { draft: 'var(--line)', dalam_proses: 'var(--accent-soft)', siap: '#D1FAE5' }
 
-export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter }) {
+export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, collapsed, onToggleCollapse }) {
   const [upgrading, setUpgrading] = useState(false)
   const [addMode, setAddMode] = useState(false)
   const [newTitle, setNewTitle] = useState('')
 
   const done = (chapters || []).filter(c => c.status === 'siap').length
   const total = (chapters || []).length
+
+  if (collapsed) {
+    return (
+      <div style={{
+        width: 36, flexShrink: 0, borderLeft: '1px solid var(--line)',
+        background: 'var(--card)', display: 'flex', flexDirection: 'column', alignItems: 'center',
+        paddingTop: 12,
+      }}>
+        <button
+          onClick={onToggleCollapse}
+          title="Buka panel Struktur"
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--ink-soft)', fontSize: 16, padding: 4,
+          }}
+        >‹</button>
+      </div>
+    )
+  }
 
   function handleAdd(e) {
     e.preventDefault()
@@ -73,9 +92,16 @@ export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapter
       )}
 
       <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
-          Struktur Tesis
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={onToggleCollapse}
+            title="Tutup panel Struktur"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 16, padding: 0 }}
+          >›</button>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
+            Struktur Tesis
+          </span>
+        </div>
         {total > 0 && (
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: done === total ? '#16A34A' : 'var(--ink-soft)' }}>
             {done}/{total} siap

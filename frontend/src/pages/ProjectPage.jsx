@@ -45,6 +45,7 @@ export function ProjectPage() {
 
   // Layout state
   const [sourceCollapsed, setSourceCollapsed] = useState(false)
+  const [thesisCollapsed, setThesisCollapsed] = useState(false)
 
   // Mobile state
   const isMobile = useMediaQuery('(max-width: 768px)')
@@ -572,6 +573,8 @@ export function ProjectPage() {
           onAddChapter={handleAddChapter}
           onDeleteChapter={handleDeleteChapter}
           onReorderChapter={handleReorderChapter}
+          collapsed={thesisCollapsed}
+          onToggleCollapse={() => setThesisCollapsed(c => !c)}
         />
       </div>
     </div>
