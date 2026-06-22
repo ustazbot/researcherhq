@@ -30,6 +30,7 @@ export function DashboardPage() {
   const [newOutputTarget, setNewOutputTarget] = useState('thesis')
   const [newDegreeLevel, setNewDegreeLevel] = useState('master')
   const [newProposalStatus, setNewProposalStatus] = useState('belum')
+  const [tier, setTier] = useState(null)
   const user = JSON.parse(localStorage.getItem('rhq_user') || '{}')
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export function DashboardPage() {
     ]).then(([projRes, accRes]) => {
       setProjects(projRes.data)
       setLoading(false)
+      setTier(accRes.data.tier)
       if (!accRes.data.name) setShowStep0(true)
       const latest = projRes.data[0]  // ORDER BY created_at DESC dalam API
       if (latest) {
@@ -79,7 +81,7 @@ export function DashboardPage() {
         background: 'var(--card)',
       }}>
         <Logo size="md" />
-        <ProfileMenu user={user} />
+        <ProfileMenu user={user} tier={tier} />
       </header>
 
       {showSetPasswordNudge && !nudgeDismissed && (
