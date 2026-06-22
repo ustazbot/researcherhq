@@ -27,7 +27,7 @@ async def _embed_and_store_chunks(doc_id: str, chunk_texts: List[str], chunk_ids
         for chunk_id, embedding in zip(chunk_ids, embeddings):
             conn.execute(
                 "INSERT INTO chunk_vectors (chunk_id, embedding) VALUES (?, ?)",
-                (chunk_id, embedding)
+                (chunk_id, _sqlite_vec.serialize_float32(embedding))
             )
         conn.commit()
         conn.close()

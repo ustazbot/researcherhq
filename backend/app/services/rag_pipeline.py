@@ -31,6 +31,7 @@ def chunk_text(text: str, page_number: int = 0) -> List[Dict[str, Any]]:
 
 
 import math
+import struct
 import sqlite3
 import sqlite_vec
 from app.config import settings as _settings
@@ -128,14 +129,15 @@ async def retrieve_chunks(
         WHERE d.project_id = ?
         ORDER BY distance ASC
         LIMIT ?
-    """, (query_embedding, project_id, k_initial)).fetchall()
+    """, (sqlite_vec.serialize_float32(query_embedding), project_id, k_initial)).fetchall()
 
     conn.close()
 
     candidates = []
     for row in rows:
         similarity = max(0.0, 1.0 - row["distance"])
-        emb = list(row["embedding"]) if row["embedding"] else []
+        raw = row["embedding"]
+        emb = list(struct.unpack(f'{384}f', bytes(raw))) if raw else []
         candidates.append({
             "chunk_id": row["chunk_id"],
             "text": row["text"],
