@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Highlight from '@tiptap/extension-highlight'
@@ -25,6 +25,7 @@ function ToolbarButton({ onClick, active, children, title }) {
 }
 
 export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, onReject, onSave, saving }) {
+  const [tooltipDismissed, setTooltipDismissed] = useState(false)
   const saveTimer = useRef(null)
   const lastSavedContent = useRef(content || '')
 
@@ -52,13 +53,18 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
       editor.commands.setContent(content || '')
       lastSavedContent.current = content || ''
     }
-  }, [content, chapter?.id])
+  }, [content, chapter?.id, pendingSuggestion])
 
   // Toggle editable bila pendingSuggestion berubah
   useEffect(() => {
     if (!editor) return
     editor.setEditable(!pendingSuggestion)
   }, [pendingSuggestion])
+
+  // Cleanup saveTimer on unmount
+  useEffect(() => {
+    return () => clearTimeout(saveTimer.current)
+  }, [])
 
   if (!chapter) {
     return (
@@ -139,7 +145,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
       {pendingSuggestion ? (
         <div style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* First-time tooltip */}
-          {!localStorage.getItem(TOOLTIP_KEY) && (
+          {!tooltipDismissed && !localStorage.getItem(TOOLTIP_KEY) && (
             <div style={{
               padding: '12px 16px', background: 'var(--accent-soft)', border: '1px solid var(--accent)',
               borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'flex-start', gap: 12,
@@ -150,7 +156,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
                   Ni cadangan AI{pendingSuggestion.stageLabel ? ` — ${pendingSuggestion.stageLabel}` : ''} — klik <strong>Terima</strong> untuk masuk ke bab, atau <strong>Tolak</strong> untuk buang.
                 </p>
               </div>
-              <button onClick={() => localStorage.setItem(TOOLTIP_KEY, '1')} style={{
+              <button onClick={() => { localStorage.setItem(TOOLTIP_KEY, '1'); setTooltipDismissed(true) }} style={{
                 background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 16, flexShrink: 0, padding: 0,
               }}>×</button>
             </div>
