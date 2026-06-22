@@ -306,8 +306,14 @@ export function ProjectPage() {
             <button
               onClick={() => setDrawerOpen(true)}
               title="Buka panel Sumber & Struktur"
-              style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, cursor: 'pointer', padding: '4px 8px', fontSize: 12, color: 'var(--ink-soft)' }}
-            >☰ Sumber</button>
+              style={{
+                background: 'none',
+                border: '1px solid var(--accent)',
+                borderRadius: 4, cursor: 'pointer',
+                padding: '4px 10px', fontSize: 12,
+                color: 'var(--accent)',
+              }}
+            >☰ Sumber & Struktur</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {credits && (
@@ -322,7 +328,14 @@ export function ProjectPage() {
         {/* Mobile toggle bar */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
           {[
-            { key: 'editor', label: activeChapter ? activeChapter.title.slice(0, 20) + (activeChapter.title.length > 20 ? '…' : '') : 'Editor' },
+            {
+              key: 'editor',
+              label: showProposalUpload
+                ? 'Muat Naik Proposal'
+                : (pendingSuggestion
+                  ? '● ' + (activeChapter ? activeChapter.title.slice(0, 18) + (activeChapter.title.length > 18 ? '…' : '') : 'Editor')
+                  : (activeChapter ? activeChapter.title.slice(0, 20) + (activeChapter.title.length > 20 ? '…' : '') : 'Editor')),
+            },
             { key: 'chat', label: 'Chat AI' },
           ].map(tab => (
             <button
@@ -331,9 +344,12 @@ export function ProjectPage() {
               style={{
                 flex: 1, padding: '10px 0',
                 background: mobileView === tab.key ? 'var(--ink)' : 'transparent',
-                color: mobileView === tab.key ? 'var(--bg)' : 'var(--ink-soft)',
+                color: mobileView === tab.key
+                  ? 'var(--bg)'
+                  : (tab.key === 'editor' && pendingSuggestion ? 'var(--accent)' : 'var(--ink-soft)'),
                 border: 'none', fontFamily: 'var(--font-body)', fontSize: 13,
-                cursor: 'pointer', borderBottom: mobileView === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
+                cursor: 'pointer',
+                borderBottom: mobileView === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
               }}
             >
               {tab.label}
