@@ -46,6 +46,7 @@ export function ProjectPage() {
   // Layout state
   const [sourceCollapsed, setSourceCollapsed] = useState(false)
   const [thesisCollapsed, setThesisCollapsed] = useState(false)
+  const [openMenu, setOpenMenu] = useState(null) // 'fail' | 'paparan' | null
 
   // Mobile state
   const isMobile = useMediaQuery('(max-width: 768px)')
@@ -75,6 +76,12 @@ export function ProjectPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    function handleClickOutside() { setOpenMenu(null) }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [])
 
   // Fetch chapter content bila active chapter bertukar
   useEffect(() => {
@@ -475,6 +482,73 @@ export function ProjectPage() {
           <ProfileMenu user={user} tier={credits?.tier} />
         </div>
       </header>
+
+      {/* Menu bar — desktop only */}
+      <div style={{
+        height: 36, display: 'flex', alignItems: 'center', gap: 0,
+        borderBottom: '1px solid var(--line)', background: 'var(--card)',
+        flexShrink: 0, padding: '0 8px', position: 'relative',
+      }}>
+        {/* Menu Fail */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === 'fail' ? null : 'fail') }}
+            style={{
+              background: openMenu === 'fail' ? 'var(--accent-soft)' : 'none',
+              border: 'none', cursor: 'pointer', padding: '4px 10px',
+              fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)',
+              borderRadius: 4,
+            }}
+          >Fail</button>
+          {openMenu === 'fail' && (
+            <div onClick={e => e.stopPropagation()} style={{
+              position: 'absolute', top: '100%', left: 0, zIndex: 100,
+              background: 'var(--card)', border: '1px solid var(--line)',
+              borderRadius: 'var(--radius-sm)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              minWidth: 180,
+            }}>
+              <button
+                onClick={() => { handleExport(activeChapterId); setOpenMenu(null) }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
+              >Export Bab Aktif</button>
+              <button
+                onClick={() => { fileRef.current?.click(); setOpenMenu(null) }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
+              >Muat Naik Dokumen</button>
+            </div>
+          )}
+        </div>
+
+        {/* Menu Paparan */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === 'paparan' ? null : 'paparan') }}
+            style={{
+              background: openMenu === 'paparan' ? 'var(--accent-soft)' : 'none',
+              border: 'none', cursor: 'pointer', padding: '4px 10px',
+              fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)',
+              borderRadius: 4,
+            }}
+          >Paparan</button>
+          {openMenu === 'paparan' && (
+            <div onClick={e => e.stopPropagation()} style={{
+              position: 'absolute', top: '100%', left: 0, zIndex: 100,
+              background: 'var(--card)', border: '1px solid var(--line)',
+              borderRadius: 'var(--radius-sm)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              minWidth: 200,
+            }}>
+              <button
+                onClick={() => { setSourceCollapsed(c => !c); setOpenMenu(null) }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
+              >{sourceCollapsed ? '› ' : '‹ '}Togol Panel Sumber</button>
+              <button
+                onClick={() => { setThesisCollapsed(c => !c); setOpenMenu(null) }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
+              >{thesisCollapsed ? '› ' : '‹ '}Togol Struktur Tesis</button>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
