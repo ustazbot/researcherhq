@@ -43,7 +43,7 @@ PROD_API_URL="https://researcherhq.com/api"
 PROD_FRONTEND_URL="https://researcherhq.com"
 PROD_ADMIN_EMAIL="otbnetwork@gmail.com"
 # Turnstile site key produksi — GANTI dengan key sebenar (bukan test key)
-PROD_TURNSTILE_SITE_KEY="GANTI_DENGAN_TURNSTILE_SITE_KEY_SEBENAR"
+PROD_TURNSTILE_SITE_KEY="0x4AAAAAADpNkWviQf3m0t2_"
 
 # Backend run config
 UVICORN_HOST="127.0.0.1"
