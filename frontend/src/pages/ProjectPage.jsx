@@ -502,7 +502,7 @@ export function ProjectPage() {
       {/* Menu bar — desktop only */}
       <div style={{
         height: 36, display: 'flex', alignItems: 'center', gap: 0,
-        borderBottom: '1px solid var(--line)', background: 'var(--card)',
+        borderBottom: '1px solid var(--line)', background: 'var(--bg)',
         flexShrink: 0, padding: '0 8px', position: 'relative',
       }}>
         {/* Menu Fail */}
@@ -511,11 +511,15 @@ export function ProjectPage() {
             onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === 'fail' ? null : 'fail') }}
             style={{
               background: openMenu === 'fail' ? 'var(--accent-soft)' : 'none',
-              border: 'none', cursor: 'pointer', padding: '4px 10px',
+              border: openMenu === 'fail' ? '1px solid var(--accent)' : '1px solid transparent',
+              cursor: 'pointer', padding: '3px 10px',
               fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)',
-              borderRadius: 4,
+              borderRadius: 4, display: 'flex', alignItems: 'center', gap: 4,
+              transition: 'background 0.1s',
             }}
-          >Fail</button>
+            onMouseEnter={e => { if (openMenu !== 'fail') e.currentTarget.style.background = 'var(--line)' }}
+            onMouseLeave={e => { if (openMenu !== 'fail') e.currentTarget.style.background = 'none' }}
+          >Fail <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span></button>
           {openMenu === 'fail' && (
             <div onClick={e => e.stopPropagation()} style={{
               position: 'absolute', top: '100%', left: 0, zIndex: 100,
@@ -531,6 +535,15 @@ export function ProjectPage() {
                 onClick={() => { fileRef.current?.click(); setOpenMenu(null) }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
               >Muat Naik Dokumen</button>
+              {/* Fasa 3 items — disabled, labelled */}
+              <button disabled style={{
+                display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
+                background: 'none', border: 'none', cursor: 'not-allowed',
+                fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)',
+                opacity: 0.5,
+              }}>
+                Export Tesis Penuh <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Fasa 3</span>
+              </button>
             </div>
           )}
         </div>
@@ -541,11 +554,15 @@ export function ProjectPage() {
             onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === 'paparan' ? null : 'paparan') }}
             style={{
               background: openMenu === 'paparan' ? 'var(--accent-soft)' : 'none',
-              border: 'none', cursor: 'pointer', padding: '4px 10px',
+              border: openMenu === 'paparan' ? '1px solid var(--accent)' : '1px solid transparent',
+              cursor: 'pointer', padding: '3px 10px',
               fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)',
-              borderRadius: 4,
+              borderRadius: 4, display: 'flex', alignItems: 'center', gap: 4,
+              transition: 'background 0.1s',
             }}
-          >Paparan</button>
+            onMouseEnter={e => { if (openMenu !== 'paparan') e.currentTarget.style.background = 'var(--line)' }}
+            onMouseLeave={e => { if (openMenu !== 'paparan') e.currentTarget.style.background = 'none' }}
+          >Paparan <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span></button>
           {openMenu === 'paparan' && (
             <div onClick={e => e.stopPropagation()} style={{
               position: 'absolute', top: '100%', left: 0, zIndex: 100,
@@ -561,6 +578,22 @@ export function ProjectPage() {
                 onClick={() => { setThesisCollapsed(c => !c); setOpenMenu(null) }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
               >{thesisCollapsed ? '› ' : '‹ '}Togol Struktur Tesis</button>
+              <button disabled style={{
+                display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
+                background: 'none', border: 'none', cursor: 'not-allowed',
+                fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)',
+                opacity: 0.5,
+              }}>
+                Eksport Google Docs <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Fasa 3</span>
+              </button>
+              <button disabled style={{
+                display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
+                background: 'none', border: 'none', cursor: 'not-allowed',
+                fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)',
+                opacity: 0.5,
+              }}>
+                Bibliografi Manager <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Fasa 3</span>
+              </button>
             </div>
           )}
         </div>
