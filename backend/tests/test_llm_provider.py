@@ -75,3 +75,11 @@ async def test_pro_used_for_deep_query_type():
         )
     assert captured["model"] == settings.deepseek_model_pro
     assert captured["model"] == "deepseek-v4-pro"
+
+
+@pytest.mark.asyncio
+async def test_citation_token_in_system_prompt():
+    """System prompt wajib ada arahan [[cite:N]] untuk semua research modes."""
+    from app.services.llm_provider import SYSTEM_PROMPTS
+    for mode, prompt in SYSTEM_PROMPTS.items():
+        assert '[[cite:' in prompt, f"Mode '{mode}' tiada arahan [[cite:N]] dalam system prompt"
