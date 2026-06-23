@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Highlight from '@tiptap/extension-highlight'
 import Underline from '@tiptap/extension-underline'
+import { mdToHtml } from '../utils/markdown'
 
 const TOOLTIP_KEY = 'rhq_suggestion_tooltip_seen'
 
@@ -91,12 +92,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
 
   function handleAccept() {
     if (!editor) return
-    const htmlContent = '<p>' + pendingSuggestion.text
-      .split('\n\n')
-      .map(p => p.trim())
-      .filter(Boolean)
-      .join('</p><p>') + '</p>'
-    editor.commands.setContent(htmlContent)
+    editor.commands.setContent(mdToHtml(pendingSuggestion.text))
     onAccept(editor.getHTML())
   }
 
