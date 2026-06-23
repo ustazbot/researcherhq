@@ -78,6 +78,15 @@ def _store_cache(key: str, project_id: str, query: str, query_embedding: list,
         ),
     )
 
+def _get_voice_style(project_id: str, db) -> str:
+    """Return style_notes for this project, or '' if none."""
+    row = db.execute(
+        "SELECT style_notes FROM voice_profile WHERE project_id = ?",
+        (project_id,),
+    ).fetchone()
+    return row["style_notes"] if row else ""
+
+
 class QueryRequest(BaseModel):
     query: str
     output_mode: str = "qa"
@@ -199,11 +208,15 @@ async def query_project(
     }
     messages = history_messages + [current_message]
 
+    with get_db() as db:
+        style_notes = _get_voice_style(project_id, db)
+
     result = await query_llm(
         messages=messages,
         research_mode=project_dict["research_mode"],
         output_mode=body.output_mode,
         query_type=body.query_type,
+        style_notes=style_notes,
     )
 
     # Store response in cache for future hits

@@ -151,6 +151,16 @@ def _create_schema(conn: sqlite3.Connection):
     );
     CREATE INDEX IF NOT EXISTS idx_rate_limit_scope_time ON rate_limit_events(scope_key, created_at);
 
+    CREATE TABLE IF NOT EXISTS voice_profile (
+      id TEXT PRIMARY KEY,
+      project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      style_notes TEXT NOT NULL,
+      sample_excerpt TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_voice_profile_project ON voice_profile(project_id);
+
     CREATE TABLE IF NOT EXISTS admin_action_log (
       id TEXT PRIMARY KEY,
       admin_email TEXT NOT NULL,
@@ -204,6 +214,25 @@ def _create_schema(conn: sqlite3.Connection):
         conn.execute("ALTER TABLE projects ADD COLUMN proposal_status TEXT")
     if "citation_style" not in proj_cols:
         conn.execute("ALTER TABLE projects ADD COLUMN citation_style TEXT DEFAULT 'APA7'")
+
+    # Migration: Task 12B — voice profile per project
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS voice_profile (
+              id TEXT PRIMARY KEY,
+              project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+              style_notes TEXT NOT NULL,
+              sample_excerpt TEXT,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_voice_profile_project
+            ON voice_profile(project_id)
+        """)
+    except Exception:
+        pass
 
 
 @contextmanager

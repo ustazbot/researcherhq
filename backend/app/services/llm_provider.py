@@ -168,11 +168,14 @@ async def query_llm(
     research_mode: str = "general",
     output_mode: str = "qa",
     query_type: str = "normal",
+    style_notes: str = "",
 ) -> Dict:
     system_prompt = SYSTEM_PROMPTS.get(research_mode, SYSTEM_PROMPTS["general"])
     output_prompt = OUTPUT_MODE_PROMPTS.get(output_mode, "")
     if output_prompt:
         system_prompt = system_prompt + "\n\n" + output_prompt
+    if style_notes:
+        system_prompt = system_prompt + "\n\n" + style_notes
 
     use_pro = output_mode in ("literature_review", "research_gap") or query_type == "deep"
     model = settings.deepseek_model_pro if use_pro else settings.deepseek_model_flash
