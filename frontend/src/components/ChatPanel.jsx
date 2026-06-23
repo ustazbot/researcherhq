@@ -1,4 +1,5 @@
 // frontend/src/components/ChatPanel.jsx
+import { useState, useRef, useEffect } from 'react'
 import { CitationCard } from './CitationCard'
 import { parseCitation } from '../utils/parseCitation'
 
@@ -33,6 +34,36 @@ const CITE_STYLES = `
 }
 `
 
+const PILL_STYLES = `
+.mode-pill-wrap { position: relative; display: inline-block; margin-bottom: 8px; }
+.mode-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; background: var(--card);
+  border: 1px solid var(--line); border-radius: 20px;
+  font-family: var(--font-mono); font-size: 11px;
+  cursor: pointer; color: var(--ink); user-select: none;
+}
+.mode-pill:hover { border-color: var(--ink-soft); }
+.mode-pill-dropdown {
+  position: absolute; bottom: 110%; left: 0;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  min-width: 200px; z-index: 20; overflow: hidden;
+}
+.mode-pill-option {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 14px; cursor: pointer;
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink);
+  background: none; border: none; width: 100%; text-align: left;
+}
+.mode-pill-option:hover { background: var(--bg); }
+.mode-pill-option.active { background: var(--accent-soft); font-weight: 700; }
+.mode-credit-hint {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--ink-soft); margin-left: 6px;
+}
+`
+
 function CiteChip({ index, source }) {
   const label = source ? `${source.filename}, ms. ${source.page_number}` : `Sumber ${index}`
   return (
@@ -52,6 +83,14 @@ const OUTPUT_MODES = [
 ]
 
 export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, outputMode, onOutputModeChange, credits, onSendToEditor, hasActiveChapter, bottomRef, tier, isDiscoveryMode }) {
+  const [pillOpen, setPillOpen] = useState(false)
+  const pillRef = useRef(null)
+  useEffect(() => {
+    function close(e) { if (pillRef.current && !pillRef.current.contains(e.target)) setPillOpen(false) }
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [])
+
   function renderContent(text, sources) {
     const segments = parseCitation(text, sources || [])
     // Check if any cite segments exist
@@ -179,19 +218,37 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
 
       {/* Input area */}
       <div style={{ borderTop: '1px solid var(--line)', padding: '12px 16px', background: 'var(--card)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
-          {OUTPUT_MODES.filter(m => m.value !== 'discovery' || isDiscoveryMode).map(m => (
-            <button key={m.value} onClick={() => onOutputModeChange(m.value)} style={{
-              padding: '3px 8px',
-              background: outputMode === m.value ? 'var(--ink)' : 'transparent',
-              color: outputMode === m.value ? 'var(--bg)' : 'var(--ink-soft)',
-              border: `1px solid ${outputMode === m.value ? 'var(--ink)' : 'var(--line)'}`,
-              borderRadius: 5, fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer',
-            }}>
-              {m.label} ({m.credits}kr)
-            </button>
-          ))}
+        {/* Mode pill */}
+        <div className="mode-pill-wrap" ref={pillRef}>
+          <style>{PILL_STYLES}</style>
+          <button
+            className="mode-pill"
+            onClick={() => setPillOpen(o => !o)}
+            type="button"
+          >
+            {OUTPUT_MODES.find(m => m.value === outputMode)?.label ?? 'Soal-Jawab'}
+            <span>▾</span>
+          </button>
+          {pillOpen && (
+            <div className="mode-pill-dropdown">
+              {OUTPUT_MODES
+                .filter(m => m.value !== 'discovery' || isDiscoveryMode)
+                .map(m => (
+                  <button
+                    key={m.value}
+                    className={`mode-pill-option${outputMode === m.value ? ' active' : ''}`}
+                    onClick={() => { onOutputModeChange(m.value); setPillOpen(false) }}
+                  >
+                    {m.label}
+                    <span className="mode-credit-hint">{m.credits} kredit</span>
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
+        <span className="mode-credit-hint" style={{ display: 'inline-block', marginBottom: 8 }}>
+          ≈ {OUTPUT_MODES.find(m => m.value === outputMode)?.credits ?? 1} kredit
+        </span>
         <form onSubmit={onSubmit} style={{ display: 'flex', gap: 6 }}>
           <input
             value={query} onChange={e => onQueryChange(e.target.value)}
