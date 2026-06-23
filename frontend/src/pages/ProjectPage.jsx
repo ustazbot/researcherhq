@@ -52,6 +52,7 @@ export function ProjectPage() {
   const isMobile = useMediaQuery('(max-width: 768px)')
   const [mobileView, setMobileView] = useState('editor') // 'editor' | 'chat'
   const [drawerOpen, setDrawerOpen] = useState(false) // source + navigator drawer
+  const [drawerTab, setDrawerTab] = useState('sumber') // 'sumber' | 'struktur'
 
   const fileRef = useRef()
   const bottomRef = useRef()
@@ -307,13 +308,17 @@ export function ProjectPage() {
               onClick={() => setDrawerOpen(true)}
               title="Buka panel Sumber & Struktur"
               style={{
-                background: 'none',
-                border: '1px solid var(--accent)',
-                borderRadius: 4, cursor: 'pointer',
-                padding: '4px 10px', fontSize: 12,
-                color: 'var(--accent)',
+                background: 'var(--accent-soft)',
+                border: '1.5px solid var(--accent)',
+                borderRadius: 6, cursor: 'pointer',
+                padding: '6px 12px', fontSize: 12,
+                color: 'var(--ink)', fontFamily: 'var(--font-body)',
+                fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6,
               }}
-            >☰ Sumber & Struktur</button>
+            >
+              <span>☰</span>
+              <span>Sumber & Struktur Tesis</span>
+            </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {credits && (
@@ -325,34 +330,40 @@ export function ProjectPage() {
           </div>
         </header>
 
-        {/* Mobile toggle bar */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
+        {/* Segmented toggle */}
+        <div style={{
+          display: 'flex', borderBottom: '1px solid var(--line)',
+          background: 'var(--bg)', flexShrink: 0, padding: '6px 12px', gap: 4,
+        }}>
           {[
-            {
-              key: 'editor',
-              label: showProposalUpload
-                ? 'Muat Naik Proposal'
-                : (pendingSuggestion
-                  ? '● ' + (activeChapter ? activeChapter.title.slice(0, 18) + (activeChapter.title.length > 18 ? '…' : '') : 'Editor')
-                  : (activeChapter ? activeChapter.title.slice(0, 20) + (activeChapter.title.length > 20 ? '…' : '') : 'Editor')),
-            },
+            { key: 'editor', label: 'Editor' },
             { key: 'chat', label: 'Chat AI' },
           ].map(tab => (
             <button
               key={tab.key}
               onClick={() => setMobileView(tab.key)}
               style={{
-                flex: 1, padding: '10px 0',
-                background: mobileView === tab.key ? 'var(--ink)' : 'transparent',
-                color: mobileView === tab.key
-                  ? 'var(--bg)'
-                  : (tab.key === 'editor' && pendingSuggestion ? 'var(--accent)' : 'var(--ink-soft)'),
-                border: 'none', fontFamily: 'var(--font-body)', fontSize: 13,
-                cursor: 'pointer',
-                borderBottom: mobileView === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
+                flex: 1, padding: '7px 0',
+                background: mobileView === tab.key ? 'var(--card)' : 'transparent',
+                color: mobileView === tab.key ? 'var(--ink)' : 'var(--ink-soft)',
+                border: 'none',
+                borderRadius: 6,
+                boxShadow: mobileView === tab.key ? '0 1px 4px rgba(0,0,0,0.12)' : 'none',
+                fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: mobileView === tab.key ? 600 : 400,
+                cursor: 'pointer', position: 'relative',
+                transition: 'background 0.15s, box-shadow 0.15s',
               }}
             >
               {tab.label}
+              {/* Dot indicator for pending suggestion on Editor tab */}
+              {tab.key === 'editor' && pendingSuggestion && mobileView !== 'editor' && (
+                <span style={{
+                  position: 'absolute', top: 6, right: 'calc(50% - 24px)',
+                  width: 7, height: 7,
+                  background: 'var(--accent)', borderRadius: '50%',
+                  display: 'inline-block',
+                }} />
+              )}
             </button>
           ))}
         </div>
@@ -443,31 +454,53 @@ export function ProjectPage() {
               overflowY: 'auto',
             }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15 }}>Sumber & Struktur</span>
+                <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15 }}>Panel</span>
                 <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-soft)' }}>×</button>
               </div>
-              {/* SourcePanel inlined for drawer */}
-              <SourcePanel
-                documents={documents}
-                onUpload={() => { fileRef.current?.click(); setDrawerOpen(false) }}
-                tier={credits?.tier ?? user?.tier}
-                uploading={uploading}
-                collapsed={false}
-                onToggleCollapse={() => {}}
-                onDeleteDoc={handleDeleteDoc}
-              />
-              <div style={{ borderTop: '2px solid var(--line)' }} />
-              <ThesisPanel
-                chapters={sortedChapters}
-                onExport={handleExport}
-                tier={credits?.tier ?? user?.tier}
-                projectId={id}
-                activeChapterId={activeChapterId}
-                onSetActive={ch => { handleSetActive(ch); setDrawerOpen(false); setMobileView('editor') }}
-                onAddChapter={handleAddChapter}
-                onDeleteChapter={handleDeleteChapter}
-                onReorderChapter={handleReorderChapter}
-              />
+              {/* Tab row inside drawer */}
+              <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', padding: '4px 12px', gap: 4 }}>
+                {[
+                  { key: 'sumber', label: 'Sumber' },
+                  { key: 'struktur', label: 'Struktur Tesis' },
+                ].map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setDrawerTab(t.key)}
+                    style={{
+                      padding: '5px 12px',
+                      background: drawerTab === t.key ? 'var(--accent-soft)' : 'none',
+                      border: drawerTab === t.key ? '1px solid var(--accent)' : '1px solid transparent',
+                      borderRadius: 5, cursor: 'pointer',
+                      fontFamily: 'var(--font-mono)', fontSize: 11,
+                      color: drawerTab === t.key ? 'var(--ink)' : 'var(--ink-soft)',
+                    }}
+                  >{t.label}</button>
+                ))}
+              </div>
+              {drawerTab === 'sumber' && (
+                <SourcePanel
+                  documents={documents}
+                  onUpload={() => { fileRef.current?.click(); setDrawerOpen(false) }}
+                  tier={credits?.tier ?? user?.tier}
+                  uploading={uploading}
+                  collapsed={false}
+                  onToggleCollapse={() => {}}
+                  onDeleteDoc={handleDeleteDoc}
+                />
+              )}
+              {drawerTab === 'struktur' && (
+                <ThesisPanel
+                  chapters={sortedChapters}
+                  onExport={handleExport}
+                  tier={credits?.tier ?? user?.tier}
+                  projectId={id}
+                  activeChapterId={activeChapterId}
+                  onSetActive={ch => { handleSetActive(ch); setDrawerOpen(false); setMobileView('editor') }}
+                  onAddChapter={handleAddChapter}
+                  onDeleteChapter={handleDeleteChapter}
+                  onReorderChapter={handleReorderChapter}
+                />
+              )}
             </div>
           </>
         )}
