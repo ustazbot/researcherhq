@@ -5,6 +5,33 @@ import Highlight from '@tiptap/extension-highlight'
 import Underline from '@tiptap/extension-underline'
 import { mdToHtml } from '../utils/markdown'
 
+const EDITOR_STYLES = `
+.editor-paper {
+  max-width: 700px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 40px;
+  box-sizing: border-box;
+}
+@media (max-width: 768px) {
+  .editor-paper { padding: 16px 16px; }
+}
+.editor-paper .ProseMirror {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--ink);
+  outline: none;
+  min-height: 300px;
+}
+.editor-paper .ProseMirror h1 { font-size: 1.6em; font-weight: 600; margin: 1.4em 0 0.5em; }
+.editor-paper .ProseMirror h2 { font-size: 1.3em; font-weight: 600; margin: 1.2em 0 0.4em; }
+.editor-paper .ProseMirror h3 { font-size: 1.1em; font-weight: 600; margin: 1em 0 0.3em; }
+.editor-paper .ProseMirror p { margin: 0 0 0.9em; }
+.editor-paper .ProseMirror ul,
+.editor-paper .ProseMirror ol { padding-left: 1.5em; margin-bottom: 0.9em; }
+`
+
 const TOOLTIP_KEY = 'rhq_suggestion_tooltip_seen'
 
 // ponytail: inline toolbar — no separate component, only one editor instance
@@ -215,11 +242,11 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
         </div>
       ) : (
         /* Edit mode — TipTap editor */
-        <div style={{ flex: 1, overflow: 'auto', padding: '0 24px' }}>
-          <EditorContent
-            editor={editor}
-            style={{ minHeight: '100%', paddingTop: 24, paddingBottom: 24 }}
-          />
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          <style>{EDITOR_STYLES}</style>
+          <div className="editor-paper">
+            <EditorContent editor={editor} />
+          </div>
         </div>
       )}
     </div>
