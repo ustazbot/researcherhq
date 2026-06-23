@@ -15,9 +15,18 @@ export function AccountSettingsPage() {
   const [pwLoading, setPwLoading] = useState(false)
   const [pwSuccess, setPwSuccess] = useState('')
   const [pwError, setPwError] = useState('')
+  const [profileName, setProfileName] = useState('')
+  const [profileIpt, setProfileIpt] = useState('')
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileSuccess, setProfileSuccess] = useState('')
+  const [profileError, setProfileError] = useState('')
 
   useEffect(() => {
-    api.get('/account').then(r => setAccount(r.data)).catch(() => setError('Gagal muatkan maklumat akaun.'))
+    api.get('/account').then(r => {
+      setAccount(r.data)
+      setProfileName(r.data.name || '')
+      setProfileIpt(r.data.institution || '')
+    }).catch(() => setError('Gagal muatkan maklumat akaun.'))
   }, [])
 
   async function handleSetPassword(e) {
@@ -124,6 +133,50 @@ export function AccountSettingsPage() {
               Naik Taraf ke Pro — RM39/bulan
             </button>
           )}
+        </section>
+
+        {/* Profil Anda */}
+        <section style={sectionStyle}>
+          <h2 style={sectionHeadingStyle}>Profil Anda</h2>
+          <input
+            value={profileName}
+            onChange={e => { setProfileName(e.target.value); setProfileSuccess(''); setProfileError('') }}
+            placeholder="Nama penuh"
+            style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--ink)', marginBottom: 10, boxSizing: 'border-box' }}
+          />
+          <input
+            value={profileIpt}
+            onChange={e => { setProfileIpt(e.target.value); setProfileSuccess(''); setProfileError('') }}
+            placeholder="Nama universiti / IPT"
+            style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--ink)', marginBottom: 10, boxSizing: 'border-box' }}
+          />
+          {profileError && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 10px' }}>{profileError}</p>}
+          {profileSuccess && <p style={{ color: '#16A34A', fontSize: 13, margin: '0 0 10px' }}>{profileSuccess}</p>}
+          <button
+            disabled={profileLoading || !profileName.trim()}
+            onClick={async () => {
+              setProfileLoading(true)
+              setProfileError('')
+              setProfileSuccess('')
+              try {
+                await api.patch('/account/profile', { name: profileName.trim(), institution: profileIpt.trim() })
+                setProfileSuccess('Profil dikemaskini ✓')
+              } catch (err) {
+                if (err.response?.status === 401) {
+                  setProfileError('Sila log masuk semula.')
+                } else if (!err.response) {
+                  setProfileError('Gagal sambung ke pelayan. Cuba semula.')
+                } else {
+                  setProfileError('Ralat berlaku. Sila cuba semula.')
+                }
+              } finally {
+                setProfileLoading(false)
+              }
+            }}
+            style={{ padding: '10px 20px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: 'pointer', opacity: profileName.trim() ? 1 : 0.5 }}
+          >
+            {profileLoading ? 'Menyimpan...' : 'Simpan Profil'}
+          </button>
         </section>
 
         {/* Tukar Kata Laluan */}

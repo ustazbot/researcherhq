@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 
-export function ProfileMenu({ user, tier: tierProp }) {
+export function ProfileMenu({ user, tier: tierProp, userName }) {
   const [open, setOpen] = useState(false)
   const [credits, setCredits] = useState(null)
   const [topping, setTopping] = useState(false)
@@ -43,7 +43,7 @@ export function ProfileMenu({ user, tier: tierProp }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12,
         }}>
-          {user?.email?.[0]?.toUpperCase() || 'U'}
+          {userName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
         </span>
         <span style={{
           fontFamily: 'var(--font-mono)', fontSize: 11,
@@ -62,7 +62,8 @@ export function ProfileMenu({ user, tier: tierProp }) {
           minWidth: 220, zIndex: 100, boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
         }}>
           <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--line)', marginBottom: 4 }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{user?.email}</p>
+            {userName && <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 600 }}>{userName}</p>}
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: userName ? 'var(--ink-soft)' : 'var(--ink)' }}>{user?.email}</p>
             {credits && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>
                 Baki Kredit Kajian: {credits.kredit_remaining}

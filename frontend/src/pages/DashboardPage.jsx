@@ -20,7 +20,7 @@ export function DashboardPage() {
   const [projects, setProjects] = useState([])
   const [creating, setCreating] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  const [newMode, setNewMode] = useState('general')
+  const [newMode, setNewMode] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showStep0, setShowStep0] = useState(false)
@@ -31,6 +31,10 @@ export function DashboardPage() {
   const [newDegreeLevel, setNewDegreeLevel] = useState('master')
   const [newProposalStatus, setNewProposalStatus] = useState('belum')
   const [tier, setTier] = useState(null)
+  const [profileError, setProfileError] = useState('')
+  const [step0Success, setStep0Success] = useState(false)
+  const [justCompletedStep0, setJustCompletedStep0] = useState(false)
+  const [userName, setUserName] = useState('')
   const user = JSON.parse(localStorage.getItem('rhq_user') || '{}')
 
   useEffect(() => {
@@ -41,6 +45,7 @@ export function DashboardPage() {
       setProjects(projRes.data)
       setLoading(false)
       setTier(accRes.data.tier)
+      setUserName(accRes.data.name || '')
       if (!accRes.data.name) setShowStep0(true)
       const latest = projRes.data[0]  // ORDER BY created_at DESC dalam API
       if (latest) {
@@ -62,6 +67,7 @@ export function DashboardPage() {
         degree_level: newDegreeLevel,
         proposal_status: newProposalStatus,
       })
+      setJustCompletedStep0(false)
       // Branch by proposal_status
       if (newProposalStatus === 'belum') {
         nav(`/project/${data.id}?mode=discovery`)
@@ -81,7 +87,7 @@ export function DashboardPage() {
         background: 'var(--card)',
       }}>
         <Logo size="md" />
-        <ProfileMenu user={user} tier={tier} />
+        <ProfileMenu user={user} tier={tier} userName={userName} />
       </header>
 
       {showSetPasswordNudge && !nudgeDismissed && (
@@ -115,55 +121,95 @@ export function DashboardPage() {
             padding: 32, width: '100%', maxWidth: 400,
             border: '1px solid var(--line)',
           }}>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 8px', fontSize: 22 }}>
-              Selamat Datang ke ResearcherHQ
-            </h2>
-            <p style={{ color: 'var(--ink-soft)', fontSize: 14, margin: '0 0 24px' }}>
-              Beritahu kami sedikit tentang diri anda untuk permulaan yang lebih baik.
-            </p>
-            <input
-              value={profileName}
-              onChange={e => setProfileName(e.target.value)}
-              placeholder="Nama penuh anda"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, marginBottom: 12, boxSizing: 'border-box' }}
-            />
-            <input
-              value={profileIpt}
-              onChange={e => setProfileIpt(e.target.value)}
-              placeholder="Nama universiti / IPT"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, marginBottom: 20, boxSizing: 'border-box' }}
-            />
-            <button
-              disabled={!profileName.trim() || savingProfile}
-              onClick={async () => {
-                setSavingProfile(true)
-                try {
-                  await api.patch('/account/profile', { name: profileName.trim(), institution: profileIpt.trim() })
-                  setShowStep0(false)
-                } catch {
-                  // ponytail: silent fail — user can retry, button re-enables
-                } finally {
-                  setSavingProfile(false)
-                }
-              }}
-              style={{
-                width: '100%', padding: '12px', background: 'var(--ink)', color: 'var(--bg)',
-                border: 'none', borderRadius: 8, fontFamily: 'var(--font-heading)',
-                fontWeight: 700, fontSize: 15, cursor: profileName.trim() ? 'pointer' : 'not-allowed',
-                opacity: profileName.trim() ? 1 : 0.5,
-              }}
-            >
-              {savingProfile ? 'Menyimpan...' : 'Teruskan →'}
-            </button>
-            <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: 'var(--ink-soft)' }}>
-              <button
-                type="button"
-                onClick={() => setShowStep0(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13, textDecoration: 'underline', padding: 0 }}
-              >
-                Langkau buat masa ini
-              </button>
-            </p>
+            {step0Success ? (
+              <>
+                <p style={{ fontSize: 32, margin: '0 0 12px' }}>✓</p>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 8px', fontSize: 22 }}>
+                  Profil disimpan!
+                </h2>
+                <p style={{ color: 'var(--ink-soft)', fontSize: 14, margin: '0 0 24px' }}>
+                  Sekarang, cipta projek pertama anda.
+                </p>
+                <button
+                  onClick={() => {
+                    setShowStep0(false)
+                    setStep0Success(false)
+                    setJustCompletedStep0(true)
+                    setCreating(true)
+                  }}
+                  style={{
+                    width: '100%', padding: '12px', background: 'var(--accent)', color: 'var(--ink)',
+                    border: 'none', borderRadius: 8, fontFamily: 'var(--font-heading)',
+                    fontWeight: 700, fontSize: 15, cursor: 'pointer',
+                  }}
+                >
+                  Cipta Projek Pertama →
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 8px', fontSize: 22 }}>
+                  Selamat Datang ke researcherHQ
+                </h2>
+                <p style={{ color: 'var(--ink-soft)', fontSize: 14, margin: '0 0 24px' }}>
+                  Beritahu kami sedikit tentang diri anda untuk permulaan yang lebih baik.
+                </p>
+                <input
+                  value={profileName}
+                  onChange={e => { setProfileName(e.target.value); setProfileError('') }}
+                  placeholder="Nama penuh anda"
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, marginBottom: 12, boxSizing: 'border-box' }}
+                />
+                <input
+                  value={profileIpt}
+                  onChange={e => { setProfileIpt(e.target.value); setProfileError('') }}
+                  placeholder="Nama universiti / IPT"
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, marginBottom: profileError ? 8 : 20, boxSizing: 'border-box' }}
+                />
+                {profileError && (
+                  <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 12px' }}>{profileError}</p>
+                )}
+                <button
+                  disabled={!profileName.trim() || savingProfile}
+                  onClick={async () => {
+                    setSavingProfile(true)
+                    setProfileError('')
+                    try {
+                      await api.patch('/account/profile', { name: profileName.trim(), institution: profileIpt.trim() })
+                      setUserName(profileName.trim())
+                      setStep0Success(true)
+                    } catch (err) {
+                      if (err.response?.status === 401) {
+                        setProfileError('Sila log masuk semula.')
+                      } else if (!err.response) {
+                        setProfileError('Gagal sambung ke pelayan. Cuba semula.')
+                      } else {
+                        setProfileError('Ralat berlaku. Sila cuba semula.')
+                      }
+                    } finally {
+                      setSavingProfile(false)
+                    }
+                  }}
+                  style={{
+                    width: '100%', padding: '12px', background: 'var(--ink)', color: 'var(--bg)',
+                    border: 'none', borderRadius: 8, fontFamily: 'var(--font-heading)',
+                    fontWeight: 700, fontSize: 15, cursor: profileName.trim() ? 'pointer' : 'not-allowed',
+                    opacity: profileName.trim() ? 1 : 0.5,
+                  }}
+                >
+                  {savingProfile ? 'Menyimpan...' : 'Teruskan →'}
+                </button>
+                <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: 'var(--ink-soft)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowStep0(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13, textDecoration: 'underline', padding: 0 }}
+                  >
+                    Langkau buat masa ini
+                  </button>
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -187,62 +233,73 @@ export function DashboardPage() {
             background: 'var(--card)', border: '1px solid var(--accent)',
             borderRadius: 'var(--radius-md)', padding: 24, marginBottom: 24,
           }}>
+            {justCompletedStep0 && (
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 8px', letterSpacing: '0.04em' }}>
+                Langkah 2 daripada 2 — Projek Anda
+              </p>
+            )}
             <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 16px' }}>
               Projek Baru
             </h3>
             <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
-              placeholder="Tajuk projek / tesis" required
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, marginBottom: 12 }}
+              placeholder="Contoh: Kesedaran Kewangan dalam Kalangan Pelajar IPTA" required
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, marginBottom: 12, boxSizing: 'border-box' }}
             />
-            <select value={newMode} onChange={e => setNewMode(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, marginBottom: 16 }}>
+            <select value={newMode} onChange={e => setNewMode(e.target.value)} required
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, marginBottom: 16, boxSizing: 'border-box' }}>
+              <option value="" disabled>— Pilih bidang kajian —</option>
               {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', marginBottom: 6 }}>
-                Tahap Pengajian
-              </label>
-              <select value={newDegreeLevel} onChange={e => setNewDegreeLevel(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15 }}>
-                <option value="master">Master</option>
-                <option value="phd">PhD</option>
-                <option value="lain-lain">Lain-lain</option>
-              </select>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', marginBottom: 6 }}>
-                Matlamat Output
-              </label>
-              <select value={newOutputTarget} onChange={e => setNewOutputTarget(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15 }}>
-                <option value="thesis">Tesis</option>
-                <option value="article">Artikel Jurnal</option>
-                <option value="proposal">Proposal</option>
-              </select>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', marginBottom: 6 }}>
-                Status Proposal
-              </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[
-                  { value: 'belum', label: 'Belum ada proposal' },
-                  { value: 'lulus', label: 'Sudah lulus' },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setNewProposalStatus(opt.value)}
-                    style={{
-                      flex: 1, padding: '10px', border: `1px solid ${newProposalStatus === opt.value ? 'var(--accent)' : 'var(--line)'}`,
-                      borderRadius: 8, background: newProposalStatus === opt.value ? 'var(--accent-soft)' : 'transparent',
-                      fontFamily: 'var(--font-body)', fontSize: 14, cursor: 'pointer',
-                      fontWeight: newProposalStatus === opt.value ? 700 : 400,
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+            <div style={{ border: '1px solid var(--line)', borderRadius: 8, padding: '16px', marginBottom: 16 }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 12px' }}>
+                Maklumat Kajian
+              </p>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', marginBottom: 6 }}>
+                  Tahap Pengajian
+                </label>
+                <select value={newDegreeLevel} onChange={e => setNewDegreeLevel(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, boxSizing: 'border-box' }}>
+                  <option value="master">Master</option>
+                  <option value="phd">PhD</option>
+                  <option value="lain-lain">Lain-lain</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', marginBottom: 6 }}>
+                  Matlamat Output
+                </label>
+                <select value={newOutputTarget} onChange={e => setNewOutputTarget(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, boxSizing: 'border-box' }}>
+                  <option value="thesis">Tesis</option>
+                  <option value="article">Artikel Jurnal</option>
+                  <option value="proposal">Proposal</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', marginBottom: 6 }}>
+                  Status Proposal
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[
+                    { value: 'belum', label: 'Belum ada proposal' },
+                    { value: 'lulus', label: 'Sudah lulus' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setNewProposalStatus(opt.value)}
+                      style={{
+                        flex: 1, padding: '10px', border: `1px solid ${newProposalStatus === opt.value ? 'var(--accent)' : 'var(--line)'}`,
+                        borderRadius: 8, background: newProposalStatus === opt.value ? 'var(--accent-soft)' : 'transparent',
+                        fontFamily: 'var(--font-body)', fontSize: 14, cursor: 'pointer',
+                        fontWeight: newProposalStatus === opt.value ? 700 : 400,
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             {error && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 12px' }}>{error}</p>}
@@ -250,7 +307,7 @@ export function DashboardPage() {
               <button type="submit" style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--ink)', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
                 Cipta Projek
               </button>
-              <button type="button" onClick={() => { setCreating(false); setError('') }}
+              <button type="button" onClick={() => { setCreating(false); setError(''); setJustCompletedStep0(false) }}
                 style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer' }}>
                 Batal
               </button>
