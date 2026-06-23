@@ -1,21 +1,32 @@
+function RMark({ height }) {
+  return (
+    <svg
+      width={Math.round(height * 220 / 280)}
+      height={height}
+      viewBox="0 0 220 280"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        fill="currentColor"
+        d="M18 18H64V262H18ZM64 18H145C215 18 215 170 145 170H64ZM64 64V124H108C140 124 140 64 108 64ZM64 170H145L200 262H120L64 190Z"
+      />
+    </svg>
+  )
+}
+
 export function Logo({ size = 'md', dark = false }) {
   const sizes = {
-    sm: { word: 20, badge: 11, gap: 6, pad: '4px 8px', radius: 6 },
-    md: { word: 28, badge: 14, gap: 8, pad: '5px 10px', radius: 7 },
-    lg: { word: 44, badge: 18, gap: 12, pad: '7px 14px', radius: 8 },
+    sm: { mark: 24, badge: 11, gap: 6, pad: '4px 8px', radius: 6 },
+    md: { mark: 34, badge: 14, gap: 8, pad: '5px 10px', radius: 7 },
+    lg: { mark: 52, badge: 18, gap: 12, pad: '7px 14px', radius: 8 },
   }
   const s = sizes[size]
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: s.gap }}>
-      <span style={{
-        fontFamily: 'var(--font-heading)',
-        fontWeight: 700,
-        fontSize: s.word,
-        color: dark ? 'var(--bg)' : 'var(--ink)',
-        lineHeight: 1,
-      }}>
-        Researcher
+      <span style={{ color: dark ? 'var(--bg)' : 'var(--ink)', lineHeight: 1, display: 'inline-flex' }}>
+        <RMark height={s.mark} />
       </span>
       <span style={{
         fontFamily: 'var(--font-mono)',
@@ -37,7 +48,6 @@ export function Logo({ size = 'md', dark = false }) {
 
 export function AppIcon({ size = 96, alt = false }) {
   const radius = Math.round(size * 0.23)
-  const fontSize = Math.round(size * 0.31)
   return (
     <div style={{
       width: size, height: size,
@@ -45,14 +55,8 @@ export function AppIcon({ size = 96, alt = false }) {
       background: alt ? 'var(--accent)' : 'var(--ink)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <span style={{
-        fontFamily: 'var(--font-heading)',
-        fontWeight: 800,
-        fontSize,
-        color: alt ? 'var(--ink)' : 'var(--accent)',
-        letterSpacing: '0.01em',
-      }}>
-        HQ
+      <span style={{ color: alt ? 'var(--ink)' : 'var(--accent)', display: 'inline-flex' }}>
+        <RMark height={Math.round(size * 0.55)} />
       </span>
     </div>
   )

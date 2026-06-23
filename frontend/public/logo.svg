@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 280">
+  <title>ResearcherHQ</title>
+  <!--
+    R lettermark:
+    - Subpath 1 (CW): vertical bar, x=18-64, full height
+    - Subpath 2 (CW): bowl outer D-shape, arc via cubic bezier to x~215
+    - Subpath 3 (CCW): inner cutout, creates hole in bowl (nonzero fill rule)
+    - Subpath 4 (CW): diagonal leg
+  -->
+  <path
+    fill="#0D2444"
+    d="M18 18H64V262H18Z
+       M64 18H145C215 18 215 170 145 170H64Z
+       M64 64V124H108C140 124 140 64 108 64Z
+       M64 170H145L200 262H120L64 190Z"
+  />
+</svg>
