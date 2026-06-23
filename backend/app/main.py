@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
-from app.routers import auth, projects, documents, rag, credits, account, support, chapters, billing, admin, voice_profile
+from app.routers import auth, projects, documents, rag, credits, account, support, chapters, billing, admin, voice_profile, search
 from app.services.embedding_pool import embedding_pool
 from app.services.export_service import start_export_worker
 
@@ -46,3 +46,4 @@ app.include_router(chapters.router, tags=["chapters"])
 app.include_router(billing.router, prefix="/billing", tags=["billing"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(voice_profile.router, prefix="/voice-profile", tags=["voice-profile"])
+app.include_router(search.router, prefix="/search", tags=["search"])
