@@ -179,6 +179,22 @@ export function ProjectPage() {
     }
   }
 
+  async function handleAcceptArticle(article) {
+    await api.post('/search/accept', {
+      project_id: id,
+      title: article.title,
+      authors: article.authors,
+      year: article.year,
+      journal: article.journal,
+      doi: article.doi,
+      abstract: article.abstract,
+      url: article.url,
+      source: article.source,
+    })
+    const { data } = await api.get(`/projects/${id}/documents`)
+    setDocuments(data)
+  }
+
   async function openVoiceProfileEdit() {
     try {
       const { data } = await api.get(`/voice-profile/${id}`)
@@ -672,6 +688,8 @@ export function ProjectPage() {
                   collapsed={false}
                   onToggleCollapse={() => {}}
                   onDeleteDoc={handleDeleteDoc}
+                  projectId={id}
+                  onAcceptArticle={handleAcceptArticle}
                 />
               )}
               {drawerTab === 'struktur' && (
@@ -848,6 +866,8 @@ export function ProjectPage() {
           collapsed={sourceCollapsed}
           onToggleCollapse={() => setSourceCollapsed(c => !c)}
           onDeleteDoc={handleDeleteDoc}
+          projectId={id}
+          onAcceptArticle={handleAcceptArticle}
         />
 
         {/* Proposal Upload Panel */}
