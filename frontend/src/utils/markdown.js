@@ -13,7 +13,10 @@ const ALLOWED_ATTR = ['href','class','data-index','data-cite']
 export function mdToHtml(text) {
   if (!text) return ''
   const raw = marked.parse(text)
-  return DOMPurify.sanitize(raw, {
+  // Convert [[cite:N]] to superscript before sanitizing
+  const withChips = raw.replace(/\[\[cite:(\d+)\]\]/g,
+    (_, n) => `<sup class="cite-chip" data-index="${n}">[${n}]</sup>`)
+  return DOMPurify.sanitize(withChips, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
   })

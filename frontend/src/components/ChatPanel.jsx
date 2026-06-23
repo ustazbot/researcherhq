@@ -1,5 +1,47 @@
 // frontend/src/components/ChatPanel.jsx
 import { CitationCard } from './CitationCard'
+import { parseCitation } from '../utils/parseCitation'
+
+const CITE_STYLES = `
+.cite-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px;
+  background: #EEF2FF; color: #4F46E5;
+  border: 1px solid #C7D2FE;
+  border-radius: 50%; font-size: 9px; font-weight: 700;
+  cursor: pointer; vertical-align: super; margin: 0 1px;
+  position: relative; text-decoration: none;
+  font-family: var(--font-mono);
+}
+.cite-chip:hover .cite-tooltip {
+  display: block;
+}
+.cite-tooltip {
+  display: none;
+  position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg);
+  padding: 4px 8px; border-radius: 4px;
+  white-space: nowrap; font-size: 11px; font-weight: 400;
+  z-index: 10; pointer-events: none;
+  font-family: var(--font-mono);
+}
+.cite-footnotes {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--ink-soft);
+}
+`
+
+function CiteChip({ index, source }) {
+  const label = source ? `${source.filename}, ms. ${source.page_number}` : `Sumber ${index}`
+  return (
+    <span className="cite-chip" title={label}>
+      {index}
+      <span className="cite-tooltip">{label}</span>
+    </span>
+  )
+}
 
 const OUTPUT_MODES = [
   { value: 'qa', label: 'Soal-Jawab', credits: 1 },
@@ -10,8 +52,44 @@ const OUTPUT_MODES = [
 ]
 
 export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, outputMode, onOutputModeChange, credits, onSendToEditor, hasActiveChapter, bottomRef, tier, isDiscoveryMode }) {
+  function renderContent(text, sources) {
+    const segments = parseCitation(text, sources || [])
+    // Check if any cite segments exist
+    const hasCites = segments.some(s => s.type === 'cite')
+    // Collect unique cited sources for footnote
+    const cited = []
+    const seen = new Set()
+    segments.forEach(s => {
+      if (s.type === 'cite' && !seen.has(s.index)) {
+        seen.add(s.index)
+        cited.push(s)
+      }
+    })
+    return (
+      <>
+        <span style={{ whiteSpace: 'pre-wrap' }}>
+          {segments.map((seg, i) =>
+            seg.type === 'text'
+              ? <span key={i}>{seg.content}</span>
+              : <CiteChip key={i} index={seg.index} source={seg.source} />
+          )}
+        </span>
+        {hasCites && cited.length > 0 && (
+          <div className="cite-footnotes">
+            {cited.map(s => (
+              <div key={s.index}>
+                [{s.index}] {s.source ? `${s.source.filename}, ms. ${s.source.page_number}` : `Sumber ${s.index}`}
+              </div>
+            ))}
+          </div>
+        )}
+      </>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
+      <style>{CITE_STYLES}</style>
       <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
           Chat AI
@@ -48,9 +126,9 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
               border: msg.role === 'user' ? 'none' : `1px solid ${msg.role === 'error' ? '#FECACA' : 'var(--line)'}`,
               borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
               padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 14,
-              lineHeight: 1.6, whiteSpace: 'pre-wrap',
+              lineHeight: 1.6, whiteSpace: msg.role === 'assistant' ? undefined : 'pre-wrap',
             }}>
-              {msg.content}
+              {msg.role === 'assistant' ? renderContent(msg.content, msg.sources) : msg.content}
               {msg.kredit_used && (
                 <span style={{ display: 'block', marginTop: 6, fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.6 }}>
                   {msg.kredit_used} kredit
