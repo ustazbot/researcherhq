@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Highlight from '@tiptap/extension-highlight'
 import Underline from '@tiptap/extension-underline'
+import Superscript from '@tiptap/extension-superscript'
 import { mdToHtml } from '../utils/markdown'
 
 const EDITOR_STYLES = `
@@ -58,7 +59,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
   const lastSavedContent = useRef(content || '')
 
   const editor = useEditor({
-    extensions: [StarterKit, Highlight, Underline],
+    extensions: [StarterKit, Highlight, Underline, Superscript],
     content: content || '',
     editable: !pendingSuggestion,
     onUpdate: ({ editor }) => {
