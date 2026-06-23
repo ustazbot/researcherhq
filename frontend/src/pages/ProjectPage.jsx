@@ -43,6 +43,16 @@ export function ProjectPage() {
   // Two-stage proposal: stores Bab 3 text pending after user Terima Bab 1
   const [proposalBab3Text, setProposalBab3Text] = useState(null)
 
+  // Voice Profile state
+  const [showVoiceProfile, setShowVoiceProfile] = useState(false)  // 'onboarding' | 'edit' | false
+  const [voiceQ1, setVoiceQ1] = useState('')
+  const [voiceQ2, setVoiceQ2] = useState('')
+  const [voiceQ3, setVoiceQ3] = useState('')
+  const [voiceSample, setVoiceSample] = useState('')
+  const [voiceSaving, setVoiceSaving] = useState(false)
+  const [voiceError, setVoiceError] = useState('')
+  const [voiceSaved, setVoiceSaved] = useState(false)
+
   // Layout state
   const [sourceCollapsed, setSourceCollapsed] = useState(false)
   const [thesisCollapsed, setThesisCollapsed] = useState(false)
@@ -65,12 +75,20 @@ export function ProjectPage() {
       api.get('/credits'),
       api.get(`/documents?project_id=${id}`),
       api.get(`/projects/${id}/chapters`),
-    ]).then(([p, m, c, docs, chaps]) => {
+      api.get(`/voice-profile/${id}`),
+    ]).then(([p, m, c, docs, chaps, vp]) => {
       setProject(p.data)
       setMessages(m.data)
       setCredits(c.data)
       setDocuments(docs.data)
       setChapters(chaps.data)
+      if (vp.data.exists) {
+        setVoiceQ1('')  // pre-fill not needed for onboarding; edit modal re-fetches
+        setVoiceSaved(true)
+      } else if (initMode) {
+        // New project (came from Step 1) — show Step 3
+        setShowVoiceProfile('onboarding')
+      }
     }).catch(() => nav('/'))
   }, [id])
 
@@ -158,6 +176,39 @@ export function ProjectPage() {
       setDocuments(prev => prev.filter(d => d.id !== docId))
     } catch (err) {
       alert(err.response?.data?.detail || 'Gagal padam dokumen. Cuba lagi.')
+    }
+  }
+
+  async function openVoiceProfileEdit() {
+    try {
+      const { data } = await api.get(`/voice-profile/${id}`)
+      if (data.exists && data.sample_excerpt) setVoiceSample(data.sample_excerpt)
+    } catch {}
+    setVoiceError('')
+    setVoiceQ1('')
+    setVoiceQ2('')
+    setVoiceQ3('')
+    setShowVoiceProfile('edit')
+  }
+
+  async function handleSaveVoiceProfile() {
+    setVoiceSaving(true)
+    setVoiceError('')
+    try {
+      await api.post(`/voice-profile/${id}`, {
+        answers: { q1: voiceQ1, q2: voiceQ2, q3: voiceQ3 },
+        sample_excerpt: voiceSample || null,
+      })
+      setVoiceSaved(true)
+      setShowVoiceProfile(false)
+    } catch (err) {
+      if (err.response?.status === 403) {
+        setVoiceError(err.response.data.detail || 'Ciri ini hanya untuk pengguna Pro.')
+      } else {
+        setVoiceError('Gagal simpan. Cuba semula.')
+      }
+    } finally {
+      setVoiceSaving(false)
     }
   }
 
@@ -290,11 +341,146 @@ export function ProjectPage() {
 
   const activeChapter = chapters.find(c => c.id === activeChapterId) || null
   const sortedChapters = [...chapters].sort((a, b) => a.chapter_order - b.chapter_order)
+  const isPro = (credits?.tier ?? user?.tier) === 'pro'
+
+  const voiceProfileModal = showVoiceProfile ? (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 200, padding: 16,
+    }}>
+      <div style={{
+        background: 'var(--card)', borderRadius: 'var(--radius-md)',
+        padding: 28, width: '100%', maxWidth: 480,
+        border: '1px solid var(--line)', maxHeight: '90vh', overflowY: 'auto',
+      }}>
+        {showVoiceProfile === 'onboarding' && (
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 8px', letterSpacing: '0.04em' }}>
+            Langkah 3 daripada 3 — Gaya Penulisan Anda
+          </p>
+        )}
+        <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 6px', fontSize: 20 }}>
+          🎙 Profil Gaya Penulisan
+        </h2>
+        <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 20px' }}>
+          Bantu AI faham cara anda menulis untuk output yang lebih semula jadi.{' '}
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--line)', padding: '1px 5px', borderRadius: 3 }}>Pro</span>
+        </p>
+
+        {!isPro ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <p style={{ fontSize: 24, margin: '0 0 8px' }}>🔒</p>
+            <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, margin: '0 0 6px' }}>
+              Profil Gaya Penulisan — Eksklusif Pro
+            </p>
+            <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 20px' }}>
+              Naik taraf untuk peribadikan output AI mengikut gaya penulisan anda.
+            </p>
+            <button
+              onClick={() => nav('/account')}
+              style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--ink)', border: 'none', borderRadius: 8, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: 'pointer', marginBottom: 10, display: 'block', width: '100%' }}
+            >
+              Naik Taraf ke Pro — RM39/bulan
+            </button>
+            <button
+              onClick={() => setShowVoiceProfile(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13, textDecoration: 'underline' }}
+            >
+              Langkau buat masa ini
+            </button>
+          </div>
+        ) : (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 8px' }}>
+                1. Anda lebih suka ayat yang...
+              </p>
+              {[
+                'Pendek & padat (≤20 patah perkataan)',
+                'Panjang & terperinci (>20 patah perkataan)',
+                'Campuran ikut keperluan',
+              ].map(opt => (
+                <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer', fontSize: 14 }}>
+                  <input type="radio" name="vq1" value={opt} checked={voiceQ1 === opt} onChange={() => setVoiceQ1(opt)} />
+                  {opt}
+                </label>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 8px' }}>
+                2. Gaya penulisan akademik anda...
+              </p>
+              {[
+                'Formal tradisional (pasif, jarak jauh)',
+                'Moden & langsung (aktif, jelas)',
+                'Saya tak pasti — ikut standard bidang saya',
+              ].map(opt => (
+                <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer', fontSize: 14 }}>
+                  <input type="radio" name="vq2" value={opt} checked={voiceQ2 === opt} onChange={() => setVoiceQ2(opt)} />
+                  {opt}
+                </label>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 8px' }}>
+                3. Ada keutamaan lain? (optional)
+              </p>
+              <input
+                value={voiceQ3}
+                onChange={e => setVoiceQ3(e.target.value)}
+                placeholder="Contoh: elak penggunaan kata ganti 'saya'"
+                style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 8px' }}>
+                Sampel tulisan anda (optional)
+              </p>
+              <textarea
+                value={voiceSample}
+                onChange={e => setVoiceSample(e.target.value)}
+                placeholder="Paste 1-2 ayat dari karya anda sendiri sebagai contoh gaya..."
+                rows={3}
+                style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 14, boxSizing: 'border-box', resize: 'vertical' }}
+              />
+            </div>
+
+            {voiceError && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 12px' }}>{voiceError}</p>}
+
+            <button
+              onClick={handleSaveVoiceProfile}
+              disabled={voiceSaving || (!voiceQ1 && !voiceQ2)}
+              style={{
+                width: '100%', padding: '11px', background: 'var(--ink)', color: 'var(--bg)',
+                border: 'none', borderRadius: 8, fontFamily: 'var(--font-heading)',
+                fontWeight: 700, fontSize: 14, cursor: (!voiceQ1 && !voiceQ2) ? 'not-allowed' : 'pointer',
+                opacity: (!voiceQ1 && !voiceQ2) ? 0.5 : 1, marginBottom: 10,
+              }}
+            >
+              {voiceSaving ? 'Menyimpan...' : 'Simpan Profil Gaya →'}
+            </button>
+            <p style={{ textAlign: 'center' }}>
+              <button
+                onClick={() => setShowVoiceProfile(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13, textDecoration: 'underline' }}
+              >
+                Langkau buat masa ini
+              </button>
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  ) : null
 
   // ── MOBILE LAYOUT ──────────────────────────────────────────────
   if (isMobile) {
     return (
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
+        {voiceProfileModal}
         {/* Header */}
         <header style={{
           borderBottom: '1px solid var(--line)', padding: '0 16px',
@@ -511,6 +697,7 @@ export function ProjectPage() {
   // ── DESKTOP LAYOUT ─────────────────────────────────────────────
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
+      {voiceProfileModal}
       <header style={{
         borderBottom: '1px solid var(--line)', padding: '0 24px',
         height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -579,6 +766,23 @@ export function ProjectPage() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Menu Profil Gaya */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={e => { e.stopPropagation(); openVoiceProfileEdit(); setOpenMenu(null) }}
+            style={{
+              background: 'none', border: '1px solid transparent',
+              cursor: 'pointer', padding: '3px 10px',
+              fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)',
+              borderRadius: 4, display: 'flex', alignItems: 'center', gap: 4,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--line)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+          >
+            🎙 Profil Gaya{voiceSaved ? ' ✓' : ''}
+          </button>
         </div>
 
         {/* Menu Paparan */}
