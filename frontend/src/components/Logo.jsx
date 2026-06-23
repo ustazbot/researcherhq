@@ -1,17 +1,10 @@
 function RMark({ height }) {
   return (
-    <svg
-      width={Math.round(height * 220 / 280)}
-      height={height}
-      viewBox="0 0 220 280"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        fill="currentColor"
-        d="M18 18H64V262H18ZM64 18H145C215 18 215 170 145 170H64ZM64 64V124H108C140 124 140 64 108 64ZM64 170H145L200 262H120L64 190Z"
-      />
-    </svg>
+    <img
+      src={`${import.meta.env.BASE_URL}logo-researcherhq-v1.svg`}
+      alt="ResearcherHQ"
+      style={{ height, width: 'auto', display: 'block' }}
+    />
   )
 }
 
