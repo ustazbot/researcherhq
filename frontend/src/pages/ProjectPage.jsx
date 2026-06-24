@@ -53,6 +53,11 @@ export function ProjectPage() {
   const [voiceError, setVoiceError] = useState('')
   const [voiceSaved, setVoiceSaved] = useState(false)
 
+  // Upload category picker state
+  const [pendingFile, setPendingFile] = useState(null)
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState('artikel')
+
   // Layout state
   const [sourceCollapsed, setSourceCollapsed] = useState(false)
   const [thesisCollapsed, setThesisCollapsed] = useState(false)
@@ -148,7 +153,7 @@ export function ProjectPage() {
     setLoading(false)
   }
 
-  async function handleFileUpload(e) {
+  function handleFileSelect(e) {
     const file = e.target.files[0]
     if (!file) return
     if (file.type !== 'application/pdf') {
@@ -156,17 +161,26 @@ export function ProjectPage() {
       fileRef.current.value = ''
       return
     }
+    setPendingFile(file)
+    setSelectedCategory('artikel')
+    setShowCategoryPicker(true)
+  }
+
+  async function handleUploadConfirm() {
+    if (!pendingFile) return
+    setShowCategoryPicker(false)
     setUploading(true)
     try {
-      const pages = await extractPdfPages(file)
+      const pages = await extractPdfPages(pendingFile)
       const { data } = await api.post('/documents/upload', {
-        project_id: id, filename: file.name, category: 'artikel', pages,
+        project_id: id, filename: pendingFile.name, category: selectedCategory, pages,
       })
       setDocuments(prev => [...prev, data])
     } catch (err) {
       alert(err.response?.data?.detail || 'Gagal proses dokumen. Cuba lagi.')
     }
     setUploading(false)
+    setPendingFile(null)
     fileRef.current.value = ''
   }
 
@@ -580,7 +594,7 @@ export function ProjectPage() {
         </div>
 
         {/* Mobile views */}
-        <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
+        <input type="file" ref={fileRef} onChange={handleFileSelect} accept=".pdf" style={{ display: 'none' }} />
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {showProposalUpload && mobileView === 'editor' && (
@@ -865,7 +879,7 @@ export function ProjectPage() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <input type="file" ref={fileRef} onChange={handleFileUpload} accept=".pdf" style={{ display: 'none' }} />
+        <input type="file" ref={fileRef} onChange={handleFileSelect} accept=".pdf" style={{ display: 'none' }} />
 
         {/* Source sidebar — collapsible */}
         <SourcePanel
@@ -968,6 +982,64 @@ export function ProjectPage() {
           onToggleCollapse={() => setThesisCollapsed(c => !c)}
         />
       </div>
+
+      {showCategoryPicker && pendingFile && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
+        }}>
+          <div style={{
+            background: 'var(--card)', borderRadius: 'var(--radius-sm)',
+            padding: 24, maxWidth: 320, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          }}>
+            <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15 }}>
+              Pilih Kategori
+            </p>
+            <p style={{ margin: '0 0 16px', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--ink-soft)', wordBreak: 'break-all' }}>
+              {pendingFile.name}
+            </p>
+            {[
+              { value: 'artikel', label: 'Artikel Rujukan', icon: '📄' },
+              { value: 'proposal', label: 'Proposal Kajian', icon: '📋' },
+              { value: 'catatan_sv', label: 'Catatan SV', icon: '📝' },
+              { value: 'draf', label: 'Draf Sendiri', icon: '📑' },
+              { value: 'data', label: 'Data / Transkrip', icon: '📊' },
+            ].map(cat => (
+              <label key={cat.value} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13,
+              }}>
+                <input
+                  type="radio"
+                  name="upload_category"
+                  value={cat.value}
+                  checked={selectedCategory === cat.value}
+                  onChange={() => setSelectedCategory(cat.value)}
+                />
+                {cat.icon} {cat.label}
+              </label>
+            ))}
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button
+                onClick={handleUploadConfirm}
+                style={{
+                  flex: 1, padding: '9px 0', background: 'var(--accent)',
+                  border: 'none', borderRadius: 'var(--radius-sm)',
+                  fontFamily: 'var(--font-body)', fontSize: 13, cursor: 'pointer', fontWeight: 600,
+                }}
+              >Muat Naik</button>
+              <button
+                onClick={() => { setShowCategoryPicker(false); setPendingFile(null); fileRef.current.value = '' }}
+                style={{
+                  padding: '9px 16px', background: 'transparent',
+                  border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)',
+                  fontFamily: 'var(--font-body)', fontSize: 13, cursor: 'pointer',
+                }}
+              >Batal</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
