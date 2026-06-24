@@ -109,3 +109,67 @@ def test_poll_export_unknown_job(client_with_user):
         headers=headers
     )
     assert resp.status_code == 404
+
+
+# --- Task 20: thesis compile ---
+
+def test_build_thesis_docx_returns_valid_docx():
+    from app.services.export_service import _build_thesis_docx
+    try:
+        chapters = [
+            {"title": "Pendahuluan", "content": "Ini bab pertama.\n\nPerenggan dua.", "section_type": "front_matter", "chapter_order": 0},
+            {"title": "Bab 1: Kajian", "content": "Kandungan kajian di sini.", "section_type": "chapter", "chapter_order": 1},
+        ]
+        bibliography = [{"filename": "artikel.pdf", "page_number": 5}]
+        result = _build_thesis_docx("Tesis Ujian", chapters, bibliography, "APA7")
+        assert isinstance(result, bytes)
+        assert len(result) > 0
+        assert result[:2] == b"PK"  # valid ZIP/docx
+    except RuntimeError as e:
+        if "python-docx" in str(e):
+            pytest.skip("python-docx tidak dipasang")
+        raise
+
+
+def test_enqueue_thesis_compile_creates_pending_job():
+    from app.services.export_service import enqueue_thesis_compile, get_job
+    job_id = enqueue_thesis_compile(
+        project_title="Projek Ujian",
+        chapters=[{"title": "Bab 1", "content": "Kandungan.", "section_type": "chapter", "chapter_order": 1}],
+        bibliography=[],
+        citation_style="APA7",
+    )
+    job = get_job(job_id)
+    assert job is not None
+    assert job["status"] == "pending"
+
+
+def test_compile_endpoint_requires_pro(client_with_user):
+    client, headers, proj_id = client_with_user
+    resp = client.post(f"/projects/{proj_id}/compile", headers=headers)
+    assert resp.status_code == 403
+    assert "Pro" in resp.json()["detail"]
+
+
+def test_compile_endpoint_requires_chapters(client_with_user):
+    import sqlite3
+    from unittest.mock import patch as _patch
+    import app.database as _db
+
+    client, headers, proj_id = client_with_user
+    # Upgrade user to pro
+    conn = sqlite3.connect(_db._db_path)
+    conn.execute("UPDATE users SET tier='pro' WHERE id='user-exp'")
+    conn.commit()
+    conn.close()
+
+    resp = client.post(f"/projects/{proj_id}/compile", headers=headers)
+    assert resp.status_code == 400
+    assert "bab" in resp.json()["detail"].lower()
+
+
+def test_poll_compile_unknown_job(client_with_user):
+    client, headers, proj_id = client_with_user
+    fake_job = str(uuid.uuid4())
+    resp = client.get(f"/projects/{proj_id}/compile/{fake_job}", headers=headers)
+    assert resp.status_code == 404

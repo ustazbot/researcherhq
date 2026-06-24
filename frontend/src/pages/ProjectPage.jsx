@@ -54,6 +54,7 @@ export function ProjectPage() {
   const [voiceError, setVoiceError] = useState('')
   const [voiceSaved, setVoiceSaved] = useState(false)
   const [exportingChapterId, setExportingChapterId] = useState(null)
+  const [compiling, setCompiling] = useState(false)
 
   // Upload category picker state
   const [pendingFile, setPendingFile] = useState(null)
@@ -406,6 +407,42 @@ export function ProjectPage() {
       alert('Export gagal. Sila cuba lagi.')
     } finally {
       setExportingChapterId(null)
+    }
+  }
+
+  async function handleCompile() {
+    setCompiling(true)
+    try {
+      const { data: init } = await api.post(`/projects/${id}/compile`)
+      const jobId = init.job_id
+      for (let i = 0; i < 40; i++) {
+        await new Promise(r => setTimeout(r, 1500))
+        const poll = await api.get(
+          `/projects/${id}/compile/${jobId}`,
+          { responseType: 'arraybuffer' }
+        )
+        const ct = poll.headers['content-type'] ?? ''
+        if (ct.includes('wordprocessingml') || ct.includes('octet-stream')) {
+          const blob = new Blob([poll.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `${project?.title ?? 'thesis'}.docx`
+          a.click()
+          URL.revokeObjectURL(url)
+          return
+        }
+        const text = new TextDecoder().decode(poll.data)
+        try {
+          const json = JSON.parse(text)
+          if (json.status === 'error') { alert('Compile gagal. Sila cuba lagi.'); return }
+        } catch { /* keep polling */ }
+      }
+      alert('Compile mengambil masa terlalu lama. Sila cuba lagi.')
+    } catch {
+      alert('Compile gagal. Sila cuba lagi.')
+    } finally {
+      setCompiling(false)
     }
   }
 
@@ -773,6 +810,8 @@ export function ProjectPage() {
                   onDeleteChapter={handleDeleteChapter}
                   onReorderChapter={handleReorderChapter}
                   onRenameChapter={handleRenameChapter}
+                  onCompile={handleCompile}
+                  compiling={compiling}
                 />
               )}
             </div>
@@ -851,15 +890,28 @@ export function ProjectPage() {
                 onClick={() => { fileRef.current?.click(); setOpenMenu(null) }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
               >Muat Naik Dokumen</button>
-              {/* Fasa 3 items — disabled, labelled */}
-              <button disabled style={{
-                display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
-                background: 'none', border: 'none', cursor: 'not-allowed',
-                fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)',
-                opacity: 0.5,
-              }}>
-                Export Tesis Penuh <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Fasa 3</span>
-              </button>
+              {(credits?.tier ?? user?.tier) === 'pro' ? (
+                <button
+                  onClick={() => { handleCompile(); setOpenMenu(null) }}
+                  disabled={compiling}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
+                    background: 'none', border: 'none', cursor: compiling ? 'wait' : 'pointer',
+                    fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)',
+                  }}
+                >
+                  {compiling ? 'Menjana tesis...' : 'Compile Tesis Penuh (.docx)'}
+                </button>
+              ) : (
+                <button disabled style={{
+                  display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
+                  background: 'none', border: 'none', cursor: 'not-allowed',
+                  fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)',
+                  opacity: 0.5,
+                }}>
+                  Compile Tesis Penuh <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Pro</span>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1035,6 +1087,8 @@ export function ProjectPage() {
           onRenameChapter={handleRenameChapter}
           collapsed={thesisCollapsed}
           onToggleCollapse={() => setThesisCollapsed(c => !c)}
+          onCompile={handleCompile}
+          compiling={compiling}
         />
       </div>
 

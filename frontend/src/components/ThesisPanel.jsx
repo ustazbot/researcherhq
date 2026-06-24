@@ -4,7 +4,7 @@ import api from '../api/client'
 const STATUS_LABEL = { draft: 'Draf', dalam_proses: 'Dalam Proses', siap: 'Siap' }
 const STATUS_COLOR = { draft: 'var(--line)', dalam_proses: 'var(--accent-soft)', siap: '#D1FAE5' }
 
-export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse }) {
+export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse, onCompile, compiling }) {
   const [upgrading, setUpgrading] = useState(false)
   const [addMode, setAddMode] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -277,6 +277,21 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
               fontSize: 13, cursor: 'pointer', color: 'var(--ink)',
             }}
           >+ Tambah Bab</button>
+          {tier === 'pro' && (
+            <button
+              onClick={onCompile}
+              disabled={compiling}
+              style={{
+                width: '100%', marginTop: 6, padding: '7px 0',
+                background: compiling ? 'var(--line)' : 'var(--accent)',
+                border: 'none', borderRadius: 'var(--radius-sm)',
+                fontFamily: 'var(--font-heading)', fontSize: 13,
+                fontWeight: 700, cursor: compiling ? 'wait' : 'pointer',
+              }}
+            >
+              {compiling ? 'Menjana...' : '⬇ Compile Tesis Penuh'}
+            </button>
+          )}
         </div>
       )}
     </div>

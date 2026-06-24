@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.routers.auth import get_current_user
 from app.services.llm_provider import query_llm
-from app.services.export_service import enqueue_export, get_job
+from app.services.export_service import enqueue_export, enqueue_thesis_compile, get_job
 
 router = APIRouter()
 
@@ -281,6 +281,83 @@ async def poll_export(
         return {"status": "pending"}
     if job["status"] == "error":
         raise HTTPException(500, f"Export gagal: {job.get('error', 'Ralat tidak diketahui.')}")
+
+    return Response(
+        content=job["bytes"],
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{job["filename"]}"'}
+    )
+
+
+@router.post("/projects/{project_id}/compile", status_code=202)
+async def compile_thesis(project_id: str, user=Depends(get_current_user)):
+    with get_db() as db:
+        proj = db.execute(
+            "SELECT p.title, p.citation_style, u.tier FROM projects p JOIN users u ON u.id = p.user_id WHERE p.id=? AND p.user_id=?",
+            (project_id, user["user_id"])
+        ).fetchone()
+        if not proj:
+            raise HTTPException(404, "Projek tidak dijumpai.")
+        if proj["tier"] != "pro":
+            raise HTTPException(403, "Compile thesis hanya untuk pengguna Pro.")
+
+        rows = db.execute(
+            """SELECT ch.id, ch.title, ch.chapter_order, ch.section_type,
+                      COALESCE(cc.content, '') as content
+               FROM chapters ch
+               LEFT JOIN chapter_content cc ON cc.chapter_id = ch.id
+               WHERE ch.project_id = ?
+               ORDER BY ch.chapter_order""",
+            (project_id,)
+        ).fetchall()
+
+        bib_rows = db.execute(
+            """SELECT cc.source_citations FROM chapters ch
+               JOIN chapter_content cc ON cc.chapter_id = ch.id
+               WHERE ch.project_id = ?""",
+            (project_id,)
+        ).fetchall()
+
+    if not rows:
+        raise HTTPException(400, "Tiada bab dalam projek ini.")
+
+    chapters = [dict(r) for r in rows]
+
+    seen = set()
+    bibliography = []
+    for row in bib_rows:
+        for src in json.loads(row["source_citations"] or "[]"):
+            key = (src["filename"], src["page_number"])
+            if key not in seen:
+                seen.add(key)
+                bibliography.append(src)
+
+    job_id = enqueue_thesis_compile(
+        project_title=proj["title"],
+        chapters=chapters,
+        bibliography=bibliography,
+        citation_style=proj["citation_style"],
+    )
+    return {"job_id": job_id, "status": "pending"}
+
+
+@router.get("/projects/{project_id}/compile/{job_id}")
+async def poll_compile(project_id: str, job_id: str, user=Depends(get_current_user)):
+    with get_db() as db:
+        proj = db.execute(
+            "SELECT id FROM projects WHERE id=? AND user_id=?",
+            (project_id, user["user_id"])
+        ).fetchone()
+        if not proj:
+            raise HTTPException(404, "Projek tidak dijumpai.")
+
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(404, "Kerja compile tidak dijumpai.")
+    if job["status"] == "pending":
+        return {"status": "pending"}
+    if job["status"] == "error":
+        raise HTTPException(500, f"Compile gagal: {job.get('error', 'Ralat tidak diketahui.')}")
 
     return Response(
         content=job["bytes"],
