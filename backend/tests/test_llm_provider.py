@@ -115,3 +115,30 @@ async def test_llm_temperature_locked_at_0_1():
     assert captured.get("top_p") == 0.1, (
         f"top_p harus 0.1, dapat: {captured.get('top_p')}"
     )
+
+
+@pytest.mark.asyncio
+async def test_project_context_injected_in_system_prompt():
+    """project_context mesti masuk dalam system message yang dihantar ke DeepSeek."""
+    captured = {}
+
+    async def _capture_messages(self, url, *, headers, json, **kwargs):
+        captured["messages"] = json["messages"]
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json = MagicMock(return_value={
+            "choices": [{"message": {"content": "jawapan ujian"}}],
+            "usage": {"total_tokens": 10},
+        })
+        return mock_resp
+
+    with patch("httpx.AsyncClient.post", new=_capture_messages):
+        await query_llm(
+            [{"role": "user", "content": "apa metodologi?"}],
+            output_mode="qa",
+            project_context="Peringkat: PhD\nBidang: Pendidikan",
+        )
+
+    system_content = captured["messages"][0]["content"]
+    assert "Peringkat: PhD" in system_content
+    assert "Bidang: Pendidikan" in system_content

@@ -25,7 +25,32 @@ PRO_ONLY_MODES = {"literature_review", "executive_summary", "research_gap"}
 NEAR_MATCH_THRESHOLD = 0.95
 
 
-async def _handle_no_document_query(query: str, research_mode: str, style_notes: str):
+def _build_project_context(project: dict) -> str:
+    DEGREE_LABEL = {
+        "master": "Master",
+        "phd": "Doktor Falsafah (PhD)",
+        "lain-lain": "Lain-lain",
+    }
+    MODE_LABEL = {
+        "general": "Umum",
+        "quantitative": "Kuantitatif",
+        "qualitative": "Kualitatif",
+        "law": "Undang-undang",
+        "medicine": "Perubatan/Sains Kesihatan",
+    }
+    lines = []
+    if project.get("degree_level"):
+        lines.append(f"Peringkat: {DEGREE_LABEL.get(project['degree_level'], project['degree_level'])}")
+    if project.get("field"):
+        lines.append(f"Bidang: {project['field']}")
+    if project.get("title"):
+        lines.append(f"Tajuk kajian: {project['title']}")
+    if project.get("citation_style"):
+        lines.append(f"Gaya citation: {project['citation_style']}")
+    return "\n".join(lines) if lines else ""
+
+
+async def _handle_no_document_query(query: str, research_mode: str, style_notes: str, project_context: str = ""):
     """Route no-document queries to web search or llm_knowledge fallback."""
     if settings.perplexity_api_key:
         try:
@@ -45,6 +70,7 @@ async def _handle_no_document_query(query: str, research_mode: str, style_notes:
         research_mode=research_mode,
         output_mode="qa",
         style_notes=style_notes,
+        project_context=project_context,
     )
     return "llm_knowledge", result["content"], []
 
@@ -157,6 +183,7 @@ async def query_project(
             raise HTTPException(402, "Kredit Kajian tidak mencukupi.")
 
         project_dict = dict(proj)
+        project_context = _build_project_context(project_dict)
 
     # Embed query
     query_embedding = await embedding_pool.embed(body.query)
@@ -197,6 +224,7 @@ async def query_project(
             query=body.query,
             research_mode=project_dict["research_mode"],
             style_notes=style_notes,
+            project_context=project_context,
         )
         kredit_cost = 1
         with get_db() as db:
@@ -273,6 +301,7 @@ async def query_project(
         output_mode=body.output_mode,
         query_type=body.query_type,
         style_notes=style_notes,
+        project_context=project_context,
     )
 
     # Store response in cache for future hits
