@@ -127,7 +127,14 @@ export function AccountSettingsPage() {
             </p>
           ) : (
             <button
-              onClick={() => nav('/')}
+              onClick={async () => {
+                try {
+                  const { data } = await api.post('/billing/upgrade/initiate')
+                  window.location.href = data.payment_url
+                } catch {
+                  alert('Gagal memulakan pembayaran. Sila cuba lagi.')
+                }
+              }}
               style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--ink)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: 'pointer' }}
             >
               Naik Taraf ke Pro — RM39/bulan

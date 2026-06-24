@@ -9,6 +9,7 @@ import { ChatPanel } from '../components/ChatPanel'
 import api from '../api/client'
 import { extractPdfPages } from '../utils/pdfExtract'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { CreditTank } from '../components/CreditTank'
 
 // Split proposal_extract output into Bab 1 (pengenalan) and Bab 3 (metodologi) parts
 function splitProposalExtract(text) {
@@ -547,9 +548,17 @@ export function ProjectPage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {credits && (
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: credits.kredit_remaining < 10 ? '#EF4444' : 'var(--ink-soft)' }}>
-                {credits.kredit_remaining} kr
-              </span>
+              <CreditTank
+                remaining={credits.kredit_remaining}
+                total={credits.kredit_total}
+                resetDate={credits.reset_date}
+                onTopup={isPro ? async () => {
+                  try {
+                    const { data } = await api.post('/billing/topup/initiate')
+                    window.location.href = data.payment_url
+                  } catch { alert('Gagal memulakan topup. Sila cuba lagi.') }
+                } : undefined}
+              />
             )}
             <ProfileMenu user={user} tier={credits?.tier} />
           </div>
@@ -753,9 +762,17 @@ export function ProjectPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           {credits && (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: credits.kredit_remaining < 10 ? '#EF4444' : 'var(--ink-soft)' }}>
-              {credits.kredit_remaining} kredit
-            </span>
+            <CreditTank
+              remaining={credits.kredit_remaining}
+              total={credits.kredit_total}
+              resetDate={credits.reset_date}
+              onTopup={isPro ? async () => {
+                try {
+                  const { data } = await api.post('/billing/topup/initiate')
+                  window.location.href = data.payment_url
+                } catch { alert('Gagal memulakan topup. Sila cuba lagi.') }
+              } : undefined}
+            />
           )}
           <ProfileMenu user={user} tier={credits?.tier} />
         </div>

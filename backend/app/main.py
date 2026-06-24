@@ -1,13 +1,17 @@
 import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from apscheduler.schedulers.background import BackgroundScheduler
 from app.config import settings
 from app.database import init_db
 from app.routers import auth, projects, documents, rag, credits, account, support, chapters, billing, admin, voice_profile, search
 from app.services.embedding_pool import embedding_pool
 from app.services.export_service import start_export_worker
+from app.services.credit_reset import reset_expired_credits
 
 app = FastAPI(title="ResearcherHQ API", version="1.0.0")
+
+_scheduler = BackgroundScheduler()
 
 
 @app.on_event("startup")
@@ -15,9 +19,13 @@ async def startup():
     init_db()
     await embedding_pool.start()
     asyncio.create_task(start_export_worker())
+    _scheduler.add_job(reset_expired_credits, "cron", hour=2, minute=0)
+    _scheduler.start()
+
 
 @app.on_event("shutdown")
 async def shutdown():
+    _scheduler.shutdown(wait=False)
     await embedding_pool.stop()
 
 _www = settings.frontend_url.replace("https://", "https://www.", 1)

@@ -275,3 +275,72 @@ def test_upgrade_rejected_for_pro_user(tmp_path):
             with patch("app.routers.billing._create_toyyibpay_bill", return_value="FAKECODE"):
                 resp = c.post("/billing/upgrade/initiate", headers=headers)
     assert resp.status_code == 400
+
+
+# --- Task 17: Monthly Kredit Reset ---
+
+def test_reset_expired_credits_resets_to_tier_allocation(tmp_path):
+    from datetime import date, timedelta
+    db_path = str(tmp_path / "reset_test.db")
+    with patch("app.database._db_path", db_path):
+        from app.database import init_db
+        init_db(db_path)
+        from app.main import app
+        with TestClient(app) as c:
+            headers = make_headers()
+            c.post("/projects", json={"title": "T", "research_mode": "general"}, headers=headers)
+
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        conn.execute(
+            "UPDATE users SET kredit_remaining = 5, kredit_total = 500, reset_date = ? WHERE id = 'user-bill'",
+            (yesterday,),
+        )
+        conn.commit()
+        conn.close()
+
+        from app.services.credit_reset import reset_expired_credits
+        reset_expired_credits()
+
+        conn2 = sqlite3.connect(db_path)
+        row = conn2.execute(
+            "SELECT kredit_remaining, reset_date FROM users WHERE id = 'user-bill'"
+        ).fetchone()
+        conn2.close()
+
+    assert row[0] == 500
+    assert row[1] > date.today().isoformat()
+
+
+def test_reset_does_not_affect_unexpired_users(tmp_path):
+    from datetime import date, timedelta
+    db_path = str(tmp_path / "no_reset_test.db")
+    with patch("app.database._db_path", db_path):
+        from app.database import init_db
+        init_db(db_path)
+        from app.main import app
+        with TestClient(app) as c:
+            headers = make_headers()
+            c.post("/projects", json={"title": "T", "research_mode": "general"}, headers=headers)
+
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        next_month = (date.today().replace(day=1) + timedelta(days=32)).replace(day=1).isoformat()
+        conn.execute(
+            "UPDATE users SET kredit_remaining = 10, reset_date = ? WHERE id = 'user-bill'",
+            (next_month,),
+        )
+        conn.commit()
+        conn.close()
+
+        from app.services.credit_reset import reset_expired_credits
+        reset_expired_credits()
+
+        conn2 = sqlite3.connect(db_path)
+        row = conn2.execute(
+            "SELECT kredit_remaining FROM users WHERE id = 'user-bill'"
+        ).fetchone()
+        conn2.close()
+
+    assert row[0] == 10
