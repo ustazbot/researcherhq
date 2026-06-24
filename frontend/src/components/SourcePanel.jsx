@@ -81,7 +81,9 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
     setAccepting(null)
   }
 
-  const uploadDisabled = tier !== 'pro' && (documents || []).length >= 1
+  const docCount = (documents || []).length
+  const maxDocs = tier === 'pro' ? 5 : 1
+  const uploadDisabled = docCount >= maxDocs
   const grouped = CATEGORIES.map(cat => ({
     ...cat,
     docs: (documents || []).filter(d => d.category === cat.value)
@@ -235,6 +237,17 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
             >
               {uploadDisabled ? '🔒 Had Dicapai' : uploading ? 'Memproses...' : '+ Muat naik'}
             </button>
+            <p style={{
+              margin: '6px 0 0',
+              fontFamily: 'var(--font-mono)', fontSize: 10,
+              color: uploadDisabled ? '#EF4444' : 'var(--ink-soft)',
+              textAlign: 'center',
+            }}>
+              {docCount}/{maxDocs} dokumen
+              {!uploadDisabled && tier !== 'pro' && (
+                <span style={{ color: 'var(--ink-soft)' }}> · Pro: sehingga 5</span>
+              )}
+            </p>
           </div>
         </>
       ) : (
