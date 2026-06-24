@@ -215,6 +215,11 @@ def _create_schema(conn: sqlite3.Connection):
     if "citation_style" not in proj_cols:
         conn.execute("ALTER TABLE projects ADD COLUMN citation_style TEXT DEFAULT 'APA7'")
 
+    # Migration: Task 19 — section_type untuk Document Assembly ordering
+    chap_cols = [row["name"] for row in conn.execute("PRAGMA table_info(chapters)").fetchall()]
+    if "section_type" not in chap_cols:
+        conn.execute("ALTER TABLE chapters ADD COLUMN section_type TEXT DEFAULT 'chapter'")
+
     # Migration: Task 12B — voice profile per project
     try:
         conn.execute("""

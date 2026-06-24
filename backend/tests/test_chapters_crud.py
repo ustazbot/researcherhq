@@ -230,3 +230,56 @@ def test_update_chapter_content_saves_even_if_summary_fails(client_with_chapter,
     conn.close()
     assert row[0] == "Kandungan tetap tersimpan walaupun LLM gagal."
     assert row[1] == ""
+
+
+# --- Task 19: Bibliography endpoint ---
+
+def test_bibliography_endpoint_returns_deduplicated_sources(client_with_chapter):
+    client, project_id, chapter_id, h = client_with_chapter
+
+    # Create a second chapter
+    chap2 = client.post(
+        f"/projects/{project_id}/chapters",
+        json={"title": "Bab 2: Metodologi", "chapter_order": 2},
+        headers=h
+    ).json()
+    chapter_id2 = chap2["id"]
+
+    import sqlite3, json as _json, app.database as _db
+    conn = sqlite3.connect(_db._db_path)
+
+    shared = {"filename": "artikel_sama.pdf", "page_number": 5}
+    unique1 = {"filename": "unik_bab1.pdf", "page_number": 1}
+    unique2 = {"filename": "unik_bab2.pdf", "page_number": 3}
+
+    conn.execute(
+        "UPDATE chapter_content SET source_citations=? WHERE chapter_id=?",
+        (_json.dumps([shared, unique1]), chapter_id)
+    )
+    conn.execute(
+        "UPDATE chapter_content SET source_citations=? WHERE chapter_id=?",
+        (_json.dumps([shared, unique2]), chapter_id2)
+    )
+    conn.commit()
+    conn.close()
+
+    r = client.get(f"/projects/{project_id}/bibliography", headers=h)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["citation_style"] == "APA7"
+
+    sources = {(s["filename"], s["page_number"]): s for s in data["sources"]}
+    assert len(sources) == 3  # shared deduplicated, 2 unique
+
+    shared_entry = sources[("artikel_sama.pdf", 5)]
+    assert len(shared_entry["chapter_titles"]) == 2
+    assert "Bab 1: Pengenalan" in shared_entry["chapter_titles"]
+    assert "Bab 2: Metodologi" in shared_entry["chapter_titles"]
+
+
+def test_bibliography_empty_project(client_with_chapter):
+    client, project_id, _, h = client_with_chapter
+    r = client.get(f"/projects/{project_id}/bibliography", headers=h)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["sources"] == []

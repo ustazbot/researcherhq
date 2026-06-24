@@ -22,6 +22,8 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
   const [previewText, setPreviewText] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState(false)
+  const [bibData, setBibData] = useState(null)
+  const [bibLoading, setBibLoading] = useState(false)
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -135,6 +137,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         {[
           { key: 'docs', label: 'Sumber' },
           { key: 'search', label: 'Cari Artikel' },
+          { key: 'bibliography', label: 'Rujukan' },
         ].map(t => (
           <button
             key={t.key}
@@ -386,6 +389,44 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'bibliography' && (
+        <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
+          {!bibData && !bibLoading && (
+            <button
+              onClick={async () => {
+                setBibLoading(true)
+                try {
+                  const { data } = await api.get(`/projects/${projectId}/bibliography`)
+                  setBibData(data)
+                } catch { setBibData({ sources: [] }) }
+                finally { setBibLoading(false) }
+              }}
+              style={{ padding: '8px 14px', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 11 }}
+            >
+              Muatkan Rujukan
+            </button>
+          )}
+          {bibLoading && <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Memuatkan...</p>}
+          {bibData && bibData.sources.length === 0 && (
+            <p style={{ color: 'var(--ink-soft)', fontSize: 13, lineHeight: 1.5 }}>
+              Tiada rujukan lagi. Mula tanya AI dan terima output ke bab untuk jana senarai rujukan.
+            </p>
+          )}
+          {bibData && bibData.sources.map((s, i) => (
+            <div key={i} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--line)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink)', marginBottom: 4 }}>
+                {s.filename} <span style={{ color: 'var(--ink-soft)' }}>ms. {s.page_number}</span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {s.chapter_titles.map((t, j) => (
+                  <span key={j} style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--accent-soft)', borderRadius: 3, padding: '1px 6px' }}>{t}</span>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

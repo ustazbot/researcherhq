@@ -116,3 +116,12 @@ def test_get_db_concurrent_writes_no_lock_error(tmp_path):
 
     assert not errors, f"Concurrent write errors: {errors}"
     db_module._db_path = orig
+
+
+def test_migration_section_type_column(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    conn = init_db(db_path)
+    cols = {r[1]: r for r in conn.execute("PRAGMA table_info(chapters)").fetchall()}
+    assert "section_type" in cols
+    assert cols["section_type"][4].strip("'") == "chapter"  # dflt_value (SQLite returns quoted string)
+    conn.close()

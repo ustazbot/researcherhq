@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
@@ -173,17 +174,65 @@ async def update_chapter_content(
     except Exception:
         pass  # ponytail: summary is non-critical, content save must not be blocked
 
+    # Best-effort: extract source citations from project messages (all AI-cited chunks)
+    citations = []
+    try:
+        with get_db() as db:
+            msg_rows = db.execute(
+                """SELECT DISTINCT d.filename, c.page_number
+                   FROM messages m
+                   JOIN chunks c ON c.id IN (SELECT value FROM json_each(m.source_chunks))
+                   JOIN documents d ON d.id = c.doc_id
+                   WHERE m.project_id = ? AND m.role = 'assistant'
+                   ORDER BY d.filename, c.page_number""",
+                (project_id,)
+            ).fetchall()
+            citations = [{"filename": r["filename"], "page_number": r["page_number"]} for r in msg_rows]
+    except Exception:
+        pass  # ponytail: citations non-critical
+
     now = datetime.utcnow().isoformat()
     with get_db() as db:
         db.execute(
-            "UPDATE chapter_content SET content=?, summary=?, updated_at=? WHERE chapter_id=?",
-            (body.content, summary, now, chapter_id)
+            "UPDATE chapter_content SET content=?, summary=?, source_citations=?, updated_at=? WHERE chapter_id=?",
+            (body.content, summary, json.dumps(citations), now, chapter_id)
         )
         db.execute(
             "UPDATE chapters SET status='dalam_proses' WHERE id=?",
             (chapter_id,)
         )
     return {"status": "updated", "summary_generated": bool(summary)}
+
+
+@router.get("/projects/{project_id}/bibliography")
+def get_bibliography(project_id: str, user=Depends(get_current_user)):
+    with get_db() as db:
+        proj = db.execute(
+            "SELECT id, citation_style FROM projects WHERE id=? AND user_id=?",
+            (project_id, user["user_id"])
+        ).fetchone()
+        if not proj:
+            raise HTTPException(404, "Projek tidak dijumpai.")
+
+        rows = db.execute(
+            """SELECT ch.title as chapter_title, cc.source_citations
+               FROM chapters ch
+               JOIN chapter_content cc ON cc.chapter_id = ch.id
+               WHERE ch.project_id = ?
+               ORDER BY ch.chapter_order""",
+            (project_id,)
+        ).fetchall()
+
+    seen = {}
+    for row in rows:
+        for c in json.loads(row["source_citations"] or "[]"):
+            key = (c["filename"], c["page_number"])
+            if key not in seen:
+                seen[key] = {"filename": c["filename"], "page_number": c["page_number"], "chapter_titles": []}
+            if row["chapter_title"] not in seen[key]["chapter_titles"]:
+                seen[key]["chapter_titles"].append(row["chapter_title"])
+
+    return {"citation_style": proj["citation_style"], "sources": list(seen.values())}
 
 
 @router.post("/projects/{project_id}/chapters/{chapter_id}/export", status_code=202)
