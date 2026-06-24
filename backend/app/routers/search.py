@@ -1,4 +1,5 @@
 import asyncio
+import os
 import uuid
 from datetime import datetime
 from typing import Optional, List
@@ -157,6 +158,10 @@ async def search_articles(
             raise HTTPException(403, "Projek tidak dijumpai atau akses ditolak.")
         user_row = db.execute("SELECT tier FROM users WHERE id = ?", (user["user_id"],)).fetchone()
         tier = user_row["tier"] if user_row else "free"
+
+    # Skip external API calls in load test mode
+    if os.getenv("LOAD_TEST_MODE"):
+        return {"results": [], "query": q, "total": 0}
 
     tasks = [
         search_openalex(q, year_from),

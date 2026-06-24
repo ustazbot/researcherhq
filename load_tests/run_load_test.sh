@@ -10,6 +10,8 @@ REPORT_DIR="$LOAD_TESTS_DIR/reports"
 DB_PATH="/tmp/rhq_loadtest.db"
 PORT=18999  # avoid clashing with prod port 8000
 BASE_URL="http://localhost:$PORT"
+VENV_PYTHON="$BACKEND_DIR/venv/bin/python"
+VENV_LOCUST="$BACKEND_DIR/venv/bin/locust"
 
 # KPI thresholds
 MAX_P95_MS=5000
@@ -22,6 +24,13 @@ echo "DB: $DB_PATH | Port: $PORT"
 rm -f "$DB_PATH"
 mkdir -p "$REPORT_DIR"
 
+# Kill any leftover server on target port
+if lsof -ti:"$PORT" > /dev/null 2>&1; then
+  echo "  Killing leftover process on port $PORT..."
+  kill "$(lsof -ti:"$PORT")" 2>/dev/null || true
+  sleep 1
+fi
+
 # Start backend with mock mode
 echo "[1/5] Starting backend (mock mode)..."
 cd "$BACKEND_DIR"
@@ -29,7 +38,7 @@ DATABASE_URL="$DB_PATH" \
 LLM_PROVIDER=mock \
 LOAD_TEST_MODE=1 \
 JWT_SECRET=loadtest-secret-key-not-for-prod \
-  python -m uvicorn app.main:app --host 127.0.0.1 --port "$PORT" --workers 1 \
+  "$VENV_PYTHON" -m uvicorn app.main:app --host 127.0.0.1 --port "$PORT" --workers 1 \
   > /tmp/rhq_loadtest_server.log 2>&1 &
 SERVER_PID=$!
 echo "  Server PID: $SERVER_PID"
@@ -53,13 +62,13 @@ done
 # Seed test data
 echo "[3/5] Seeding test data..."
 cd "$REPO_ROOT"
-DATABASE_URL="$DB_PATH" python "$LOAD_TESTS_DIR/seed_data.py"
+DATABASE_URL="$DB_PATH" JWT_SECRET=loadtest-secret-key-not-for-prod "$VENV_PYTHON" "$LOAD_TESTS_DIR/seed_data.py"
 
 # Run Locust headless
 REPORT_FILE="$REPORT_DIR/report_$(date +%Y%m%d_%H%M%S).html"
 STATS_CSV="/tmp/rhq_locust_stats.csv"
 echo "[4/5] Running Locust (50 users, 2 min)..."
-locust \
+"$VENV_LOCUST" \
   -f "$LOAD_TESTS_DIR/locustfile.py" \
   --headless \
   --host "$BASE_URL" \

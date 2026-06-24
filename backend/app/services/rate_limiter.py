@@ -1,3 +1,4 @@
+import os
 import uuid
 from datetime import datetime, timedelta
 from fastapi import HTTPException, Request
@@ -10,6 +11,9 @@ def enforce_rate_limit(scope_key: str, max_attempts: int, window_minutes: int):
     window_minutes. On pass, records this attempt (caller needs no extra step).
     SQLite-backed so state is shared across multiple worker processes.
     """
+    # Bypass rate limiting during load tests to avoid false 429s
+    if os.getenv("LOAD_TEST_MODE"):
+        return
     cutoff = (datetime.utcnow() - timedelta(minutes=window_minutes)).isoformat()
     with get_db() as db:
         count = db.execute(

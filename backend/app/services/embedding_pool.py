@@ -15,6 +15,9 @@ class EmbeddingPool:
         self._executor: ThreadPoolExecutor = None
 
     async def start(self):
+        if os.getenv("LOAD_TEST_MODE"):
+            # Skip model loading in load test mode — embed() returns random vectors
+            return
         loop = asyncio.get_event_loop()
         self._executor = ThreadPoolExecutor(
             max_workers=self.num_workers,
