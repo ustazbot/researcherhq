@@ -170,6 +170,14 @@ async def query_llm(
     query_type: str = "normal",
     style_notes: str = "",
 ) -> Dict:
+    # ponytail: mock path for load tests — zero API cost, returns fixture
+    if settings.llm_provider == "mock":
+        return {
+            "content": "Mock RAG response: dapatan kajian menunjukkan hasil yang signifikan [[cite:1]].",
+            "tokens_used": 42,
+            "model": "mock",
+        }
+
     system_prompt = SYSTEM_PROMPTS.get(research_mode, SYSTEM_PROMPTS["general"])
     output_prompt = OUTPUT_MODE_PROMPTS.get(output_mode, "")
     if output_prompt:

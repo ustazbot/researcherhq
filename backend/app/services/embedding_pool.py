@@ -1,4 +1,5 @@
 import asyncio
+import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
 from sentence_transformers import SentenceTransformer
@@ -31,6 +32,10 @@ class EmbeddingPool:
             self._executor = None
 
     async def embed(self, text: str) -> List[float]:
+        # ponytail: random vector for load tests — avoids model loading, zero cost
+        if os.getenv("LOAD_TEST_MODE"):
+            import random
+            return [random.gauss(0, 0.1) for _ in range(384)]
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             self._executor,
@@ -41,6 +46,9 @@ class EmbeddingPool:
         return result
 
     async def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        if os.getenv("LOAD_TEST_MODE"):
+            import random
+            return [[random.gauss(0, 0.1) for _ in range(384)] for _ in texts]
         loop = asyncio.get_event_loop()
         all_embeddings: List[List[float]] = []
 
