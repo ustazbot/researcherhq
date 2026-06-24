@@ -10,6 +10,7 @@ export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapter
   const [newTitle, setNewTitle] = useState('')
   const [editingChapterId, setEditingChapterId] = useState(null)
   const [editingTitle, setEditingTitle] = useState('')
+  const [hoveredChapterId, setHoveredChapterId] = useState(null)
 
   const done = (chapters || []).filter(c => c.status === 'siap').length
   const total = (chapters || []).length
@@ -135,6 +136,8 @@ export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapter
             <div
               key={chap.id}
               onClick={() => onSetActive(chap.id)}
+              onMouseEnter={() => setHoveredChapterId(chap.id)}
+              onMouseLeave={() => setHoveredChapterId(null)}
               style={{
                 padding: '8px 12px',
                 borderBottom: '1px solid var(--line)',
@@ -186,18 +189,22 @@ export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapter
                   >✏</button>
                 )}
                 {/* Reorder butang */}
-                <button
-                  onClick={() => onReorderChapter(chap.id, 'up')}
-                  disabled={idx === 0}
-                  title="Gerak naik"
-                  style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 3, cursor: idx === 0 ? 'default' : 'pointer', padding: '1px 5px', fontSize: 11, opacity: idx === 0 ? 0.3 : 0.7 }}
-                >↑</button>
-                <button
-                  onClick={() => onReorderChapter(chap.id, 'down')}
-                  disabled={idx === chapters.length - 1}
-                  title="Gerak turun"
-                  style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 3, cursor: idx === chapters.length - 1 ? 'default' : 'pointer', padding: '1px 5px', fontSize: 11, opacity: idx === chapters.length - 1 ? 0.3 : 0.7 }}
-                >↓</button>
+                {(hoveredChapterId === chap.id || window.innerWidth < 768) && (
+                  <>
+                    <button
+                      onClick={() => onReorderChapter(chap.id, 'up')}
+                      disabled={idx === 0}
+                      title="Gerak naik"
+                      style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 3, cursor: idx === 0 ? 'default' : 'pointer', padding: '1px 5px', fontSize: 11, opacity: idx === 0 ? 0.3 : 0.7 }}
+                    >↑</button>
+                    <button
+                      onClick={() => onReorderChapter(chap.id, 'down')}
+                      disabled={idx === chapters.length - 1}
+                      title="Gerak turun"
+                      style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 3, cursor: idx === chapters.length - 1 ? 'default' : 'pointer', padding: '1px 5px', fontSize: 11, opacity: idx === chapters.length - 1 ? 0.3 : 0.7 }}
+                    >↓</button>
+                  </>
+                )}
 
                 {/* Export */}
                 {tier === 'pro' && (
