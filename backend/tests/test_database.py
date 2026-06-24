@@ -90,7 +90,7 @@ def test_get_db_sets_wal_mode(tmp_path):
 
 
 def test_get_db_concurrent_writes_no_lock_error(tmp_path):
-    """50 threads writing concurrently must not raise OperationalError (Gap 1 fix)."""
+    """10 threads writing concurrently must not raise OperationalError (Gap 1 fix)."""
     import threading, app.database as db_module
     db_path = str(tmp_path / "concurrent.db")
     init_db(db_path)
