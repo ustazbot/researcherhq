@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 OUTPUT_MODES = {"qa", "literature_review", "executive_summary", "key_findings", "research_gap", "discovery", "proposal_extract"}
+PRO_ONLY_MODES = {"literature_review", "executive_summary", "research_gap"}
 
 NEAR_MATCH_THRESHOLD = 0.95
 
@@ -120,6 +121,9 @@ async def query_project(
         tier = user_row["tier"]
         # ponytail: server-side only — client cannot influence this via request fields
         is_discovery_lite = (body.output_mode == "discovery" and tier != "pro")
+
+        if body.output_mode in PRO_ONLY_MODES and tier != "pro":
+            raise HTTPException(403, "Mod ini hanya untuk pengguna Pro.")
 
         mode_key = "qa_deep" if (body.query_type == "deep" and body.output_mode == "qa") else body.output_mode
         kredit_cost = KREDIT_COST.get(mode_key, 1)

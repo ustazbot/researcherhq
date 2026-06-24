@@ -374,8 +374,14 @@ def test_query_rejected_when_kredit_insufficient(client_with_project, monkeypatc
 def test_literature_review_injects_chapter_summaries(client_with_project, monkeypatch):
     client, project_id, headers = client_with_project
 
-    # Create 2 chapters with summaries directly in DB
+    # literature_review is Pro-only — upgrade user first
     import sqlite3, uuid, app.database as _db
+    conn = sqlite3.connect(_db._db_path)
+    conn.execute("UPDATE users SET tier = 'pro', kredit_remaining = 500")
+    conn.commit()
+    conn.close()
+
+    # Create 2 chapters with summaries directly in DB
     conn = sqlite3.connect(_db._db_path)
     conn.row_factory = sqlite3.Row
     for i, title in enumerate(["Bab 1: Latar Belakang", "Bab 2: Metodologi"], start=1):
@@ -412,3 +418,44 @@ def test_literature_review_injects_chapter_summaries(client_with_project, monkey
     assert "RINGKASAN BAB SEDIA ADA" in user_content
     assert "Bab 1: Latar Belakang" in user_content
     assert "Bab 2: Metodologi" in user_content
+
+
+# --- Task 18: Pro-only mode gate ---
+
+def test_literature_review_rejected_for_free_user(client_with_project, monkeypatch):
+    client, project_id, headers = client_with_project
+    monkeypatch.setattr("app.routers.rag.embedding_pool.embed", _mock_embed)
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "sorotan kajian", "output_mode": "literature_review"},
+                    headers=headers)
+    assert r.status_code == 403
+    assert "Pro" in r.json()["detail"]
+
+
+def test_executive_summary_rejected_for_free_user(client_with_project, monkeypatch):
+    client, project_id, headers = client_with_project
+    monkeypatch.setattr("app.routers.rag.embedding_pool.embed", _mock_embed)
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "ringkasan eksekutif", "output_mode": "executive_summary"},
+                    headers=headers)
+    assert r.status_code == 403
+    assert "Pro" in r.json()["detail"]
+
+
+def test_pro_only_modes_allowed_for_pro_user(client_with_project, monkeypatch):
+    client, project_id, headers = client_with_project
+
+    import sqlite3, app.database as _db
+    conn = sqlite3.connect(_db._db_path)
+    conn.execute("UPDATE users SET tier = 'pro', kredit_remaining = 500, kredit_total = 500")
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr("app.routers.rag.embedding_pool.embed", _mock_embed)
+    monkeypatch.setattr("app.routers.rag.query_llm", _mock_llm)
+    monkeypatch.setattr("app.routers.rag.retrieve_chunks", _mock_retrieve)
+
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "sorotan kajian penuh", "output_mode": "literature_review"},
+                    headers=headers)
+    assert r.status_code == 200

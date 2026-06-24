@@ -75,12 +75,12 @@ function CiteChip({ index, source }) {
 }
 
 const OUTPUT_MODES = [
-  { value: 'qa', label: 'Soal-Jawab', credits: 1 },
-  { value: 'key_findings', label: 'Dapatan Utama', credits: 3 },
-  { value: 'executive_summary', label: 'Ringkasan Eksekutif', credits: 5 },
-  { value: 'literature_review', label: 'Sorotan Kajian', credits: 10 },
-  { value: 'research_gap', label: 'Analisis Jurang', credits: 10 },
-  { value: 'discovery', label: 'Mod Penemuan Topik', credits: 1 },
+  { value: 'qa',                label: 'Soal-Jawab',          credits: 1,  proOnly: false },
+  { value: 'key_findings',      label: 'Dapatan Utama',       credits: 3,  proOnly: false },
+  { value: 'executive_summary', label: 'Ringkasan Eksekutif', credits: 5,  proOnly: true  },
+  { value: 'literature_review', label: 'Sorotan Kajian',      credits: 10, proOnly: true  },
+  { value: 'research_gap',      label: 'Analisis Jurang',     credits: 10, proOnly: true  },
+  { value: 'discovery',         label: 'Mod Penemuan Topik',  credits: 1,  proOnly: false },
 ]
 
 export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, outputMode, onOutputModeChange, credits, onSendToEditor, hasActiveChapter, bottomRef, tier, isDiscoveryMode }) {
@@ -91,6 +91,12 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
     document.addEventListener('click', close)
     return () => document.removeEventListener('click', close)
   }, [])
+
+  // Reset to qa if current mode is Pro-only but user is free
+  useEffect(() => {
+    const current = OUTPUT_MODES.find(m => m.value === outputMode)
+    if (current?.proOnly && tier !== 'pro') onOutputModeChange('qa')
+  }, [tier])
 
   function renderContent(text, sources) {
     const segments = parseCitation(text, sources || [])
@@ -234,16 +240,24 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
             <div className="mode-pill-dropdown">
               {OUTPUT_MODES
                 .filter(m => m.value !== 'discovery' || isDiscoveryMode)
-                .map(m => (
-                  <button
-                    key={m.value}
-                    className={`mode-pill-option${outputMode === m.value ? ' active' : ''}`}
-                    onClick={() => { onOutputModeChange(m.value); setPillOpen(false) }}
-                  >
-                    {m.label}
-                    <span className="mode-credit-hint">{m.credits} kredit</span>
-                  </button>
-                ))}
+                .map(m => {
+                  const locked = m.proOnly && tier !== 'pro'
+                  return (
+                    <button
+                      key={m.value}
+                      className={`mode-pill-option${outputMode === m.value ? ' active' : ''}${locked ? ' locked' : ''}`}
+                      onClick={locked ? undefined : () => { onOutputModeChange(m.value); setPillOpen(false) }}
+                      disabled={locked}
+                      style={locked ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                    >
+                      {m.label}
+                      {locked
+                        ? <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--accent)', color: 'var(--ink)', borderRadius: 3, padding: '1px 5px', marginLeft: 4 }}>PRO</span>
+                        : <span className="mode-credit-hint">{m.credits} kredit</span>
+                      }
+                    </button>
+                  )
+                })}
             </div>
           )}
         </div>

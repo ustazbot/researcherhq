@@ -4,7 +4,7 @@ import api from '../api/client'
 const STATUS_LABEL = { draft: 'Draf', dalam_proses: 'Dalam Proses', siap: 'Siap' }
 const STATUS_COLOR = { draft: 'var(--line)', dalam_proses: 'var(--accent-soft)', siap: '#D1FAE5' }
 
-export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse }) {
+export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse }) {
   const [upgrading, setUpgrading] = useState(false)
   const [addMode, setAddMode] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -209,12 +209,18 @@ export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapter
 
                 {/* Export */}
                 {tier === 'pro' && (
-                  <button onClick={() => onExport(chap.id)} style={{
-                    padding: '2px 7px', fontSize: 10,
-                    background: 'transparent', border: '1px solid var(--line)',
-                    borderRadius: 3, cursor: 'pointer', fontFamily: 'var(--font-mono)',
-                  }}>
-                    .docx
+                  <button
+                    onClick={() => onExport(chap.id)}
+                    disabled={exportingChapterId === chap.id}
+                    style={{
+                      padding: '2px 7px', fontSize: 10,
+                      background: 'transparent', border: '1px solid var(--line)',
+                      borderRadius: 3, cursor: exportingChapterId === chap.id ? 'wait' : 'pointer',
+                      fontFamily: 'var(--font-mono)',
+                      opacity: exportingChapterId === chap.id ? 0.6 : 1,
+                    }}
+                  >
+                    {exportingChapterId === chap.id ? 'Menjana...' : '.docx'}
                   </button>
                 )}
 

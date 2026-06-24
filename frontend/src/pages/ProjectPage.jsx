@@ -53,6 +53,7 @@ export function ProjectPage() {
   const [voiceSaving, setVoiceSaving] = useState(false)
   const [voiceError, setVoiceError] = useState('')
   const [voiceSaved, setVoiceSaved] = useState(false)
+  const [exportingChapterId, setExportingChapterId] = useState(null)
 
   // Upload category picker state
   const [pendingFile, setPendingFile] = useState(null)
@@ -370,7 +371,42 @@ export function ProjectPage() {
   }
 
   async function handleExport(chapterId) {
-    alert('Export .docx untuk bab ini akan tersedia tidak lama lagi.')
+    setExportingChapterId(chapterId)
+    try {
+      const { data: initData } = await api.post(`/projects/${id}/chapters/${chapterId}/export`)
+      const jobId = initData.job_id
+      const chap = chapters.find(c => c.id === chapterId)
+
+      for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 1500))
+        const poll = await api.get(
+          `/projects/${id}/chapters/${chapterId}/export/${jobId}`,
+          { responseType: 'arraybuffer' }
+        )
+        const ct = poll.headers['content-type'] ?? ''
+        if (ct.includes('wordprocessingml') || ct.includes('octet-stream')) {
+          const blob = new Blob([poll.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `${chap?.title ?? 'bab'}.docx`
+          a.click()
+          URL.revokeObjectURL(url)
+          return
+        }
+        // Parse JSON status from arraybuffer
+        const text = new TextDecoder().decode(poll.data)
+        try {
+          const json = JSON.parse(text)
+          if (json.status === 'error') { alert('Export gagal. Sila cuba lagi.'); return }
+        } catch { /* not JSON, keep polling */ }
+      }
+      alert('Export mengambil masa terlalu lama. Sila cuba lagi.')
+    } catch {
+      alert('Export gagal. Sila cuba lagi.')
+    } finally {
+      setExportingChapterId(null)
+    }
   }
 
   if (!project) return (
@@ -728,6 +764,7 @@ export function ProjectPage() {
                 <ThesisPanel
                   chapters={sortedChapters}
                   onExport={handleExport}
+                  exportingChapterId={exportingChapterId}
                   tier={credits?.tier ?? user?.tier}
                   projectId={id}
                   activeChapterId={activeChapterId}
@@ -987,6 +1024,7 @@ export function ProjectPage() {
         <ThesisPanel
           chapters={sortedChapters}
           onExport={handleExport}
+          exportingChapterId={exportingChapterId}
           tier={credits?.tier ?? user?.tier}
           projectId={id}
           activeChapterId={activeChapterId}
