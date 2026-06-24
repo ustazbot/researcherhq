@@ -83,3 +83,35 @@ async def test_citation_token_in_system_prompt():
     from app.services.llm_provider import SYSTEM_PROMPTS
     for mode, prompt in SYSTEM_PROMPTS.items():
         assert '[[cite:' in prompt, f"Mode '{mode}' tiada arahan [[cite:N]] dalam system prompt"
+
+
+def _capture_full_payload(captured: dict):
+    """Return async fake that records the full json payload sent to DeepSeek."""
+    async def fake_post(self, url, *, headers, json, **kwargs):
+        captured.update(json)
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json = MagicMock(return_value={
+            "choices": [{"message": {"content": "jawapan ujian"}}],
+            "usage": {"total_tokens": 10},
+        })
+        return mock_resp
+    return fake_post
+
+
+@pytest.mark.asyncio
+async def test_llm_temperature_locked_at_0_1():
+    """LLM call mesti hantar temperature=0.1 dan top_p=0.1 ke DeepSeek (consistency lock)."""
+    captured = {}
+    with patch("httpx.AsyncClient.post", new=_capture_full_payload(captured)):
+        await query_llm(
+            [{"role": "user", "content": "ujian temperature lock"}],
+            output_mode="qa",
+            query_type="normal",
+        )
+    assert captured.get("temperature") == 0.1, (
+        f"temperature harus 0.1, dapat: {captured.get('temperature')}"
+    )
+    assert captured.get("top_p") == 0.1, (
+        f"top_p harus 0.1, dapat: {captured.get('top_p')}"
+    )
