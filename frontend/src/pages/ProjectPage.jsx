@@ -301,6 +301,15 @@ export function ProjectPage() {
     }
   }
 
+  async function handleRenameChapter(chapterId, newTitle) {
+    try {
+      await api.patch(`/projects/${id}/chapters/${chapterId}`, { title: newTitle })
+      setChapters(prev => prev.map(c => c.id === chapterId ? { ...c, title: newTitle } : c))
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Gagal ubah nama bab.')
+    }
+  }
+
   function handleRejectSuggestion() {
     setPendingSuggestion(null)
     setProposalBab3Text(null)
@@ -703,6 +712,7 @@ export function ProjectPage() {
                   onAddChapter={handleAddChapter}
                   onDeleteChapter={handleDeleteChapter}
                   onReorderChapter={handleReorderChapter}
+                  onRenameChapter={handleRenameChapter}
                 />
               )}
             </div>
@@ -953,6 +963,7 @@ export function ProjectPage() {
           onAddChapter={handleAddChapter}
           onDeleteChapter={handleDeleteChapter}
           onReorderChapter={handleReorderChapter}
+          onRenameChapter={handleRenameChapter}
           collapsed={thesisCollapsed}
           onToggleCollapse={() => setThesisCollapsed(c => !c)}
         />

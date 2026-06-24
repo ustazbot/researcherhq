@@ -4,10 +4,12 @@ import api from '../api/client'
 const STATUS_LABEL = { draft: 'Draf', dalam_proses: 'Dalam Proses', siap: 'Siap' }
 const STATUS_COLOR = { draft: 'var(--line)', dalam_proses: 'var(--accent-soft)', siap: '#D1FAE5' }
 
-export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, collapsed, onToggleCollapse }) {
+export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse }) {
   const [upgrading, setUpgrading] = useState(false)
   const [addMode, setAddMode] = useState(false)
   const [newTitle, setNewTitle] = useState('')
+  const [editingChapterId, setEditingChapterId] = useState(null)
+  const [editingTitle, setEditingTitle] = useState('')
 
   const done = (chapters || []).filter(c => c.status === 'siap').length
   const total = (chapters || []).length
@@ -44,6 +46,14 @@ export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapter
     if (window.confirm(`Padam "${chap.title}"? Kandungan bab ini akan hilang sepenuhnya.`)) {
       onDeleteChapter(chap.id)
     }
+  }
+
+  async function handleRenameChapterLocal(chapterId, currentTitle, newTitle) {
+    const trimmed = newTitle.trim()
+    setEditingChapterId(null)
+    setEditingTitle('')
+    if (!trimmed || trimmed === currentTitle) return
+    await onRenameChapter(chapterId, trimmed)
   }
 
   return (
@@ -131,9 +141,29 @@ export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapter
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4 }}>
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)', flex: 1, wordBreak: 'break-word' }}>
-                  {chap.title}
-                </span>
+                {editingChapterId === chap.id ? (
+                  <input
+                    autoFocus
+                    value={editingTitle}
+                    onChange={e => setEditingTitle(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleRenameChapterLocal(chap.id, chap.title, editingTitle)
+                      if (e.key === 'Escape') { setEditingChapterId(null); setEditingTitle('') }
+                    }}
+                    onBlur={() => handleRenameChapterLocal(chap.id, chap.title, editingTitle)}
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      flex: 1, padding: '2px 4px',
+                      border: '1px solid var(--accent)', borderRadius: 3,
+                      fontFamily: 'var(--font-body)', fontSize: 13,
+                      background: 'var(--bg)', outline: 'none', minWidth: 0,
+                    }}
+                  />
+                ) : (
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)', flex: 1, wordBreak: 'break-word' }}>
+                    {chap.title}
+                  </span>
+                )}
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 5px', borderRadius: 3,
                   background: STATUS_COLOR[chap.status] || 'var(--line)', color: 'var(--ink)',
@@ -144,6 +174,14 @@ export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapter
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }} onClick={e => e.stopPropagation()}>
+                {/* Rename */}
+                {editingChapterId !== chap.id && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditingChapterId(chap.id); setEditingTitle(chap.title) }}
+                    title="Ubah nama bab"
+                    style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 3, cursor: 'pointer', padding: '1px 5px', fontSize: 11, opacity: 0.7 }}
+                  >✏</button>
+                )}
                 {/* Reorder butang */}
                 <button
                   onClick={() => onReorderChapter(chap.id, 'up')}
