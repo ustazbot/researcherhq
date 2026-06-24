@@ -3,6 +3,7 @@ import api from '../api/client'
 
 const CATEGORIES = [
   { value: 'artikel', label: 'Artikel Rujukan', icon: '📄' },
+  { value: 'proposal', label: 'Proposal Kajian', icon: '📋' },
   { value: 'catatan_sv', label: 'Catatan SV', icon: '📝' },
   { value: 'draf', label: 'Draf Sendiri', icon: '📑' },
   { value: 'data', label: 'Data / Transkrip', icon: '📊' },
