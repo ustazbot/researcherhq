@@ -59,7 +59,11 @@ def list_chapters(project_id: str, user=Depends(get_current_user)):
         if not proj:
             raise HTTPException(404, "Projek tidak dijumpai.")
         rows = db.execute(
-            "SELECT * FROM chapters WHERE project_id=? ORDER BY chapter_order",
+            """SELECT ch.*,
+               CASE WHEN LENGTH(COALESCE(cc.content, '')) > 10 THEN 1 ELSE 0 END AS has_content
+               FROM chapters ch
+               LEFT JOIN chapter_content cc ON cc.chapter_id = ch.id
+               WHERE ch.project_id=? ORDER BY ch.chapter_order""",
             (project_id,)
         ).fetchall()
     return [dict(r) for r in rows]

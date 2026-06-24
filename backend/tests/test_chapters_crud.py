@@ -152,3 +152,28 @@ def test_delete_document_wrong_user(client_with_doc):
     other_h = make_headers("user-2", "u2@test.com")
     r = client.delete(f"/documents/{doc_id}", headers=other_h)
     assert r.status_code == 404
+
+
+def test_list_chapters_has_content_false(client_with_chapter):
+    """Chapter created fresh has no content → has_content = 0."""
+    client, project_id, chapter_id, h = client_with_chapter
+    res = client.get(f"/projects/{project_id}/chapters", headers=h)
+    assert res.status_code == 200
+    chapters = res.json()
+    assert len(chapters) == 1
+    assert chapters[0]["has_content"] == 0
+
+
+def test_list_chapters_has_content_true(client_with_chapter):
+    """Chapter with saved content → has_content = 1."""
+    client, project_id, chapter_id, h = client_with_chapter
+    # Write some content
+    client.patch(
+        f"/projects/{project_id}/chapters/{chapter_id}/content",
+        json={"content": "Ini kandungan bab yang cukup panjang untuk dikesan."},
+        headers=h
+    )
+    res = client.get(f"/projects/{project_id}/chapters", headers=h)
+    assert res.status_code == 200
+    chapters = res.json()
+    assert chapters[0]["has_content"] == 1
