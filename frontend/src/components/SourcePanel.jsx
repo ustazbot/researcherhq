@@ -171,6 +171,16 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                     {cat.docs.length}
                   </span>
                 </button>
+                {activeCategory === cat.value && cat.docs.length === 0 && (
+                  <p style={{
+                    padding: '8px 16px 8px 32px',
+                    fontFamily: 'var(--font-body)', fontSize: 12,
+                    color: 'var(--ink-soft)', fontStyle: 'italic',
+                    margin: 0,
+                  }}>
+                    Tiada dokumen dalam kategori ini.
+                  </p>
+                )}
                 {activeCategory === cat.value && cat.docs.map(doc => (
                   <div key={doc.id} style={{ padding: '6px 16px 6px 32px' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4 }}>
