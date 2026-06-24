@@ -2,6 +2,7 @@ import uuid
 import json
 import hashlib
 import struct
+import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -12,6 +13,8 @@ from app.routers.auth import get_current_user
 from app.services.embedding_pool import embedding_pool
 from app.services.rag_pipeline import retrieve_chunks, cosine_similarity
 from app.services.llm_provider import query_llm, KREDIT_COST
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -137,6 +140,7 @@ async def query_project(
         cached = _check_cache(project_id, body.query, query_embedding, doc_version, db)
 
     if cached:
+        logger.info("cache_hit project=%s", project_id)
         return {
             "answer": cached["response"],
             "sources": json.loads(cached["source_chunks"] or "[]"),
@@ -145,6 +149,7 @@ async def query_project(
             "cache_hit": True,
         }
 
+    logger.info("cache_miss project=%s", project_id)
     # Retrieve relevant chunks
     chunks = await retrieve_chunks(
         project_id=project_id,
