@@ -84,8 +84,8 @@ if [ ! -f "$STATS_FILE" ]; then
 fi
 
 # Extract P95 and failure rate for RAG endpoint
-RAG_P95=$(awk -F',' 'NR>1 && /projects.*query/ {print $14}' "$STATS_FILE" | head -1)
-TOTAL_FAILURES=$(awk -F',' 'NR>1 {fail+=$7} END {print fail+0}' "$STATS_FILE")
+RAG_P95=$(awk -F',' 'NR>1 && /projects.*query/ {print $17}' "$STATS_FILE" | head -1)
+TOTAL_FAILURES=$(awk -F',' 'NR>1 {fail+=$4} END {print fail+0}' "$STATS_FILE")
 TOTAL_REQUESTS=$(awk -F',' 'NR>1 {req+=$3} END {print req+0}' "$STATS_FILE")
 
 # Check for database locked error in server log
