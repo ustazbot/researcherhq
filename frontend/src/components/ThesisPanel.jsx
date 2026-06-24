@@ -43,7 +43,10 @@ export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapter
 
   function handleDelete(e, chap) {
     e.stopPropagation()
-    if (window.confirm(`Padam "${chap.title}"? Kandungan bab ini akan hilang sepenuhnya.`)) {
+    const message = chap.has_content
+      ? `⚠️ Bab "${chap.title}" ada kandungan yang belum disimpan.\n\nPadam bab ini akan menghapuskan SEMUA kandungan secara kekal.\n\nTeruskan?`
+      : `Padam "${chap.title}"?`
+    if (window.confirm(message)) {
       onDeleteChapter(chap.id)
     }
   }
