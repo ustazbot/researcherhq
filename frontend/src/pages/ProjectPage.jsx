@@ -55,6 +55,8 @@ export function ProjectPage() {
   const [voiceSaved, setVoiceSaved] = useState(false)
   const [exportingChapterId, setExportingChapterId] = useState(null)
   const [compiling, setCompiling] = useState(false)
+  const [compileError, setCompileError] = useState(null)
+  const [compileWarning, setCompileWarning] = useState(null)
 
   // Upload category picker state
   const [pendingFile, setPendingFile] = useState(null)
@@ -411,9 +413,27 @@ export function ProjectPage() {
   }
 
   async function handleCompile() {
+    setCompileError(null)
+    setCompileWarning(null)
+
+    // Pre-flight: ada bab?
+    if (chapters.length === 0) {
+      setCompileError('Projek belum ada bab. Tambah sekurang-kurangnya satu bab dahulu.')
+      return
+    }
+    // Pre-flight: ada bab yang ada content?
+    const hasContent = chapters.some(c => c.has_content)
+    if (!hasContent) {
+      setCompileError('Semua bab masih kosong. Tambah kandungan ke bab dahulu.')
+      return
+    }
+
     setCompiling(true)
     try {
       const { data: init } = await api.post(`/projects/${id}/compile`)
+      if (init.skipped_chapters?.length > 0) {
+        setCompileWarning(`${init.skipped_chapters.length} bab kosong akan diskip: ${init.skipped_chapters.join(', ')}`)
+      }
       const jobId = init.job_id
       for (let i = 0; i < 40; i++) {
         await new Promise(r => setTimeout(r, 1500))
@@ -435,12 +455,22 @@ export function ProjectPage() {
         const text = new TextDecoder().decode(poll.data)
         try {
           const json = JSON.parse(text)
-          if (json.status === 'error') { alert('Compile gagal. Sila cuba lagi.'); return }
+          if (json.status === 'error') {
+            setCompileError(`Compile gagal: ${json.message ?? 'Ralat tidak diketahui.'}`)
+            return
+          }
         } catch { /* keep polling */ }
       }
-      alert('Compile mengambil masa terlalu lama. Sila cuba lagi.')
-    } catch {
-      alert('Compile gagal. Sila cuba lagi.')
+      setCompileError('Compile mengambil masa terlalu lama. Sila cuba lagi.')
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      if (typeof detail === 'object' && detail?.code === 'all_chapters_empty') {
+        setCompileError(detail.message)
+      } else if (typeof detail === 'string') {
+        setCompileError(`Compile gagal: ${detail}`)
+      } else {
+        setCompileError('Compile gagal. Sila cuba lagi atau hubungi sokongan.')
+      }
     } finally {
       setCompiling(false)
     }
@@ -812,6 +842,9 @@ export function ProjectPage() {
                   onRenameChapter={handleRenameChapter}
                   onCompile={handleCompile}
                   compiling={compiling}
+                  compileError={compileError}
+                  compileWarning={compileWarning}
+                  onDismissError={() => setCompileError(null)}
                 />
               )}
             </div>
@@ -1089,6 +1122,9 @@ export function ProjectPage() {
           onToggleCollapse={() => setThesisCollapsed(c => !c)}
           onCompile={handleCompile}
           compiling={compiling}
+          compileError={compileError}
+          compileWarning={compileWarning}
+          onDismissError={() => setCompileError(null)}
         />
       </div>
 

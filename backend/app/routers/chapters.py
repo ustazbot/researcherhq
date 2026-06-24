@@ -2,7 +2,7 @@ import json
 import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from typing import Optional
 from pydantic import BaseModel
 from app.database import get_db
@@ -323,6 +323,19 @@ async def compile_thesis(project_id: str, user=Depends(get_current_user)):
 
     chapters = [dict(r) for r in rows]
 
+    chapters_with_content = [c for c in chapters if c["content"].strip()]
+    if not chapters_with_content:
+        raise HTTPException(
+            400,
+            detail={
+                "code": "all_chapters_empty",
+                "message": "Semua bab masih kosong. Tambah kandungan ke sekurang-kurangnya satu bab sebelum compile.",
+                "empty_chapters": [c["title"] for c in chapters],
+            }
+        )
+
+    empty_titles = [c["title"] for c in chapters if not c["content"].strip()]
+
     seen = set()
     bibliography = []
     for row in bib_rows:
@@ -338,7 +351,7 @@ async def compile_thesis(project_id: str, user=Depends(get_current_user)):
         bibliography=bibliography,
         citation_style=proj["citation_style"],
     )
-    return {"job_id": job_id, "status": "pending"}
+    return {"job_id": job_id, "status": "pending", "skipped_chapters": empty_titles}
 
 
 @router.get("/projects/{project_id}/compile/{job_id}")
@@ -357,7 +370,10 @@ async def poll_compile(project_id: str, job_id: str, user=Depends(get_current_us
     if job["status"] == "pending":
         return {"status": "pending"}
     if job["status"] == "error":
-        raise HTTPException(500, f"Compile gagal: {job.get('error', 'Ralat tidak diketahui.')}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": job.get("error", "Ralat tidak diketahui.")},
+        )
 
     return Response(
         content=job["bytes"],

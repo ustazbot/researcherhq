@@ -173,3 +173,29 @@ def test_poll_compile_unknown_job(client_with_user):
     fake_job = str(uuid.uuid4())
     resp = client.get(f"/projects/{proj_id}/compile/{fake_job}", headers=headers)
     assert resp.status_code == 404
+
+
+def test_compile_endpoint_all_chapters_empty(client_with_user):
+    import sqlite3
+    import app.database as _db
+
+    client, headers, proj_id = client_with_user
+    # Upgrade to pro
+    conn = sqlite3.connect(_db._db_path)
+    conn.execute("UPDATE users SET tier='pro' WHERE id='user-exp'")
+    conn.commit()
+    conn.close()
+
+    # Add chapter with NO content (stays empty)
+    chap_resp = client.post(
+        f"/projects/{proj_id}/chapters",
+        json={"title": "Bab Kosong", "chapter_order": 1},
+        headers=headers
+    )
+    assert chap_resp.status_code == 201
+
+    resp = client.post(f"/projects/{proj_id}/compile", headers=headers)
+    assert resp.status_code == 400
+    detail = resp.json()["detail"]
+    assert detail["code"] == "all_chapters_empty"
+    assert "Bab Kosong" in detail["empty_chapters"]

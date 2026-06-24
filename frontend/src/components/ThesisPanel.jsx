@@ -4,7 +4,7 @@ import api from '../api/client'
 const STATUS_LABEL = { draft: 'Draf', dalam_proses: 'Dalam Proses', siap: 'Siap' }
 const STATUS_COLOR = { draft: 'var(--line)', dalam_proses: 'var(--accent-soft)', siap: '#D1FAE5' }
 
-export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse, onCompile, compiling }) {
+export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse, onCompile, compiling, compileError, compileWarning, onDismissError }) {
   const [upgrading, setUpgrading] = useState(false)
   const [addMode, setAddMode] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -278,19 +278,53 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
             }}
           >+ Tambah Bab</button>
           {tier === 'pro' && (
-            <button
-              onClick={onCompile}
-              disabled={compiling}
-              style={{
-                width: '100%', marginTop: 6, padding: '7px 0',
-                background: compiling ? 'var(--line)' : 'var(--accent)',
-                border: 'none', borderRadius: 'var(--radius-sm)',
-                fontFamily: 'var(--font-heading)', fontSize: 13,
-                fontWeight: 700, cursor: compiling ? 'wait' : 'pointer',
-              }}
-            >
-              {compiling ? 'Menjana...' : '⬇ Compile Tesis Penuh'}
-            </button>
+            <>
+              {compileError && (
+                <div style={{
+                  margin: '6px 0',
+                  padding: '8px 12px',
+                  background: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 12,
+                  color: '#991B1B',
+                  lineHeight: 1.5,
+                }}>
+                  {compileError}
+                  <button
+                    onClick={onDismissError}
+                    style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#991B1B' }}
+                  >✕</button>
+                </div>
+              )}
+              {compileWarning && (
+                <div style={{
+                  margin: '6px 0',
+                  padding: '8px 12px',
+                  background: '#FFFBEB',
+                  border: '1px solid #FDE68A',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 12,
+                  color: '#92400E',
+                  lineHeight: 1.5,
+                }}>
+                  ⚠ {compileWarning}
+                </div>
+              )}
+              <button
+                onClick={onCompile}
+                disabled={compiling}
+                style={{
+                  width: '100%', marginTop: 6, padding: '7px 0',
+                  background: compiling ? 'var(--line)' : 'var(--accent)',
+                  border: 'none', borderRadius: 'var(--radius-sm)',
+                  fontFamily: 'var(--font-heading)', fontSize: 13,
+                  fontWeight: 700, cursor: compiling ? 'wait' : 'pointer',
+                }}
+              >
+                {compiling ? 'Menjana...' : '⬇ Compile Tesis Penuh'}
+              </button>
+            </>
           )}
         </div>
       )}
