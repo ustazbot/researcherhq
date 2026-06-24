@@ -79,6 +79,7 @@ const OUTPUT_MODES = [
   { value: 'key_findings', label: 'Dapatan Utama', credits: 3 },
   { value: 'executive_summary', label: 'Ringkasan Eksekutif', credits: 5 },
   { value: 'literature_review', label: 'Sorotan Kajian', credits: 10 },
+  { value: 'research_gap', label: 'Analisis Jurang', credits: 10 },
   { value: 'discovery', label: 'Mod Penemuan Topik', credits: 1 },
 ]
 

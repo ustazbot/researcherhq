@@ -177,3 +177,56 @@ def test_list_chapters_has_content_true(client_with_chapter):
     assert res.status_code == 200
     chapters = res.json()
     assert chapters[0]["has_content"] == 1
+
+
+# --- Task 16: Chapter Content Save + Summary ---
+
+def test_update_chapter_content_saves_and_generates_summary(client_with_chapter, monkeypatch):
+    client, project_id, chapter_id, h = client_with_chapter
+
+    async def _mock_llm(messages, **kwargs):
+        return {"content": "Ringkasan ujian.", "tokens_used": 10, "model": "mock"}
+
+    monkeypatch.setattr("app.routers.chapters.query_llm", _mock_llm)
+
+    r = client.patch(
+        f"/projects/{project_id}/chapters/{chapter_id}/content",
+        json={"content": "Kandungan bab yang panjang untuk diringkaskan."},
+        headers=h
+    )
+    assert r.status_code == 200
+    assert r.json()["summary_generated"] is True
+
+    import sqlite3, app.database as _db
+    conn = sqlite3.connect(_db._db_path)
+    row = conn.execute(
+        "SELECT content, summary FROM chapter_content WHERE chapter_id=?", (chapter_id,)
+    ).fetchone()
+    conn.close()
+    assert row[0] == "Kandungan bab yang panjang untuk diringkaskan."
+    assert row[1] == "Ringkasan ujian."
+
+
+def test_update_chapter_content_saves_even_if_summary_fails(client_with_chapter, monkeypatch):
+    client, project_id, chapter_id, h = client_with_chapter
+
+    async def _fail_llm(*args, **kwargs):
+        raise RuntimeError("LLM tidak tersedia")
+
+    monkeypatch.setattr("app.routers.chapters.query_llm", _fail_llm)
+
+    r = client.patch(
+        f"/projects/{project_id}/chapters/{chapter_id}/content",
+        json={"content": "Kandungan tetap tersimpan walaupun LLM gagal."},
+        headers=h
+    )
+    assert r.status_code == 200
+
+    import sqlite3, app.database as _db
+    conn = sqlite3.connect(_db._db_path)
+    row = conn.execute(
+        "SELECT content, summary FROM chapter_content WHERE chapter_id=?", (chapter_id,)
+    ).fetchone()
+    conn.close()
+    assert row[0] == "Kandungan tetap tersimpan walaupun LLM gagal."
+    assert row[1] == ""

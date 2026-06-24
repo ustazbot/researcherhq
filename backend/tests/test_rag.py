@@ -314,3 +314,101 @@ def test_document_preview_endpoint(tmp_path):
             # User 2 tidak boleh preview dokumen user 1 — 404
             r2 = c.get(f"/documents/{doc_id}/preview", headers=h2)
             assert r2.status_code == 404
+
+
+# --- Task 16: Kredit Deduction End-to-End ---
+
+_FAKE_CHUNKS = [{
+    "chunk_id": "c1", "text": "teks ujian", "page_number": 1,
+    "filename": "test.pdf", "similarity": 0.9, "embedding": [0.1] * 384,
+}]
+
+async def _mock_embed(*args, **kwargs):
+    return [0.1] * 384
+
+async def _mock_llm(*args, **kwargs):
+    return {"content": "Jawapan ujian", "tokens_used": 10, "model": "mock"}
+
+async def _mock_retrieve(*args, **kwargs):
+    return _FAKE_CHUNKS
+
+
+def test_kredit_deducted_after_query(client_with_project, monkeypatch):
+    client, project_id, headers = client_with_project
+    monkeypatch.setattr("app.routers.rag.embedding_pool.embed", _mock_embed)
+    monkeypatch.setattr("app.routers.rag.query_llm", _mock_llm)
+    monkeypatch.setattr("app.routers.rag.retrieve_chunks", _mock_retrieve)
+
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "ujian kredit", "output_mode": "qa"},
+                    headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["kredit_used"] == 1
+    assert data["kredit_remaining"] == 49
+
+    import sqlite3, app.database as _db
+    conn = sqlite3.connect(_db._db_path)
+    row = conn.execute("SELECT kredit_remaining FROM users").fetchone()
+    conn.close()
+    assert row[0] == 49
+
+
+def test_query_rejected_when_kredit_insufficient(client_with_project, monkeypatch):
+    client, project_id, headers = client_with_project
+
+    import sqlite3, app.database as _db
+    conn = sqlite3.connect(_db._db_path)
+    conn.execute("UPDATE users SET kredit_remaining = 0")
+    conn.commit()
+    conn.close()
+
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "ujian kredit kosong", "output_mode": "qa"},
+                    headers=headers)
+    assert r.status_code == 402
+
+
+# --- Task 16: Hierarchical Context Injection ---
+
+def test_literature_review_injects_chapter_summaries(client_with_project, monkeypatch):
+    client, project_id, headers = client_with_project
+
+    # Create 2 chapters with summaries directly in DB
+    import sqlite3, uuid, app.database as _db
+    conn = sqlite3.connect(_db._db_path)
+    conn.row_factory = sqlite3.Row
+    for i, title in enumerate(["Bab 1: Latar Belakang", "Bab 2: Metodologi"], start=1):
+        chap_id = str(uuid.uuid4())
+        cc_id = str(uuid.uuid4())
+        conn.execute(
+            "INSERT INTO chapters (id, project_id, title, chapter_order, status, created_at) VALUES (?,?,?,?,?,?)",
+            (chap_id, project_id, title, i, "draft", "2026-01-01"),
+        )
+        conn.execute(
+            "INSERT INTO chapter_content (id, chapter_id, content, summary, source_citations, updated_at) VALUES (?,?,?,?,?,?)",
+            (cc_id, chap_id, "kandungan bab", f"Ringkasan {title}", "[]", "2026-01-01"),
+        )
+    conn.commit()
+    conn.close()
+
+    captured = {}
+
+    async def _capture_llm(messages, **kwargs):
+        captured["messages"] = messages
+        return {"content": "hasil literature review", "tokens_used": 10, "model": "mock"}
+
+    monkeypatch.setattr("app.routers.rag.embedding_pool.embed", _mock_embed)
+    monkeypatch.setattr("app.routers.rag.query_llm", _capture_llm)
+    monkeypatch.setattr("app.routers.rag.retrieve_chunks", _mock_retrieve)
+
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "sorotan kajian", "output_mode": "literature_review"},
+                    headers=headers)
+    assert r.status_code == 200
+
+    # The user message content must contain chapter summaries header
+    user_content = captured["messages"][-1]["content"]
+    assert "RINGKASAN BAB SEDIA ADA" in user_content
+    assert "Bab 1: Latar Belakang" in user_content
+    assert "Bab 2: Metodologi" in user_content
