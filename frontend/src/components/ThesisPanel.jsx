@@ -167,6 +167,7 @@ export function ThesisPanel({ chapters, onExport, tier, projectId, activeChapter
                   />
                 ) : (
                   <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)', flex: 1, wordBreak: 'break-word' }}>
+                    {isActive && <span style={{ color: 'var(--accent)', marginRight: 4 }}>●</span>}
                     {chap.title}
                   </span>
                 )}
