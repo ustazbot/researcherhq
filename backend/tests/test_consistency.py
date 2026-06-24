@@ -98,16 +98,20 @@ def test_cache_invalidated_on_upload(client_with_project):
     conn.close()
 
     # Query with same text but project is now version 2 — should MISS cache
-    # Since no real chunks and no LLM mock, we expect the "no documents" response
+    # Cache miss → no chunks → llm_knowledge fallback (mock to avoid real API call)
+    async def _mock_llm(*args, **kwargs):
+        return {"content": "Jawapan llm_knowledge.", "tokens_used": 5, "model": "mock"}
+
     with patch("app.services.embedding_pool.EmbeddingPool.embed", new_callable=AsyncMock,
-               return_value=FAKE_EMB):
+               return_value=FAKE_EMB), \
+         patch("app.routers.rag.query_llm", new=_mock_llm), \
+         patch("app.routers.rag.settings.perplexity_api_key", ""):
         r = client.post(f"/projects/{proj_id}/query",
                         json={"query": query_text, "output_mode": "qa"},
                         headers=headers)
 
     assert r.status_code == 200
     data = r.json()
-    # Cache miss → falls through to retrieval → no chunks → llm_knowledge or web_search
     assert data.get("cache_hit") is not True
     assert data["source_type"] in ("llm_knowledge", "web_search")
 
@@ -195,9 +199,14 @@ def test_dissimilar_query_misses_cache(client_with_project):
     conn.close()
 
     # Orthogonal embedding → cosine = 0.0 → must miss cache → falls to retrieval
-    # No documents in project → returns "Tiada dokumen" without hitting LLM
+    # No documents → llm_knowledge fallback (mock to avoid real API call)
+    async def _mock_llm(*args, **kwargs):
+        return {"content": "Jawapan llm_knowledge.", "tokens_used": 5, "model": "mock"}
+
     with patch("app.services.embedding_pool.EmbeddingPool.embed", new_callable=AsyncMock,
-               return_value=_EMBED_C_FAR):
+               return_value=_EMBED_C_FAR), \
+         patch("app.routers.rag.query_llm", new=_mock_llm), \
+         patch("app.routers.rag.settings.perplexity_api_key", ""):
         r = client.post(
             f"/projects/{proj_id}/query",
             json={"query": "soalan yang sama sekali berbeza", "output_mode": "qa"},
