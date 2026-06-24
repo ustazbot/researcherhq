@@ -126,3 +126,84 @@ def test_retrieval_deterministic():
     assert [x["chunk_id"] for x in r1] == [x["chunk_id"] for x in r2]
     # m has highest sim, should be first
     assert r1[0]["chunk_id"] == "m"
+
+
+# Near-match cache test vectors
+_EMBED_A = [1.0] + [0.0] * 383
+_EMBED_B_NEAR = [0.98, 0.1] + [0.0] * 382   # cosine with A ≈ 0.995, above 0.95 threshold
+_EMBED_C_FAR = [0.0, 1.0] + [0.0] * 382     # cosine with A = 0.0, below 0.90
+
+
+def test_near_match_query_returns_cached(client_with_project):
+    """Query dengan embedding hampir sama (cosine > 0.95) patut hit near-match cache."""
+    import sqlite3
+    import sqlite_vec as sv
+    client, headers, proj_id, db_path = client_with_project
+
+    # Seed cache: "soalan asal" with EMBED_A, doc_version=1
+    conn = sqlite3.connect(db_path)
+    sv.load(conn)
+    from datetime import datetime
+    cache_id = _cache_key("soalan asal", proj_id, 1)
+    conn.execute(
+        """INSERT INTO query_cache
+           (id, project_id, query_normalized, query_embedding, document_set_version,
+            response, source_chunks, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (cache_id, proj_id, normalize_query("soalan asal"), _emb_to_blob(_EMBED_A),
+         1, "Jawapan near-match.", "[]", datetime.utcnow().isoformat()),
+    )
+    conn.commit()
+    conn.close()
+
+    # Query with DIFFERENT text (different hash → exact match fails)
+    # but embed returns EMBED_B_NEAR (cosine > 0.95 → near-match hits)
+    with patch("app.services.embedding_pool.EmbeddingPool.embed", new_callable=AsyncMock,
+               return_value=_EMBED_B_NEAR):
+        r = client.post(
+            f"/projects/{proj_id}/query",
+            json={"query": "soalan berbeza tapi hampir sama", "output_mode": "qa"},
+            headers=headers,
+        )
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("cache_hit") is True, f"Expected cache_hit=True, got: {data}"
+    assert data["kredit_used"] == 0
+
+
+def test_dissimilar_query_misses_cache(client_with_project):
+    """Query dengan embedding jauh (cosine < 0.90) tidak patut hit cache."""
+    import sqlite3
+    import sqlite_vec as sv
+    client, headers, proj_id, db_path = client_with_project
+
+    # Seed cache with EMBED_A
+    conn = sqlite3.connect(db_path)
+    sv.load(conn)
+    from datetime import datetime
+    cache_id = _cache_key("soalan pertama", proj_id, 1)
+    conn.execute(
+        """INSERT INTO query_cache
+           (id, project_id, query_normalized, query_embedding, document_set_version,
+            response, source_chunks, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (cache_id, proj_id, normalize_query("soalan pertama"), _emb_to_blob(_EMBED_A),
+         1, "Jawapan pertama.", "[]", datetime.utcnow().isoformat()),
+    )
+    conn.commit()
+    conn.close()
+
+    # Orthogonal embedding → cosine = 0.0 → must miss cache → falls to retrieval
+    # No documents in project → returns "Tiada dokumen" without hitting LLM
+    with patch("app.services.embedding_pool.EmbeddingPool.embed", new_callable=AsyncMock,
+               return_value=_EMBED_C_FAR):
+        r = client.post(
+            f"/projects/{proj_id}/query",
+            json={"query": "soalan yang sama sekali berbeza", "output_mode": "qa"},
+            headers=headers,
+        )
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("cache_hit") is not True, f"Expected no cache_hit, got: {data}"
