@@ -72,3 +72,47 @@ def test_migration_project_onboarding_columns(tmp_path):
     assert "proposal_status" in cols
     assert "citation_style" in cols
     conn.close()
+
+
+def test_get_db_sets_wal_mode(tmp_path):
+    """get_db() must explicitly set WAL on each connection (Gap 2 fix)."""
+    import app.database as db_module
+    db_path = str(tmp_path / "getdb_wal.db")
+    init_db(db_path)  # create schema
+    orig = db_module._db_path
+    db_module._db_path = db_path
+    try:
+        with db_module.get_db() as conn:
+            result = conn.execute("PRAGMA journal_mode").fetchone()
+            assert result[0] == "wal", f"get_db() connection not in WAL mode: {result[0]}"
+    finally:
+        db_module._db_path = orig
+
+
+def test_get_db_concurrent_writes_no_lock_error(tmp_path):
+    """50 threads writing concurrently must not raise OperationalError (Gap 1 fix)."""
+    import threading, app.database as db_module
+    db_path = str(tmp_path / "concurrent.db")
+    init_db(db_path)
+    orig = db_module._db_path
+    db_module._db_path = db_path
+    errors = []
+
+    def writer(i):
+        try:
+            import uuid
+            from datetime import datetime
+            with db_module.get_db() as c:
+                c.execute(
+                    "INSERT INTO users (id, email, password_hash, created_at) VALUES (?,?,?,?)",
+                    (str(uuid.uuid4()), f"u{i}@t.com", "x", datetime.utcnow().isoformat())
+                )
+        except Exception as e:
+            errors.append(str(e))
+
+    threads = [threading.Thread(target=writer, args=(i,)) for i in range(10)]
+    for t in threads: t.start()
+    for t in threads: t.join()
+
+    assert not errors, f"Concurrent write errors: {errors}"
+    db_module._db_path = orig
