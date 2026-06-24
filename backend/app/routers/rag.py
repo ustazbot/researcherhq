@@ -13,6 +13,7 @@ from app.routers.auth import get_current_user
 from app.services.embedding_pool import embedding_pool
 from app.services.rag_pipeline import retrieve_chunks, cosine_similarity
 from app.services.llm_provider import query_llm, KREDIT_COST
+from app.services.web_search_service import search_with_citations, WebSearchUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,30 @@ OUTPUT_MODES = {"qa", "literature_review", "executive_summary", "key_findings", 
 PRO_ONLY_MODES = {"literature_review", "executive_summary", "research_gap"}
 
 NEAR_MATCH_THRESHOLD = 0.95
+
+
+async def _handle_no_document_query(query: str, research_mode: str, style_notes: str):
+    """Route no-document queries to web search or llm_knowledge fallback."""
+    if settings.perplexity_api_key:
+        try:
+            result = await search_with_citations(query)
+            return "web_search", result["answer"], result["citations"]
+        except WebSearchUnavailable:
+            pass  # fall through to llm_knowledge
+
+    result = await query_llm(
+        messages=[{
+            "role": "user",
+            "content": (
+                f"[TIADA DOKUMEN — jawab berdasarkan pengetahuan umum dengan jujur]\n\n"
+                f"Soalan: {query}"
+            ),
+        }],
+        research_mode=research_mode,
+        output_mode="qa",
+        style_notes=style_notes,
+    )
+    return "llm_knowledge", result["content"], []
 
 
 def normalize_query(query: str) -> str:
@@ -148,12 +173,17 @@ async def query_project(
         return {
             "answer": cached["response"],
             "sources": json.loads(cached["source_chunks"] or "[]"),
+            "web_citations": [],
+            "source_type": "rag_document",
             "kredit_used": 0,
             "kredit_remaining": user_row["kredit_remaining"],
             "cache_hit": True,
         }
 
     logger.info("cache_miss project=%s", project_id)
+    with get_db() as db:
+        style_notes = _get_voice_style(project_id, db)
+
     # Retrieve relevant chunks
     chunks = await retrieve_chunks(
         project_id=project_id,
@@ -163,11 +193,31 @@ async def query_project(
     )
 
     if not chunks:
+        source_type, answer, web_citations = await _handle_no_document_query(
+            query=body.query,
+            research_mode=project_dict["research_mode"],
+            style_notes=style_notes,
+        )
+        kredit_cost = 1
+        with get_db() as db:
+            db.execute(
+                "UPDATE users SET kredit_remaining = kredit_remaining - ? WHERE id = ?",
+                (kredit_cost, user["user_id"]),
+            )
+            msg_id = str(uuid.uuid4())
+            now = datetime.utcnow().isoformat()
+            db.execute(
+                """INSERT INTO messages (id, project_id, role, content, output_mode, source_chunks, kredit_used, tokens_used_internal, created_at)
+                   VALUES (?, ?, 'assistant', ?, ?, '[]', ?, 0, ?)""",
+                (msg_id, project_id, answer, body.output_mode, kredit_cost, now),
+            )
         return {
-            "answer": "Tiada dokumen dalam projek ini atau dokumen belum selesai diproses. Sila muat naik dokumen dan tunggu sebentar sebelum bertanya.",
+            "answer": answer,
             "sources": [],
-            "kredit_used": 0,
-            "kredit_remaining": user_row["kredit_remaining"],
+            "web_citations": web_citations,
+            "source_type": source_type,
+            "kredit_used": kredit_cost,
+            "kredit_remaining": user_row["kredit_remaining"] - kredit_cost,
         }
 
     # Build context from chunks
@@ -216,9 +266,6 @@ async def query_project(
         "content": f"KONTEKS DOKUMEN:\n\n{context}\n\n---\n\nSOALAN: {effective_query}",
     }
     messages = history_messages + [current_message]
-
-    with get_db() as db:
-        style_notes = _get_voice_style(project_id, db)
 
     result = await query_llm(
         messages=messages,
@@ -296,6 +343,8 @@ async def query_project(
             }
             for c in chunks
         ],
+        "web_citations": [],
+        "source_type": "rag_document",
         "kredit_used": kredit_cost,
         "kredit_remaining": user_row["kredit_remaining"] - kredit_cost,
     }

@@ -3,6 +3,12 @@ import { useState, useRef, useEffect } from 'react'
 import { CitationCard } from './CitationCard'
 import { parseCitation } from '../utils/parseCitation'
 
+const SOURCE_BADGE = {
+  rag_document:  { label: '📄 Dokumen anda',                              bg: '#F0FDF4', color: '#166534' },
+  web_search:    { label: '🌐 Sumber web',                                bg: '#EFF6FF', color: '#1D4ED8' },
+  llm_knowledge: { label: '⚠ Pengetahuan am — tiada sandaran sahih',     bg: '#FFFBEB', color: '#92400E' },
+}
+
 const CITE_STYLES = `
 .cite-chip {
   display: inline-flex; align-items: center; justify-content: center;
@@ -174,6 +180,20 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
               padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 14,
               lineHeight: 1.6, whiteSpace: msg.role === 'assistant' ? undefined : 'pre-wrap',
             }}>
+              {msg.role === 'assistant' && msg.source_type && SOURCE_BADGE[msg.source_type] && (
+                <div style={{
+                  display: 'inline-block',
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  fontSize: 11,
+                  fontFamily: 'var(--font-mono)',
+                  marginBottom: 8,
+                  background: SOURCE_BADGE[msg.source_type].bg,
+                  color: SOURCE_BADGE[msg.source_type].color,
+                }}>
+                  {SOURCE_BADGE[msg.source_type].label}
+                </div>
+              )}
               {msg.role === 'assistant' ? renderContent(msg.content, msg.sources) : msg.content}
               {msg.kredit_used && (
                 <span style={{ display: 'block', marginTop: 6, fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.6 }}>
@@ -208,6 +228,28 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
                   Sumber ({msg.sources.length})
                 </p>
                 {msg.sources.map(s => <CitationCard key={s.chunk_id} source={s} />)}
+              </div>
+            )}
+            {msg.web_citations?.length > 0 && (
+              <div style={{ marginTop: 8, maxWidth: '90%', width: '100%', borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Sumber:
+                </p>
+                {msg.web_citations.map((c, i) => (
+                  <a
+                    key={i}
+                    href={c.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'block', fontSize: 12,
+                      color: 'var(--accent)', marginBottom: 2,
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    [{i + 1}] {c.title || c.url}
+                  </a>
+                ))}
               </div>
             )}
           </div>

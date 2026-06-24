@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     embedding_workers: int = 3
     embedding_batch_size: int = 8
     admin_email: str = ""
+    perplexity_api_key: str = ""
+    perplexity_model: str = "sonar"
 
     class Config:
         env_file = ".env"

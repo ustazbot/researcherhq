@@ -107,9 +107,9 @@ def test_cache_invalidated_on_upload(client_with_project):
 
     assert r.status_code == 200
     data = r.json()
-    # Cache miss → falls through to retrieval → no chunks → "tiada dokumen"
+    # Cache miss → falls through to retrieval → no chunks → llm_knowledge or web_search
     assert data.get("cache_hit") is not True
-    assert "tiada dokumen" in data["answer"].lower() or data["kredit_used"] == 0
+    assert data["source_type"] in ("llm_knowledge", "web_search")
 
 
 def test_retrieval_deterministic():

@@ -148,6 +148,8 @@ export function ProjectPage() {
       setMessages(prev => [...prev, {
         role: 'assistant', content: data.answer,
         sources: data.sources, kredit_used: data.kredit_used,
+        web_citations: data.web_citations,
+        source_type: data.source_type,
         id: Date.now() + 1
       }])
       setCredits(prev => prev ? { ...prev, kredit_remaining: data.kredit_remaining } : prev)

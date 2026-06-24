@@ -41,7 +41,7 @@ def test_chunk_has_required_fields():
     assert c["chunk_index"] == 0
 
 
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 from fastapi.testclient import TestClient
 from app.services.auth_service import create_jwt
 
@@ -459,3 +459,64 @@ def test_pro_only_modes_allowed_for_pro_user(client_with_project, monkeypatch):
                     json={"query": "sorotan kajian penuh", "output_mode": "literature_review"},
                     headers=headers)
     assert r.status_code == 200
+
+
+# --- Task 21: source_type routing ---
+
+def test_no_document_falls_back_to_web_search(client_with_project, monkeypatch):
+    client, project_id, headers = client_with_project
+
+    monkeypatch.setattr("app.routers.rag.embedding_pool.embed", _mock_embed)
+    monkeypatch.setattr("app.routers.rag.retrieve_chunks", AsyncMock(return_value=[]))
+
+    from app.services.web_search_service import WebSearchUnavailable
+    async def _mock_web_search(query):
+        return {
+            "answer": "Jawapan dari web.",
+            "citations": [{"url": "https://example.com", "title": "Contoh"}],
+            "source_type": "web_search",
+        }
+
+    monkeypatch.setattr("app.routers.rag.settings.perplexity_api_key", "test-key")
+    monkeypatch.setattr("app.routers.rag.search_with_citations", _mock_web_search)
+
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "apakah literasi", "output_mode": "qa"},
+                    headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["source_type"] == "web_search"
+    assert data["kredit_used"] == 1
+
+
+def test_no_document_falls_back_to_llm_knowledge(client_with_project, monkeypatch):
+    client, project_id, headers = client_with_project
+
+    monkeypatch.setattr("app.routers.rag.embedding_pool.embed", _mock_embed)
+    monkeypatch.setattr("app.routers.rag.retrieve_chunks", AsyncMock(return_value=[]))
+    monkeypatch.setattr("app.routers.rag.settings.perplexity_api_key", "")
+    monkeypatch.setattr("app.routers.rag.query_llm", _mock_llm)
+
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "apakah literasi", "output_mode": "qa"},
+                    headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["source_type"] == "llm_knowledge"
+    assert data["kredit_used"] == 1
+
+
+def test_rag_document_source_type_returned(client_with_project, monkeypatch):
+    client, project_id, headers = client_with_project
+
+    monkeypatch.setattr("app.routers.rag.embedding_pool.embed", _mock_embed)
+    monkeypatch.setattr("app.routers.rag.query_llm", _mock_llm)
+    monkeypatch.setattr("app.routers.rag.retrieve_chunks", _mock_retrieve)
+
+    r = client.post(f"/projects/{project_id}/query",
+                    json={"query": "kajian literasi", "output_mode": "qa"},
+                    headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["source_type"] == "rag_document"
+    assert data["web_citations"] == []
