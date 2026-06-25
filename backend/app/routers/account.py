@@ -1,6 +1,7 @@
 import sqlite3
 import sqlite_vec
 import app.database as _db_module
+from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from typing import Optional
@@ -89,12 +90,21 @@ def _delete_user_account(user_id: str, db_path: str = None):
 def get_account(user=Depends(get_current_user)):
     with get_db() as db:
         row = db.execute(
-            "SELECT id, email, tier, kredit_remaining, kredit_total, reset_date, created_at, password_is_permanent, name, institution FROM users WHERE id = ?",
+            """SELECT id, email, tier, kredit_remaining, kredit_total,
+                      subscription_start_date, created_at, password_is_permanent, name, institution
+               FROM users WHERE id = ?""",
             (user["user_id"],)
         ).fetchone()
 
     if not row:
         raise HTTPException(404, "Pengguna tidak dijumpai.")
+
+    next_reset = None
+    if row["subscription_start_date"]:
+        start = date.fromisoformat(row["subscription_start_date"])
+        days_elapsed = (date.today() - start).days
+        cycles_elapsed = max(0, days_elapsed // 30)
+        next_reset = (start + timedelta(days=(cycles_elapsed + 1) * 30)).isoformat()
 
     return {
         "id": row["id"],
@@ -102,7 +112,7 @@ def get_account(user=Depends(get_current_user)):
         "tier": row["tier"],
         "kredit_remaining": row["kredit_remaining"],
         "kredit_total": row["kredit_total"],
-        "reset_date": row["reset_date"],
+        "reset_date": next_reset,
         "created_at": row["created_at"],
         "password_is_permanent": row["password_is_permanent"],
         "name": row["name"],

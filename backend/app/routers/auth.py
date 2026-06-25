@@ -58,20 +58,15 @@ async def request_password(body: RequestPasswordBody, request: Request):
                 (hashed, body.email)
             )
         else:
-            # Reset date = first day of next month
             from datetime import date
-            today = date.today()
-            if today.month == 12:
-                reset_date = date(today.year + 1, 1, 1).isoformat()
-            else:
-                reset_date = date(today.year, today.month + 1, 1).isoformat()
-
+            now_date = date.today().isoformat()
             db.execute(
                 """INSERT INTO users
-                   (id, email, password_hash, tier, kredit_remaining, kredit_total,
-                    tokens_used_internal, reset_date, created_at)
-                   VALUES (?, ?, ?, 'free', 50, 50, 0, ?, ?)""",
-                (str(uuid.uuid4()), body.email, hashed, reset_date, now)
+                   (id, email, password_hash, tier, kredit_subscription, kredit_topup,
+                    kredit_remaining, kredit_total, tokens_used_internal,
+                    subscription_start_date, created_at)
+                   VALUES (?, ?, ?, 'free', 50, 0, 50, 50, 0, ?, ?)""",
+                (str(uuid.uuid4()), body.email, hashed, now_date, now)
             )
 
     await send_password_email(body.email, pwd)

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from typing import Optional
@@ -77,9 +77,16 @@ def grant_pro(target_user_id: str, admin=Depends(require_admin)):
             raise HTTPException(404, "User tidak dijumpai.")
         if existing["tier"] == "pro":
             raise HTTPException(400, "User sudah Pro.")
+        now_date = date.today().isoformat()
         db.execute(
-            "UPDATE users SET tier = 'pro', kredit_remaining = ?, kredit_total = ? WHERE id = ?",
-            (UPGRADE_KREDIT, UPGRADE_KREDIT, target_user_id)
+            """UPDATE users
+               SET tier = 'pro',
+                   kredit_subscription = ?,
+                   kredit_total = ?,
+                   kredit_remaining = ? + kredit_topup,
+                   subscription_start_date = COALESCE(subscription_start_date, ?)
+               WHERE id = ?""",
+            (UPGRADE_KREDIT, UPGRADE_KREDIT, UPGRADE_KREDIT, now_date, target_user_id)
         )
     log_admin_action(admin["email"], "grant_pro", "user", target_user_id, {"kredit": UPGRADE_KREDIT})
     return {"status": "ok", "tier": "pro", "kredit": UPGRADE_KREDIT}
@@ -155,15 +162,24 @@ def manual_credit_adjustment(body: AdjustmentBody, admin=Depends(require_admin))
         raise HTTPException(400, "kredit_delta tak boleh 0.")
 
     with get_db() as db:
-        target = db.execute("SELECT id, kredit_remaining FROM users WHERE id = ?", (body.user_id,)).fetchone()
+        target = db.execute(
+            "SELECT id, kredit_subscription, kredit_topup, kredit_remaining FROM users WHERE id = ?",
+            (body.user_id,)
+        ).fetchone()
         if not target:
             raise HTTPException(404, "User tidak dijumpai.")
 
-        new_balance = target["kredit_remaining"] + body.kredit_delta
-        if new_balance < 0:
+        if target["kredit_remaining"] + body.kredit_delta < 0:
             raise HTTPException(400, "Adjustment akan jadikan kredit negatif — tak dibenarkan.")
+        new_sub = max(0, target["kredit_subscription"] + body.kredit_delta)
+        new_balance = new_sub + target["kredit_topup"]
 
-        db.execute("UPDATE users SET kredit_remaining = ? WHERE id = ?", (new_balance, body.user_id))
+        db.execute(
+            """UPDATE users
+               SET kredit_subscription = ?, kredit_remaining = ?
+               WHERE id = ?""",
+            (new_sub, new_balance, body.user_id)
+        )
         db.execute(
             "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, 'manual_adjustment', 0, ?, ?, ?)",
             (str(uuid.uuid4()), body.user_id, body.kredit_delta, f"ADMIN-{admin['email']}", datetime.utcnow().isoformat())

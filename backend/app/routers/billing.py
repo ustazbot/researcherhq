@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from fastapi import APIRouter, HTTPException, Depends, Request
 from app.database import get_db
 from app.config import settings
@@ -153,17 +153,27 @@ async def toyyibpay_webhook(request: Request):
 
         if bill_type == "TOPUP":
             db.execute(
-                "UPDATE users SET kredit_remaining = kredit_remaining + ? WHERE id = ?",
-                (TOPUP_KREDIT, user["id"])
+                """UPDATE users
+                   SET kredit_topup = kredit_topup + ?,
+                       kredit_remaining = kredit_subscription + kredit_topup + ?
+                   WHERE id = ?""",
+                (TOPUP_KREDIT, TOPUP_KREDIT, user["id"])
             )
             db.execute(
                 "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, 'topup_success', ?, ?, ?, ?)",
                 (str(uuid.uuid4()), user["id"], TOPUP_AMOUNT, TOPUP_KREDIT, order_id, datetime.utcnow().isoformat())
             )
         else:  # UPGRADE
+            now_date = date.today().isoformat()
             db.execute(
-                "UPDATE users SET tier = 'pro', kredit_remaining = ?, kredit_total = ? WHERE id = ?",
-                (UPGRADE_KREDIT, UPGRADE_KREDIT, user["id"])
+                """UPDATE users
+                   SET tier = 'pro',
+                       kredit_subscription = ?,
+                       kredit_total = ?,
+                       kredit_remaining = ? + kredit_topup,
+                       subscription_start_date = COALESCE(subscription_start_date, ?)
+                   WHERE id = ?""",
+                (UPGRADE_KREDIT, UPGRADE_KREDIT, UPGRADE_KREDIT, now_date, user["id"])
             )
             db.execute(
                 "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, 'upgrade_success', ?, ?, ?, ?)",
