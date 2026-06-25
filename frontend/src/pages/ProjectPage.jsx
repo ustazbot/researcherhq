@@ -54,6 +54,7 @@ export function ProjectPage() {
   const [voiceSaving, setVoiceSaving] = useState(false)
   const [voiceError, setVoiceError] = useState('')
   const [voiceSaved, setVoiceSaved] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [exportingChapterId, setExportingChapterId] = useState(null)
   const [compiling, setCompiling] = useState(false)
   const [compileError, setCompileError] = useState(null)
@@ -849,6 +850,7 @@ export function ProjectPage() {
                   onDeleteDoc={handleDeleteDoc}
                   projectId={id}
                   onAcceptArticle={handleAcceptArticle}
+                  onShowHelp={() => setShowHelp(true)}
                 />
               )}
               {drawerTab === 'struktur' && (
@@ -1055,6 +1057,7 @@ export function ProjectPage() {
           onDeleteDoc={handleDeleteDoc}
           projectId={id}
           onAcceptArticle={handleAcceptArticle}
+          onShowHelp={() => setShowHelp(true)}
         />
 
         {/* Proposal Upload Panel */}
@@ -1218,6 +1221,72 @@ export function ProjectPage() {
                 }}
               >Cancel</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showHelp && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300,
+          }}
+          onClick={() => setShowHelp(false)}
+        >
+          <div
+            style={{
+              background: 'var(--card)', borderRadius: 'var(--radius-md)',
+              padding: 28, width: '100%', maxWidth: 460,
+              border: '1px solid var(--line)', maxHeight: '85vh', overflowY: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18, margin: 0 }}>
+                Platform Guide
+              </h2>
+              <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 20 }}>×</button>
+            </div>
+
+            {[
+              {
+                q: 'How do I change the project title?',
+                a: 'Go to Dashboard (← arrow in header) and click the ⋯ menu on your project card → Rename. Inline title editing on the project page is coming soon.'
+              },
+              {
+                q: 'How do I upload a document?',
+                a: 'Click the "Upload document" button in the Sources panel (left side). Supported formats: PDF, DOCX, XLSX, PPTX. Max 20MB per file.'
+              },
+              {
+                q: 'What are Research Credits?',
+                a: 'Credits are deducted each time the AI generates a response. Free tier: 50 credits/month. Pro tier: 500 credits/month + option to top up.'
+              },
+              {
+                q: 'How do I export a chapter?',
+                a: 'Open the Thesis Structure panel (right side) and click ".docx" next to the chapter you want to export.'
+              },
+              {
+                q: 'What is Style Profile?',
+                a: 'Style Profile (Pro only) lets you describe your writing style so the AI output sounds more like you. Access it from the menu bar: Style profile.'
+              },
+              {
+                q: 'How do I search for journal articles?',
+                a: 'Click the Search icon (magnifying glass) in the source panel rail to open the Search Articles panel. Enter keywords and filter by year.'
+              },
+              {
+                q: 'What is the Format Guide category?',
+                a: "Upload your faculty's thesis formatting guidelines here. Full AI integration for this category is coming in an upcoming update."
+              },
+            ].map((item, i) => (
+              <div key={i} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: i < 6 ? '1px solid var(--line)' : 'none' }}>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--ink)' }}>
+                  {item.q}
+                </p>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, margin: 0, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+                  {item.a}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}
