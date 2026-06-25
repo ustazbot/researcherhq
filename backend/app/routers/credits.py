@@ -21,7 +21,7 @@ def get_credits(user=Depends(get_current_user)):
 
     next_reset = None
     if row["subscription_start_date"]:
-        start = date.fromisoformat(row["subscription_start_date"])
+        start = date.fromisoformat(row["subscription_start_date"].split('T')[0])
         days_elapsed = (date.today() - start).days
         cycles_elapsed = max(0, days_elapsed // 30)
         next_reset = (start + timedelta(days=(cycles_elapsed + 1) * 30)).isoformat()
