@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import api from '../api/client'
 
-const STATUS_LABEL = { draft: 'Draf', dalam_proses: 'Dalam Proses', siap: 'Siap' }
+const STATUS_LABEL = { draft: 'Draft', dalam_proses: 'In Progress', siap: 'Done' }
 const STATUS_COLOR = { draft: 'var(--line)', dalam_proses: 'var(--accent-soft)', siap: '#D1FAE5' }
 
 export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse, onCompile, compiling, compileError, compileWarning, onDismissError }) {
@@ -45,8 +45,8 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
   function handleDelete(e, chap) {
     e.stopPropagation()
     const message = chap.has_content
-      ? `⚠️ Bab "${chap.title}" ada kandungan yang belum disimpan.\n\nPadam bab ini akan menghapuskan SEMUA kandungan secara kekal.\n\nTeruskan?`
-      : `Padam "${chap.title}"?`
+      ? `⚠️ Chapter "${chap.title}" has unsaved content.\n\nDeleting this chapter will permanently remove ALL content.\n\nContinue?`
+      : `Delete "${chap.title}"?`
     if (window.confirm(message)) {
       onDeleteChapter(chap.id)
     }
@@ -80,7 +80,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
             Thesis Workspace
           </p>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px' }}>
-            Urus bab, assign output AI, dan export .docx — hanya untuk Pro.
+            Manage chapters, assign AI output, and export .docx — Pro only.
           </p>
           <button
             onClick={async () => {
@@ -89,7 +89,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
                 const { data } = await api.post('/billing/upgrade/initiate')
                 window.location.href = data.payment_url
               } catch {
-                alert('Gagal memulakan pembayaran. Sila cuba lagi.')
+                alert('Failed to initiate payment. Please try again.')
                 setUpgrading(false)
               }
             }}
@@ -118,7 +118,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
         </div>
         {total > 0 && (
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: done === total ? '#16A34A' : 'var(--ink-soft)' }}>
-            {done}/{total} siap
+            {done}/{total} done
           </span>
         )}
       </div>
@@ -126,7 +126,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
       <div style={{ flex: 1, overflow: 'auto', padding: '8px 0' }}>
         {total === 0 && !addMode && (
           <p style={{ padding: '16px', color: 'var(--ink-soft)', fontSize: 13 }}>
-            Tiada bab lagi. Tambah bab pertama anda.
+            No chapters yet. Add your first chapter.
           </p>
         )}
 
@@ -185,7 +185,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
                 {editingChapterId !== chap.id && (
                   <button
                     onClick={e => { e.stopPropagation(); setEditingChapterId(chap.id); setEditingTitle(chap.title) }}
-                    title="Ubah nama bab"
+                    title="Rename chapter"
                     style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 3, cursor: 'pointer', padding: '1px 5px', fontSize: 11, opacity: 0.7 }}
                   >✏</button>
                 )}
@@ -195,13 +195,13 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
                     <button
                       onClick={() => onReorderChapter(chap.id, 'up')}
                       disabled={idx === 0}
-                      title="Gerak naik"
+                      title="Move up"
                       style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 3, cursor: idx === 0 ? 'default' : 'pointer', padding: '1px 5px', fontSize: 11, opacity: idx === 0 ? 0.3 : 0.7 }}
                     >↑</button>
                     <button
                       onClick={() => onReorderChapter(chap.id, 'down')}
                       disabled={idx === chapters.length - 1}
-                      title="Gerak turun"
+                      title="Move down"
                       style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 3, cursor: idx === chapters.length - 1 ? 'default' : 'pointer', padding: '1px 5px', fontSize: 11, opacity: idx === chapters.length - 1 ? 0.3 : 0.7 }}
                     >↓</button>
                   </>
@@ -244,7 +244,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
               autoFocus
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
-              placeholder="Nama bab (cth: Bab 1: Pengenalan)"
+              placeholder="Chapter name (e.g. Chapter 1: Introduction)"
               style={{
                 width: '100%', padding: '6px 8px', boxSizing: 'border-box',
                 border: '1px solid var(--accent)', borderRadius: 4,
@@ -256,11 +256,11 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
               <button type="submit" disabled={!newTitle.trim()} style={{
                 flex: 1, padding: '5px 0', background: 'var(--accent)', border: 'none',
                 borderRadius: 4, fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer',
-              }}>Tambah</button>
+              }}>Add</button>
               <button type="button" onClick={() => { setAddMode(false); setNewTitle('') }} style={{
                 padding: '5px 10px', background: 'transparent', border: '1px solid var(--line)',
                 borderRadius: 4, fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer',
-              }}>Batal</button>
+              }}>Cancel</button>
             </div>
           </form>
         )}

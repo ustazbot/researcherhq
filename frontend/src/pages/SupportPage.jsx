@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 
 const CATEGORIES = [
-  { value: 'bug', label: 'Pepijat / Masalah Teknikal' },
-  { value: 'billing', label: 'Pembayaran & Langganan' },
+  { value: 'bug', label: 'Bug / Technical Issue' },
+  { value: 'billing', label: 'Billing & Subscription' },
   { value: 'kredit', label: 'Research Credits' },
-  { value: 'lain-lain', label: 'Lain-lain' },
+  { value: 'lain-lain', label: 'Other' },
 ]
 
 export function SupportPage() {
@@ -26,7 +26,7 @@ export function SupportPage() {
       const { data } = await api.post('/support/report', { category, description })
       setReportId(data.report_id)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Gagal hantar laporan. Cuba lagi.')
+      setError(err.response?.data?.detail || 'Failed to send report. Please try again.')
     }
     setLoading(false)
   }
@@ -46,8 +46,8 @@ export function SupportPage() {
 
         {reportId ? (
           <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 'var(--radius-md)', padding: '24px' }}>
-            <p style={{ fontWeight: 600, color: '#15803D', margin: '0 0 8px' }}>Laporan diterima. Terima kasih.</p>
-            <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 4px' }}>No. Rujukan: <code>{reportId.slice(0, 8).toUpperCase()}</code></p>
+            <p style={{ fontWeight: 600, color: '#15803D', margin: '0 0 8px' }}>Report received. Thank you.</p>
+            <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 4px' }}>Reference No.: <code>{reportId.slice(0, 8).toUpperCase()}</code></p>
             <button onClick={() => nav('/')} style={{ marginTop: 16, padding: '8px 16px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
               Back to Dashboard
             </button>

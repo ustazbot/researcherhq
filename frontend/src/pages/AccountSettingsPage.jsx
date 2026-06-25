@@ -26,7 +26,7 @@ export function AccountSettingsPage() {
       setAccount(r.data)
       setProfileName(r.data.name || '')
       setProfileIpt(r.data.institution || '')
-    }).catch(() => setError('Gagal muatkan maklumat akaun.'))
+    }).catch(() => setError('Failed to load account information.'))
   }, [])
 
   async function handleSetPassword(e) {
@@ -34,11 +34,11 @@ export function AccountSettingsPage() {
     setPwError('')
     setPwSuccess('')
     if (newPassword.length < 8) {
-      setPwError('Kata laluan mesti sekurang-kurangnya 8 aksara.')
+      setPwError('Password must be at least 8 characters.')
       return
     }
     if (newPassword !== confirmPassword) {
-      setPwError('Kata laluan tidak sepadan.')
+      setPwError('Passwords do not match.')
       return
     }
     setPwLoading(true)
@@ -49,13 +49,13 @@ export function AccountSettingsPage() {
       setNewPassword('')
       setConfirmPassword('')
     } catch (err) {
-      setPwError(err.response?.data?.detail || 'Gagal tetapkan kata laluan. Cuba lagi.')
+      setPwError(err.response?.data?.detail || 'Failed to set password. Please try again.')
     }
     setPwLoading(false)
   }
 
   async function handleDeleteAccount() {
-    if (deleteInput !== 'PADAM') return
+    if (deleteInput !== 'DELETE') return
     setDeleteLoading(true)
     setDeleteError('')
     try {
@@ -64,7 +64,7 @@ export function AccountSettingsPage() {
       localStorage.removeItem('rhq_user')
       nav('/auth')
     } catch (err) {
-      setDeleteError(err.response?.data?.detail || 'Gagal padam akaun. Cuba lagi.')
+      setDeleteError(err.response?.data?.detail || 'Failed to delete account. Please try again.')
       setDeleteLoading(false)
     }
   }
@@ -77,7 +77,7 @@ export function AccountSettingsPage() {
 
   if (!account) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
-      <p style={{ color: 'var(--ink-soft)' }}>Memuatkan...</p>
+      <p style={{ color: 'var(--ink-soft)' }}>Loading...</p>
     </div>
   )
 
@@ -123,7 +123,7 @@ export function AccountSettingsPage() {
           <h2 style={sectionHeadingStyle}>Subscription</h2>
           {account.tier === 'pro' ? (
             <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: 0 }}>
-              Untuk batalkan langganan Pro, hubungi <strong>support@researcherhq.com</strong>
+              To cancel your Pro subscription, contact <strong>support@researcherhq.com</strong>
             </p>
           ) : (
             <button
@@ -132,7 +132,7 @@ export function AccountSettingsPage() {
                   const { data } = await api.post('/billing/upgrade/initiate')
                   window.location.href = data.payment_url
                 } catch {
-                  alert('Gagal memulakan pembayaran. Sila cuba lagi.')
+                  alert('Failed to initiate payment. Please try again.')
                 }
               }}
               style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--ink)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: 'pointer' }}
@@ -148,7 +148,7 @@ export function AccountSettingsPage() {
           <input
             value={profileName}
             onChange={e => { setProfileName(e.target.value); setProfileSuccess(''); setProfileError('') }}
-            placeholder="Nama penuh"
+            placeholder="Full name"
             style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--ink)', marginBottom: 10, boxSizing: 'border-box' }}
           />
           <input
@@ -167,14 +167,14 @@ export function AccountSettingsPage() {
               setProfileSuccess('')
               try {
                 await api.patch('/account/profile', { name: profileName.trim(), institution: profileIpt.trim() })
-                setProfileSuccess('Profil dikemaskini ✓')
+                setProfileSuccess('Profile updated ✓')
               } catch (err) {
                 if (err.response?.status === 401) {
-                  setProfileError('Sila log masuk semula.')
+                  setProfileError('Please sign in again.')
                 } else if (!err.response) {
-                  setProfileError('Gagal sambung ke pelayan. Cuba semula.')
+                  setProfileError('Failed to connect to server. Please try again.')
                 } else {
-                  setProfileError('Ralat berlaku. Sila cuba semula.')
+                  setProfileError('An error occurred. Please try again.')
                 }
               } finally {
                 setProfileLoading(false)
@@ -192,7 +192,7 @@ export function AccountSettingsPage() {
           {!account.password_is_permanent && (
             <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
               <p style={{ fontSize: 13, color: '#C2410C', margin: 0 }}>
-                Anda belum tetapkan kata laluan tetap. Tetapkan sekarang supaya tak perlu emel setiap kali log masuk.
+                You haven't set a permanent password. Set one now so you don't need to use email every time you log in.
               </p>
             </div>
           )}
@@ -201,14 +201,14 @@ export function AccountSettingsPage() {
               type="password"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              placeholder="Kata Laluan Baharu (min. 8 aksara)"
+              placeholder="New Password (min. 8 characters)"
               style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--ink)', marginBottom: 10, boxSizing: 'border-box' }}
             />
             <input
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="Sahkan Kata Laluan Baharu"
+              placeholder="Confirm New Password"
               style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--ink)', marginBottom: 10, boxSizing: 'border-box' }}
             />
             {pwError && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 10px' }}>{pwError}</p>}
@@ -225,15 +225,15 @@ export function AccountSettingsPage() {
 
         {/* Padam Akaun */}
         <section style={{ ...sectionStyle, borderColor: '#FECACA' }}>
-          <h2 style={{ ...sectionHeadingStyle, color: '#DC2626' }}>Padam Akaun</h2>
+          <h2 style={{ ...sectionHeadingStyle, color: '#DC2626' }}>Delete Account</h2>
           <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 16px', lineHeight: 1.6 }}>
-            Dokumen dan perbualan anda akan dipadam sepenuhnya. Rekod transaksi pembayaran dikekalkan tanpa nama untuk tujuan audit kewangan.
+            Your documents and conversations will be permanently deleted. Payment transaction records are retained anonymously for financial audit purposes.
           </p>
           <button
             onClick={() => setDeleteStep(1)}
             style={{ padding: '10px 20px', background: '#EF4444', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: 'pointer' }}
           >
-            Padam Akaun Saya
+            Delete My Account
           </button>
         </section>
       </div>
@@ -242,17 +242,17 @@ export function AccountSettingsPage() {
       {deleteStep === 1 && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 24 }}>
           <div style={{ background: 'var(--card)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 440, width: '100%' }}>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 12px', color: '#DC2626' }}>Sahkan Pemadaman Akaun</h2>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 12px', color: '#DC2626' }}>Confirm Account Deletion</h2>
             <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 8px', lineHeight: 1.6 }}>
-              Dokumen dan perbualan anda akan dipadam sepenuhnya. Rekod transaksi pembayaran dikekalkan tanpa nama untuk tujuan audit kewangan.
+              Your documents and conversations will be permanently deleted. Payment transaction records are retained anonymously for financial audit purposes.
             </p>
             <p style={{ fontSize: 14, margin: '0 0 16px' }}>
-              Taip <strong>PADAM</strong> untuk sahkan:
+              Type <strong>DELETE</strong> to confirm:
             </p>
             <input
               value={deleteInput}
               onChange={e => setDeleteInput(e.target.value)}
-              placeholder="PADAM"
+              placeholder="DELETE"
               style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)', fontSize: 14, background: 'var(--bg)', color: 'var(--ink)', marginBottom: 16, boxSizing: 'border-box' }}
             />
             {deleteError && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 12px' }}>{deleteError}</p>}
@@ -261,12 +261,12 @@ export function AccountSettingsPage() {
                 onClick={() => { setDeleteStep(0); setDeleteInput(''); setDeleteError('') }}
                 style={{ flex: 1, padding: '10px 0', background: 'transparent', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', cursor: 'pointer' }}
               >
-                Batal
+                Cancel
               </button>
               <button
                 onClick={handleDeleteAccount}
-                disabled={deleteInput !== 'PADAM' || deleteLoading}
-                style={{ flex: 1, padding: '10px 0', background: deleteInput === 'PADAM' ? '#EF4444' : 'var(--line)', color: deleteInput === 'PADAM' ? '#fff' : 'var(--ink-soft)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: deleteInput === 'PADAM' ? 'pointer' : 'not-allowed' }}
+                disabled={deleteInput !== 'DELETE' || deleteLoading}
+                style={{ flex: 1, padding: '10px 0', background: deleteInput === 'DELETE' ? '#EF4444' : 'var(--line)', color: deleteInput === 'DELETE' ? '#fff' : 'var(--ink-soft)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: deleteInput === 'DELETE' ? 'pointer' : 'not-allowed' }}
               >
                 {deleteLoading ? 'Processing...' : 'Delete Account'}
               </button>

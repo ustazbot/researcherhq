@@ -103,8 +103,8 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
         fontFamily: 'var(--font-body)', fontSize: 15, padding: 40, textAlign: 'center',
       }}>
         <div>
-          <p style={{ marginBottom: 8, fontWeight: 500 }}>Pilih bab dari panel Struktur Tesis.</p>
-          <p style={{ fontSize: 13 }}>Atau tambah bab baru untuk mula menulis.</p>
+          <p style={{ marginBottom: 8, fontWeight: 500 }}>Select a chapter from the Structure panel.</p>
+          <p style={{ fontSize: 13 }}>Or add a new chapter to start writing.</p>
         </div>
       </div>
     )
@@ -201,7 +201,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
               fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase',
               letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 8px',
             }}>
-              Cadangan AI{pendingSuggestion.stageLabel ? ` — ${pendingSuggestion.stageLabel}` : ''}
+              AI Suggestion{pendingSuggestion.stageLabel ? ` — ${pendingSuggestion.stageLabel}` : ''}
             </p>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.7, color: 'var(--ink)', margin: 0, whiteSpace: 'pre-wrap' }}>
               {pendingSuggestion.text}

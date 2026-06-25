@@ -71,7 +71,7 @@ const PILL_STYLES = `
 `
 
 function CiteChip({ index, source }) {
-  const label = source ? `${source.filename}, ms. ${source.page_number}` : `Sumber ${index}`
+  const label = source ? `${source.filename}, p. ${source.page_number}` : `Source ${index}`
   return (
     <span className="cite-chip" title={label}>
       {index}
@@ -130,7 +130,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
           <div className="cite-footnotes">
             {cited.map(s => (
               <div key={s.index}>
-                [{s.index}] {s.source ? `${s.source.filename}, ms. ${s.source.page_number}` : `Sumber ${s.index}`}
+                [{s.index}] {s.source ? `${s.source.filename}, p. ${s.source.page_number}` : `Source ${s.index}`}
               </div>
             ))}
           </div>
@@ -162,8 +162,8 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
       <div style={{ flex: 1, overflow: 'auto', padding: '20px 16px' }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--ink-soft)' }}>
-            <p style={{ fontSize: 15, fontWeight: 500 }}>Muat naik dokumen dan mula bertanya.</p>
-            <p style={{ fontSize: 13 }}>Semua jawapan bersumberkan dokumen anda sahaja.</p>
+            <p style={{ fontSize: 15, fontWeight: 500 }}>Upload a document to start asking questions.</p>
+            <p style={{ fontSize: 13 }}>All answers are grounded in your documents.</p>
           </div>
         )}
         {messages.map(msg => (
@@ -207,7 +207,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
               <button
                 onClick={() => onSendToEditor(msg.content)}
                 disabled={!hasActiveChapter}
-                title={!hasActiveChapter ? 'Pilih bab dahulu untuk hantar ke Editor' : 'Hantar jawapan ini ke bab aktif sebagai cadangan'}
+                title={!hasActiveChapter ? 'Select a chapter first to send to the Editor' : 'Send this answer to the active chapter as a suggestion'}
                 style={{
                   marginTop: 4, padding: '3px 10px',
                   background: 'transparent',
@@ -225,7 +225,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
             {msg.sources && msg.sources.length > 0 && (
               <div style={{ marginTop: 8, maxWidth: '90%', width: '100%' }}>
                 <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Sumber ({msg.sources.length})
+                  Sources ({msg.sources.length})
                 </p>
                 {msg.sources.map(s => <CitationCard key={s.chunk_id} source={s} />)}
               </div>
@@ -233,7 +233,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
             {msg.web_citations?.length > 0 && (
               <div style={{ marginTop: 8, maxWidth: '90%', width: '100%', borderTop: '1px solid var(--line)', paddingTop: 8 }}>
                 <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Sumber:
+                  Sources:
                 </p>
                 {msg.web_citations.map((c, i) => (
                   <a
@@ -258,7 +258,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
         {loading && (
           <div style={{ display: 'flex', marginBottom: 20 }}>
             <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '4px 16px 16px 16px', padding: '12px 16px' }}>
-              <span style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>Berfikir...</span>
+              <span style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>Thinking...</span>
             </div>
           </div>
         )}

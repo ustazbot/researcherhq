@@ -127,7 +127,7 @@ export function ProjectPage() {
 
   function handleSetActive(chapterId) {
     if (pendingSuggestion && chapterId !== activeChapterId) {
-      if (!window.confirm('Ada cadangan AI yang belum disimpan. Tukar bab sekarang akan buang cadangan ini.')) return
+      if (!window.confirm('You have an unsaved AI suggestion. Switching chapters now will discard it.')) return
       setPendingSuggestion(null)
       setProposalBab3Text(null)
     }
@@ -154,7 +154,7 @@ export function ProjectPage() {
       }])
       setCredits(prev => prev ? { ...prev, kredit_remaining: data.kredit_remaining } : prev)
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Ralat berlaku. Cuba lagi.'
+      const msg = err.response?.data?.detail || 'An error occurred. Please try again.'
       setMessages(prev => [...prev, { role: 'error', content: msg, id: Date.now() + 1 }])
     }
     setLoading(false)
@@ -164,7 +164,7 @@ export function ProjectPage() {
     const file = e.target.files[0]
     if (!file) return
     if (file.type !== 'application/pdf') {
-      alert('Sila muat naik fail PDF sahaja.')
+      alert('Please upload a PDF file only.')
       fileRef.current.value = ''
       return
     }
@@ -184,7 +184,7 @@ export function ProjectPage() {
       })
       setDocuments(prev => [...prev, data])
     } catch (err) {
-      alert(err.response?.data?.detail || 'Gagal proses dokumen. Cuba lagi.')
+      alert(err.response?.data?.detail || 'Failed to process document. Please try again.')
     }
     setUploading(false)
     setPendingFile(null)
@@ -196,7 +196,7 @@ export function ProjectPage() {
       await api.delete(`/documents/${docId}`)
       setDocuments(prev => prev.filter(d => d.id !== docId))
     } catch (err) {
-      alert(err.response?.data?.detail || 'Gagal padam dokumen. Cuba lagi.')
+      alert(err.response?.data?.detail || 'Failed to delete document. Please try again.')
     }
   }
 
@@ -240,9 +240,9 @@ export function ProjectPage() {
       setShowVoiceProfile(false)
     } catch (err) {
       if (err.response?.status === 403) {
-        setVoiceError(err.response.data.detail || 'Ciri ini hanya untuk pengguna Pro.')
+        setVoiceError(err.response.data.detail || 'This feature is for Pro users only.')
       } else {
-        setVoiceError('Gagal simpan. Cuba semula.')
+        setVoiceError('Failed to save. Please try again.')
       }
     } finally {
       setVoiceSaving(false)
@@ -267,7 +267,7 @@ export function ProjectPage() {
     const { bab1, bab3 } = splitProposalExtract(extractRes.data.answer)
     setPendingSuggestion({
       text: bab1,
-      stageLabel: 'Peringkat 1 / 2 — Bab 1 (Pengenalan)',
+      stageLabel: 'Stage 1 / 2 — Chapter 1 (Introduction)',
     })
     if (bab3) setProposalBab3Text(bab3)
   }
@@ -279,7 +279,7 @@ export function ProjectPage() {
       setChapters(prev => [...prev, data])
       setActiveChapterId(data.id)
     } catch (err) {
-      alert(err.response?.data?.detail || 'Gagal tambah bab. Cuba lagi.')
+      alert(err.response?.data?.detail || 'Failed to add chapter. Please try again.')
     }
   }
 
@@ -292,7 +292,7 @@ export function ProjectPage() {
         setPendingSuggestion(null)
       }
     } catch (err) {
-      alert(err.response?.data?.detail || 'Gagal padam bab. Cuba lagi.')
+      alert(err.response?.data?.detail || 'Failed to delete chapter. Please try again.')
     }
   }
 
@@ -318,7 +318,7 @@ export function ProjectPage() {
         return c
       }))
     } catch (err) {
-      alert('Gagal susun semula bab. Cuba lagi.')
+      alert('Failed to reorder chapters. Please try again.')
     }
   }
 
@@ -327,7 +327,7 @@ export function ProjectPage() {
       await api.patch(`/projects/${id}/chapters/${chapterId}`, { title: newTitle })
       setChapters(prev => prev.map(c => c.id === chapterId ? { ...c, title: newTitle } : c))
     } catch (err) {
-      alert(err.response?.data?.detail || 'Gagal ubah nama bab.')
+      alert(err.response?.data?.detail || 'Failed to rename chapter.')
     }
   }
 
@@ -350,12 +350,12 @@ export function ProjectPage() {
       if (proposalBab3Text) {
         setPendingSuggestion({
           text: proposalBab3Text,
-          stageLabel: 'Peringkat 2 / 2 — Bab 3 (Metodologi & Persampelan)',
+          stageLabel: 'Stage 2 / 2 — Chapter 3 (Methodology & Sampling)',
         })
         setProposalBab3Text(null)
       }
     } catch (err) {
-      alert(err.response?.data?.detail || 'Gagal simpan cadangan. Cuba lagi.')
+      alert(err.response?.data?.detail || 'Failed to save suggestion. Please try again.')
     }
     setSaving(false)
   }
@@ -370,7 +370,7 @@ export function ProjectPage() {
         c.id === activeChapterId ? { ...c, status: 'dalam_proses' } : c
       ))
     } catch (err) {
-      alert(err.response?.data?.detail || 'Gagal simpan kandungan. Cuba lagi.')
+      alert(err.response?.data?.detail || 'Failed to save content. Please try again.')
     }
     setSaving(false)
   }
@@ -394,7 +394,7 @@ export function ProjectPage() {
           const url = URL.createObjectURL(blob)
           const a = document.createElement('a')
           a.href = url
-          a.download = `${chap?.title ?? 'bab'}.docx`
+          a.download = `${chap?.title ?? 'chapter'}.docx`
           a.click()
           URL.revokeObjectURL(url)
           return
@@ -403,12 +403,12 @@ export function ProjectPage() {
         const text = new TextDecoder().decode(poll.data)
         try {
           const json = JSON.parse(text)
-          if (json.status === 'error') { alert('Export gagal. Sila cuba lagi.'); return }
+          if (json.status === 'error') { alert('Export failed. Please try again.'); return }
         } catch { /* not JSON, keep polling */ }
       }
-      alert('Export mengambil masa terlalu lama. Sila cuba lagi.')
+      alert('Export is taking too long. Please try again.')
     } catch {
-      alert('Export gagal. Sila cuba lagi.')
+      alert('Export failed. Please try again.')
     } finally {
       setExportingChapterId(null)
     }
@@ -420,13 +420,13 @@ export function ProjectPage() {
 
     // Pre-flight: ada bab?
     if (chapters.length === 0) {
-      setCompileError('Projek belum ada bab. Tambah sekurang-kurangnya satu bab dahulu.')
+      setCompileError('No chapters yet. Add at least one chapter before compiling.')
       return
     }
     // Pre-flight: ada bab yang ada content?
     const hasContent = chapters.some(c => c.has_content)
     if (!hasContent) {
-      setCompileError('Semua bab masih kosong. Tambah kandungan ke bab dahulu.')
+      setCompileError('All chapters are still empty. Add content to a chapter first.')
       return
     }
 
@@ -434,7 +434,7 @@ export function ProjectPage() {
     try {
       const { data: init } = await api.post(`/projects/${id}/compile`)
       if (init.skipped_chapters?.length > 0) {
-        setCompileWarning(`${init.skipped_chapters.length} bab kosong akan diskip: ${init.skipped_chapters.join(', ')}`)
+        setCompileWarning(`${init.skipped_chapters.length} empty chapter(s) will be skipped: ${init.skipped_chapters.join(', ')}`)
       }
       const jobId = init.job_id
       for (let i = 0; i < 40; i++) {
@@ -458,20 +458,20 @@ export function ProjectPage() {
         try {
           const json = JSON.parse(text)
           if (json.status === 'error') {
-            setCompileError(`Compile gagal: ${json.message ?? 'Ralat tidak diketahui.'}`)
+            setCompileError(`Compile failed: ${json.message ?? 'Unknown error.'}`)
             return
           }
         } catch { /* keep polling */ }
       }
-      setCompileError('Compile mengambil masa terlalu lama. Sila cuba lagi.')
+      setCompileError('Compile is taking too long. Please try again.')
     } catch (err) {
       const detail = err?.response?.data?.detail
       if (typeof detail === 'object' && detail?.code === 'all_chapters_empty') {
         setCompileError(detail.message)
       } else if (typeof detail === 'string') {
-        setCompileError(`Compile gagal: ${detail}`)
+        setCompileError(`Compile failed: ${detail}`)
       } else {
-        setCompileError('Compile gagal. Sila cuba lagi atau hubungi sokongan.')
+        setCompileError('Compile failed. Please try again or contact support.')
       }
     } finally {
       setCompiling(false)
@@ -480,7 +480,7 @@ export function ProjectPage() {
 
   if (!project) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
-      <p style={{ color: 'var(--ink-soft)' }}>Memuatkan...</p>
+      <p style={{ color: 'var(--ink-soft)' }}>Loading...</p>
     </div>
   )
 
@@ -508,7 +508,7 @@ export function ProjectPage() {
           🎙 Writing Style Profile
         </h2>
         <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 20px' }}>
-          Bantu AI faham cara anda menulis untuk output yang lebih semula jadi.{' '}
+          Help the AI understand your writing style for more natural output.{' '}
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--line)', padding: '1px 5px', borderRadius: 3 }}>Pro</span>
         </p>
 
@@ -538,12 +538,12 @@ export function ProjectPage() {
           <>
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 8px' }}>
-                1. Anda lebih suka ayat yang...
+                1. You prefer sentences that...
               </p>
               {[
-                'Pendek & padat (≤20 patah perkataan)',
-                'Panjang & terperinci (>20 patah perkataan)',
-                'Campuran ikut keperluan',
+                'Short & concise (≤20 words)',
+                'Long & detailed (>20 words)',
+                'Mixed as needed',
               ].map(opt => (
                 <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer', fontSize: 14 }}>
                   <input type="radio" name="vq1" value={opt} checked={voiceQ1 === opt} onChange={() => setVoiceQ1(opt)} />
@@ -554,12 +554,12 @@ export function ProjectPage() {
 
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 8px' }}>
-                2. Gaya penulisan akademik anda...
+                2. Your academic writing style...
               </p>
               {[
-                'Formal tradisional (pasif, jarak jauh)',
-                'Moden & langsung (aktif, jelas)',
-                'Saya tak pasti — ikut standard bidang saya',
+                'Traditional formal (passive, distant)',
+                'Modern & direct (active, clear)',
+                "I'm not sure — follow my field's standard",
               ].map(opt => (
                 <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer', fontSize: 14 }}>
                   <input type="radio" name="vq2" value={opt} checked={voiceQ2 === opt} onChange={() => setVoiceQ2(opt)} />
@@ -570,24 +570,24 @@ export function ProjectPage() {
 
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 8px' }}>
-                3. Ada keutamaan lain? (optional)
+                3. Any other preferences? (optional)
               </p>
               <input
                 value={voiceQ3}
                 onChange={e => setVoiceQ3(e.target.value)}
-                placeholder="Contoh: elak penggunaan kata ganti 'saya'"
+                placeholder="e.g. avoid first-person pronouns"
                 style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 14, boxSizing: 'border-box' }}
               />
             </div>
 
             <div style={{ marginBottom: 20 }}>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 8px' }}>
-                Sampel tulisan anda (optional)
+                Your writing sample (optional)
               </p>
               <textarea
                 value={voiceSample}
                 onChange={e => setVoiceSample(e.target.value)}
-                placeholder="Paste 1-2 ayat dari karya anda sendiri sebagai contoh gaya..."
+                placeholder="Paste 1-2 sentences from your own work as a style example..."
                 rows={3}
                 style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 14, boxSizing: 'border-box', resize: 'vertical' }}
               />
@@ -637,7 +637,7 @@ export function ProjectPage() {
             <Logo size="sm" />
             <button
               onClick={() => setDrawerOpen(true)}
-              title="Buka panel Sumber & Struktur"
+              title="Open Sources & Structure panel"
               style={{
                 background: 'var(--accent-soft)',
                 border: '1.5px solid var(--accent)',
@@ -648,7 +648,7 @@ export function ProjectPage() {
               }}
             >
               <span>☰</span>
-              <span>Sumber & Struktur Tesis</span>
+              <span>Sources & Thesis Structure</span>
             </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -661,7 +661,7 @@ export function ProjectPage() {
                   try {
                     const { data } = await api.post('/billing/topup/initiate')
                     window.location.href = data.payment_url
-                  } catch { alert('Gagal memulakan topup. Sila cuba lagi.') }
+                  } catch { alert('Failed to initiate top-up. Please try again.') }
                 } : undefined}
               />
             )}
@@ -717,10 +717,10 @@ export function ProjectPage() {
               borderRadius: 'var(--radius-md)', padding: 24, margin: 16,
             }}>
               <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 8px', fontSize: 16 }}>
-                Muat Naik Proposal
+                Upload Proposal
               </h3>
               <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 16px' }}>
-                Muat naik proposal yang telah lulus. Sistem akan mengekstrak maklumat penting — kemudian verify sebelum masuk ke bab.
+                Upload your approved proposal. The system will extract key information — verify before inserting into a chapter.
               </p>
               <input
                 type="file"
@@ -742,7 +742,7 @@ export function ProjectPage() {
                 style={{ display: 'block', marginBottom: 12 }}
               />
               {proposalUploading && (
-                <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Mengekstrak proposal... (mungkin ambil masa 30–60 saat)</p>
+                <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Extracting proposal... (may take 30–60 seconds)</p>
               )}
               <button
                 type="button"
@@ -799,8 +799,8 @@ export function ProjectPage() {
               {/* Tab row inside drawer */}
               <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', padding: '4px 12px', gap: 4 }}>
                 {[
-                  { key: 'sumber', label: 'Sumber' },
-                  { key: 'struktur', label: 'Struktur Tesis' },
+                  { key: 'sumber', label: 'Sources' },
+                  { key: 'struktur', label: 'Thesis Structure' },
                 ].map(t => (
                   <button
                     key={t.key}
@@ -881,7 +881,7 @@ export function ProjectPage() {
                 try {
                   const { data } = await api.post('/billing/topup/initiate')
                   window.location.href = data.payment_url
-                } catch { alert('Gagal memulakan topup. Sila cuba lagi.') }
+                } catch { alert('Failed to initiate top-up. Please try again.') }
               } : undefined}
             />
           )}
@@ -944,7 +944,7 @@ export function ProjectPage() {
                   fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)',
                   opacity: 0.5,
                 }}>
-                  Compile Tesis Penuh <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Pro</span>
+                  Compile Full Thesis <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Pro</span>
                 </button>
               )}
             </div>
@@ -1043,10 +1043,10 @@ export function ProjectPage() {
             borderRadius: 'var(--radius-md)', padding: 24, margin: 16,
           }}>
             <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 8px', fontSize: 16 }}>
-              Muat Naik Proposal
+              Upload Proposal
             </h3>
             <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 16px' }}>
-              Muat naik proposal yang telah lulus. Sistem akan mengekstrak maklumat penting — kemudian verify sebelum masuk ke bab.
+              Upload your approved proposal. The system will extract key information — verify before inserting into a chapter.
             </p>
             <input
               type="file"
@@ -1140,17 +1140,17 @@ export function ProjectPage() {
             padding: 24, maxWidth: 320, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
           }}>
             <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15 }}>
-              Pilih Kategori
+              Select Category
             </p>
             <p style={{ margin: '0 0 16px', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--ink-soft)', wordBreak: 'break-all' }}>
               {pendingFile.name}
             </p>
             {[
-              { value: 'artikel', label: 'Artikel Rujukan', icon: '📄' },
-              { value: 'proposal', label: 'Proposal Kajian', icon: '📋' },
-              { value: 'catatan_sv', label: 'Catatan SV', icon: '📝' },
-              { value: 'draf', label: 'Draf Sendiri', icon: '📑' },
-              { value: 'data', label: 'Data / Transkrip', icon: '📊' },
+              { value: 'artikel', label: 'Reference Articles', icon: '📄' },
+              { value: 'proposal', label: 'Research Proposal', icon: '📋' },
+              { value: 'catatan_sv', label: 'SV Notes', icon: '📝' },
+              { value: 'draf', label: 'Own Draft', icon: '📑' },
+              { value: 'data', label: 'Data / Transcript', icon: '📊' },
             ].map(cat => (
               <label key={cat.value} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
@@ -1174,7 +1174,7 @@ export function ProjectPage() {
                   border: 'none', borderRadius: 'var(--radius-sm)',
                   fontFamily: 'var(--font-body)', fontSize: 13, cursor: 'pointer', fontWeight: 600,
                 }}
-              >Muat Naik</button>
+              >Upload</button>
               <button
                 onClick={() => { setShowCategoryPicker(false); setPendingFile(null); fileRef.current.value = '' }}
                 style={{
@@ -1182,7 +1182,7 @@ export function ProjectPage() {
                   border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)',
                   fontFamily: 'var(--font-body)', fontSize: 13, cursor: 'pointer',
                 }}
-              >Batal</button>
+              >Cancel</button>
             </div>
           </div>
         </div>

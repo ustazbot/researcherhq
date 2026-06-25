@@ -3,10 +3,10 @@ import api from '../api/client'
 
 const CATEGORIES = [
   { value: 'artikel', label: 'Reference Articles', icon: '📄' },
-  { value: 'proposal', label: 'Proposal Kajian', icon: '📋' },
-  { value: 'catatan_sv', label: 'Catatan SV', icon: '📝' },
-  { value: 'draf', label: 'Draf Sendiri', icon: '📑' },
-  { value: 'data', label: 'Data / Transkrip', icon: '📊' },
+  { value: 'proposal', label: 'Research Proposal', icon: '📋' },
+  { value: 'catatan_sv', label: 'SV Notes', icon: '📝' },
+  { value: 'draf', label: 'Own Draft', icon: '📑' },
+  { value: 'data', label: 'Data / Transcript', icon: '📊' },
 ]
 
 const SOURCE_LABEL = {
@@ -52,7 +52,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
 
   async function handleSearch() {
     if (searchQuery.trim().length < 3) {
-      setSearchError('Kata kunci terlalu pendek (minimum 3 aksara).')
+      setSearchError('Search term too short (minimum 3 characters).')
       return
     }
     setSearching(true)
@@ -64,9 +64,9 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
       if (yearTo) params.append('year_to', yearTo)
       const { data } = await api.get(`/search/articles?${params}`)
       setSearchResults(data.results)
-      if (data.results.length === 0) setSearchError('Tiada hasil ditemui. Cuba kata kunci lain.')
+      if (data.results.length === 0) setSearchError('No results found. Try a different keyword.')
     } catch (err) {
-      setSearchError(err.response?.data?.detail || 'Carian gagal. Sila cuba lagi.')
+      setSearchError(err.response?.data?.detail || 'Search failed. Please try again.')
     }
     setSearching(false)
   }
@@ -78,7 +78,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
       setSearchResults(prev => prev.filter((_, i) => i !== index))
       if (expandedAbstract === index) setExpandedAbstract(null)
     } catch (err) {
-      setSearchError(err.response?.data?.detail || 'Gagal terima artikel. ' + (err.response?.status === 409 ? 'Artikel ini sudah ditambah.' : 'Cuba lagi.'))
+      setSearchError(err.response?.data?.detail || 'Failed to accept article. ' + (err.response?.status === 409 ? 'Article already added.' : 'Try again.'))
     }
     setAccepting(null)
   }
@@ -93,7 +93,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
 
   function handleDelete(e, docId, filename) {
     e.stopPropagation()
-    if (window.confirm(`Padam "${filename}"? Semua chunk dan embedding dokumen ini akan dibuang.`)) {
+    if (window.confirm(`Delete "${filename}"? All document chunks and embeddings will be removed.`)) {
       onDeleteDoc(docId)
     }
   }
@@ -205,7 +205,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                       </div>
                       <button
                         onClick={e => handleDelete(e, doc.id, doc.filename)}
-                        title="Padam dokumen ini"
+                        title="Delete this document"
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 14, padding: '2px 4px', flexShrink: 0, lineHeight: 1 }}
                       >×</button>
                     </div>
@@ -216,13 +216,13 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                         fontSize: 12, maxHeight: 200, overflowY: 'auto', whiteSpace: 'pre-wrap',
                         fontFamily: 'var(--font-body)', color: 'var(--ink-soft)',
                       }}>
-                        {previewLoading && 'Memuatkan pratonton...'}
-                        {previewError && 'Gagal memuatkan — cuba lagi.'}
+                        {previewLoading && 'Loading preview...'}
+                        {previewError && 'Failed to load — try again.'}
                         {!previewLoading && !previewError && previewText && (
                           <>
                             <p style={{ margin: '0 0 6px', whiteSpace: 'pre-wrap' }}>{previewText.preview_text}</p>
                             <p style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}>
-                              Menunjukkan {previewText.showing_chunks} daripada {previewText.chunk_count} bahagian
+                              Showing {previewText.showing_chunks} of {previewText.chunk_count} sections
                             </p>
                           </>
                         )}
@@ -256,9 +256,9 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
               color: uploadDisabled ? '#EF4444' : 'var(--ink-soft)',
               textAlign: 'center',
             }}>
-              {docCount}/{maxDocs} dokumen
+              {docCount}/{maxDocs} documents
               {!uploadDisabled && tier !== 'pro' && (
-                <span style={{ color: 'var(--ink-soft)' }}> · Pro: sehingga 5</span>
+                <span style={{ color: 'var(--ink-soft)' }}> · Pro: up to 5</span>
               )}
             </p>
           </div>
@@ -272,7 +272,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setSearchError('') }}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                placeholder="Kata kunci carian..."
+                placeholder="Search keywords..."
                 style={{
                   flex: 1, padding: '7px 10px', border: '1px solid var(--line)',
                   borderRadius: 6, fontFamily: 'var(--font-body)', fontSize: 13,
@@ -289,11 +289,11 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                   opacity: searching ? 0.6 : 1, flexShrink: 0,
                 }}
               >
-                {searching ? '...' : 'Cari'}
+                {searching ? '...' : 'Search'}
               </button>
             </div>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}>Tahun:</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}>Year:</span>
               <input
                 value={yearFrom}
                 onChange={e => setYearFrom(e.target.value)}
@@ -314,7 +314,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
             {searching && (
-              <p style={{ color: 'var(--ink-soft)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Mencari...</p>
+              <p style={{ color: 'var(--ink-soft)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Searching...</p>
             )}
             {!searching && searchError && (
               <p style={{ color: '#EF4444', fontSize: 12, padding: '8px 12px' }}>{searchError}</p>
@@ -360,7 +360,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                         color: 'var(--ink-soft)',
                       }}
                     >
-                      Abstrak {expandedAbstract === i ? '▲' : '▼'}
+                      Abstract {expandedAbstract === i ? '▲' : '▼'}
                     </button>
                   )}
                   <button
@@ -409,16 +409,16 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
               Load References
             </button>
           )}
-          {bibLoading && <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Memuatkan...</p>}
+          {bibLoading && <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Loading...</p>}
           {bibData && bibData.sources.length === 0 && (
             <p style={{ color: 'var(--ink-soft)', fontSize: 13, lineHeight: 1.5 }}>
-              Tiada rujukan lagi. Mula tanya AI dan terima output ke bab untuk jana senarai rujukan.
+              No references yet. Ask the AI and accept output to a chapter to generate a reference list.
             </p>
           )}
           {bibData && bibData.sources.map((s, i) => (
             <div key={i} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--line)' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink)', marginBottom: 4 }}>
-                {s.filename} <span style={{ color: 'var(--ink-soft)' }}>ms. {s.page_number}</span>
+                {s.filename} <span style={{ color: 'var(--ink-soft)' }}>p. {s.page_number}</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {s.chapter_titles.map((t, j) => (

@@ -72,7 +72,7 @@ export function ProfileMenu({ user, tier: tierProp, userName }) {
           </div>
           {[
             { label: 'Account Settings', action: () => nav('/account') },
-            { label: 'Laporkan Isu', action: () => nav('/support') },
+            { label: 'Report an Issue', action: () => nav('/support') },
           ].map(item => (
             <button key={item.label} onClick={item.action} style={menuItemStyle}>
               {item.label}
@@ -86,7 +86,7 @@ export function ProfileMenu({ user, tier: tierProp, userName }) {
                   const { data } = await api.post('/billing/topup/initiate')
                   window.location.href = data.payment_url
                 } catch {
-                  alert('Gagal memulakan topup. Sila cuba lagi.')
+                  alert('Failed to initiate top-up. Please try again.')
                   setTopping(false)
                 }
               }}
