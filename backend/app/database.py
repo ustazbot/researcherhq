@@ -239,6 +239,24 @@ def _create_schema(conn: sqlite3.Connection):
     except Exception:
         pass
 
+    # Migration: Task 23 — rolling 30-day billing model
+    user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "kredit_subscription" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN kredit_subscription INTEGER DEFAULT 50")
+    if "kredit_topup" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN kredit_topup INTEGER DEFAULT 0")
+    if "subscription_start_date" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN subscription_start_date TEXT")
+
+    # Backfill: existing users get subscription_start_date = created_at, seed kredit_subscription
+    conn.execute("""
+        UPDATE users
+        SET subscription_start_date = created_at,
+            kredit_subscription = kredit_remaining,
+            kredit_topup = 0
+        WHERE subscription_start_date IS NULL
+    """)
+
 
 @contextmanager
 def get_db():
