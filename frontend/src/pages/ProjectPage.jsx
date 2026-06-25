@@ -60,6 +60,7 @@ export function ProjectPage() {
 
   // Upload category picker state
   const [pendingFile, setPendingFile] = useState(null)
+  const [pendingFileType, setPendingFileType] = useState('pdf')
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('artikel')
 
@@ -160,15 +161,27 @@ export function ProjectPage() {
     setLoading(false)
   }
 
+  const OFFICE_TYPES = {
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+  }
+
   function handleFileSelect(e) {
     const file = e.target.files[0]
     if (!file) return
-    if (file.type !== 'application/pdf') {
-      alert('Please upload a PDF file only.')
+
+    const isPdf = file.type === 'application/pdf'
+    const isOffice = file.type in OFFICE_TYPES
+
+    if (!isPdf && !isOffice) {
+      alert('Supported formats: PDF, DOCX, XLSX, PPTX')
       fileRef.current.value = ''
       return
     }
+
     setPendingFile(file)
+    setPendingFileType(isPdf ? 'pdf' : 'office')
     setSelectedCategory('artikel')
     setShowCategoryPicker(true)
   }
@@ -178,16 +191,24 @@ export function ProjectPage() {
     setShowCategoryPicker(false)
     setUploading(true)
     try {
-      const pages = await extractPdfPages(pendingFile)
-      const { data } = await api.post('/documents/upload', {
-        project_id: id, filename: pendingFile.name, category: selectedCategory, pages,
-      })
-      setDocuments(prev => [...prev, data])
+      let docData
+      if (pendingFileType === 'pdf') {
+        const pages = await extractPdfPages(pendingFile)
+        const { data } = await api.post('/documents/upload', {
+          project_id: id, filename: pendingFile.name, category: selectedCategory, pages,
+        })
+        docData = data
+      } else {
+        const { uploadOfficeFile } = await import('../utils/officeUpload')
+        docData = await uploadOfficeFile(pendingFile, id, selectedCategory)
+      }
+      setDocuments(prev => [...prev, docData])
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to process document. Please try again.')
     }
     setUploading(false)
     setPendingFile(null)
+    setPendingFileType('pdf')
     fileRef.current.value = ''
   }
 
@@ -708,7 +729,7 @@ export function ProjectPage() {
         </div>
 
         {/* Mobile views */}
-        <input type="file" ref={fileRef} onChange={handleFileSelect} accept=".pdf" style={{ display: 'none' }} />
+        <input type="file" ref={fileRef} onChange={handleFileSelect} accept=".pdf,.docx,.xlsx,.pptx" style={{ display: 'none' }} />
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {showProposalUpload && mobileView === 'editor' && (
@@ -1020,7 +1041,7 @@ export function ProjectPage() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <input type="file" ref={fileRef} onChange={handleFileSelect} accept=".pdf" style={{ display: 'none' }} />
+        <input type="file" ref={fileRef} onChange={handleFileSelect} accept=".pdf,.docx,.xlsx,.pptx" style={{ display: 'none' }} />
 
         {/* Source sidebar — collapsible */}
         <SourcePanel
@@ -1145,12 +1166,24 @@ export function ProjectPage() {
             <p style={{ margin: '0 0 16px', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--ink-soft)', wordBreak: 'break-all' }}>
               {pendingFile.name}
             </p>
+            {pendingFileType === 'office' && (
+              <p style={{
+                margin: '0 0 12px',
+                fontSize: 11,
+                color: 'var(--ink-soft)',
+                fontFamily: 'var(--font-body)',
+                lineHeight: 1.5,
+              }}>
+                Office files are processed on our server and immediately deleted after text extraction.
+              </p>
+            )}
             {[
               { value: 'artikel', label: 'Reference Articles', icon: '📄' },
               { value: 'proposal', label: 'Research Proposal', icon: '📋' },
               { value: 'catatan_sv', label: 'SV Notes', icon: '📝' },
               { value: 'draf', label: 'Own Draft', icon: '📑' },
               { value: 'data', label: 'Data / Transcript', icon: '📊' },
+              { value: 'panduan_format', label: 'Faculty Format Guide', icon: '🏫' },
             ].map(cat => (
               <label key={cat.value} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',

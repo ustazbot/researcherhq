@@ -237,7 +237,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
             <button
               onClick={uploadDisabled || uploading ? undefined : onUpload}
               disabled={uploadDisabled || uploading}
-              title={uploadDisabled ? 'Free tier: 1 PDF only. Upgrade to Pro for up to 5 PDFs.' : ''}
+              title={uploadDisabled ? 'Free tier: 1 document only. Upgrade to Pro for up to 5 documents.' : ''}
               style={{
                 width: '100%', padding: '8px 0',
                 background: uploadDisabled ? 'var(--line)' : 'var(--accent-soft)',
