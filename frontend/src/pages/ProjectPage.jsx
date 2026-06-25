@@ -531,7 +531,7 @@ export function ProjectPage() {
               onClick={() => setShowVoiceProfile(false)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13, textDecoration: 'underline' }}
             >
-              Langkau buat masa ini
+              Skip for now
             </button>
           </div>
         ) : (
@@ -612,7 +612,7 @@ export function ProjectPage() {
                 onClick={() => setShowVoiceProfile(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13, textDecoration: 'underline' }}
               >
-                Langkau buat masa ini
+                Skip for now
               </button>
             </p>
           </>
@@ -749,7 +749,7 @@ export function ProjectPage() {
                 onClick={() => setShowProposalUpload(false)}
                 style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
               >
-                Langkau buat masa ini
+                Skip for now
               </button>
             </div>
           )}
@@ -909,7 +909,7 @@ export function ProjectPage() {
             }}
             onMouseEnter={e => { if (openMenu !== 'fail') e.currentTarget.style.background = 'var(--line)' }}
             onMouseLeave={e => { if (openMenu !== 'fail') e.currentTarget.style.background = 'none' }}
-          >Fail <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span></button>
+          >File <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span></button>
           {openMenu === 'fail' && (
             <div onClick={e => e.stopPropagation()} style={{
               position: 'absolute', top: '100%', left: 0, zIndex: 100,
@@ -924,7 +924,7 @@ export function ProjectPage() {
               <button
                 onClick={() => { fileRef.current?.click(); setOpenMenu(null) }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
-              >Muat Naik Dokumen</button>
+              >Upload Document</button>
               {(credits?.tier ?? user?.tier) === 'pro' ? (
                 <button
                   onClick={() => { handleCompile(); setOpenMenu(null) }}
@@ -982,7 +982,7 @@ export function ProjectPage() {
             }}
             onMouseEnter={e => { if (openMenu !== 'paparan') e.currentTarget.style.background = 'var(--line)' }}
             onMouseLeave={e => { if (openMenu !== 'paparan') e.currentTarget.style.background = 'none' }}
-          >Paparan <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span></button>
+          >View <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span></button>
           {openMenu === 'paparan' && (
             <div onClick={e => e.stopPropagation()} style={{
               position: 'absolute', top: '100%', left: 0, zIndex: 100,
@@ -993,18 +993,18 @@ export function ProjectPage() {
               <button
                 onClick={() => { setSourceCollapsed(c => !c); setOpenMenu(null) }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
-              >{sourceCollapsed ? '› ' : '‹ '}Togol Panel Sumber</button>
+              >{sourceCollapsed ? '› ' : '‹ '}Toggle Sources Panel</button>
               <button
                 onClick={() => { setThesisCollapsed(c => !c); setOpenMenu(null) }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
-              >{thesisCollapsed ? '› ' : '‹ '}Togol Struktur Tesis</button>
+              >{thesisCollapsed ? '› ' : '‹ '}Toggle Thesis Structure</button>
               <button disabled style={{
                 display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
                 background: 'none', border: 'none', cursor: 'not-allowed',
                 fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)',
                 opacity: 0.5,
               }}>
-                Eksport Google Docs <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Fasa 3</span>
+                Export Google Docs <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Phase 3</span>
               </button>
               <button disabled style={{
                 display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
@@ -1012,7 +1012,7 @@ export function ProjectPage() {
                 fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)',
                 opacity: 0.5,
               }}>
-                Bibliografi Manager <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Fasa 3</span>
+                Bibliography Manager <span style={{ fontSize: 10, background: 'var(--line)', padding: '1px 5px', borderRadius: 3, marginLeft: 4 }}>Phase 3</span>
               </button>
             </div>
           )}
@@ -1075,7 +1075,7 @@ export function ProjectPage() {
               onClick={() => setShowProposalUpload(false)}
               style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
             >
-              Langkau buat masa ini
+              Skip for now
             </button>
           </div>
         )}

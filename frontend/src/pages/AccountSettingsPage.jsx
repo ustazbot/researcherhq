@@ -85,21 +85,21 @@ export function AccountSettingsPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '40px 24px' }}>
       <div style={{ maxWidth: 560, margin: '0 auto' }}>
         <button onClick={() => nav('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 14, marginBottom: 24, padding: 0 }}>
-          ← Kembali ke Dashboard
+          ← Back to Dashboard
         </button>
         <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 32px' }}>
-          Tetapan Akaun
+          Account Settings
         </h1>
 
         {/* Maklumat Akaun */}
         <section style={sectionStyle}>
-          <h2 style={sectionHeadingStyle}>Maklumat Akaun</h2>
+          <h2 style={sectionHeadingStyle}>Account Info</h2>
           <div style={rowStyle}>
-            <span style={labelStyle}>Emel</span>
+            <span style={labelStyle}>Email</span>
             <span style={valueStyle}>{account.email}</span>
           </div>
           <div style={rowStyle}>
-            <span style={labelStyle}>Pelan</span>
+            <span style={labelStyle}>Plan</span>
             <span style={{
               ...valueStyle,
               background: account.tier === 'pro' ? 'var(--accent)' : 'var(--line)',
@@ -110,17 +110,17 @@ export function AccountSettingsPage() {
           </div>
           <div style={rowStyle}>
             <span style={labelStyle}>Research Credits Balance</span>
-            <span style={valueStyle}>{account.kredit_remaining} / {account.kredit_total} kredit</span>
+            <span style={valueStyle}>{account.kredit_remaining} / {account.kredit_total} credits</span>
           </div>
           <div style={rowStyle}>
-            <span style={labelStyle}>Reset Kredit</span>
+            <span style={labelStyle}>Credits Reset</span>
             <span style={valueStyle}>{account.reset_date}</span>
           </div>
         </section>
 
         {/* Langganan */}
         <section style={sectionStyle}>
-          <h2 style={sectionHeadingStyle}>Langganan</h2>
+          <h2 style={sectionHeadingStyle}>Subscription</h2>
           {account.tier === 'pro' ? (
             <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: 0 }}>
               Untuk batalkan langganan Pro, hubungi <strong>support@researcherhq.com</strong>
@@ -144,7 +144,7 @@ export function AccountSettingsPage() {
 
         {/* Profil Anda */}
         <section style={sectionStyle}>
-          <h2 style={sectionHeadingStyle}>Profil Anda</h2>
+          <h2 style={sectionHeadingStyle}>Your Profile</h2>
           <input
             value={profileName}
             onChange={e => { setProfileName(e.target.value); setProfileSuccess(''); setProfileError('') }}
@@ -154,7 +154,7 @@ export function AccountSettingsPage() {
           <input
             value={profileIpt}
             onChange={e => { setProfileIpt(e.target.value); setProfileSuccess(''); setProfileError('') }}
-            placeholder="Nama universiti / IPT"
+            placeholder="University / Institution name"
             style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--ink)', marginBottom: 10, boxSizing: 'border-box' }}
           />
           {profileError && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 10px' }}>{profileError}</p>}
@@ -188,7 +188,7 @@ export function AccountSettingsPage() {
 
         {/* Tukar Kata Laluan */}
         <section style={sectionStyle}>
-          <h2 style={sectionHeadingStyle}>Tukar Kata Laluan</h2>
+          <h2 style={sectionHeadingStyle}>Change Password</h2>
           {!account.password_is_permanent && (
             <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
               <p style={{ fontSize: 13, color: '#C2410C', margin: 0 }}>

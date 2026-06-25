@@ -276,7 +276,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
               borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)',
               fontSize: 13, cursor: 'pointer', color: 'var(--ink)',
             }}
-          >+ Tambah Bab</button>
+          >+ Add Chapter</button>
           {tier === 'pro' && (
             <>
               {compileError && (

@@ -197,7 +197,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
               {msg.role === 'assistant' ? renderContent(msg.content, msg.sources) : msg.content}
               {msg.kredit_used && (
                 <span style={{ display: 'block', marginTop: 6, fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.6 }}>
-                  {msg.kredit_used} kredit
+                  {msg.kredit_used} credits
                 </span>
               )}
             </div>
@@ -295,7 +295,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
                       {m.label}
                       {locked
                         ? <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--accent)', color: 'var(--ink)', borderRadius: 3, padding: '1px 5px', marginLeft: 4 }}>PRO</span>
-                        : <span className="mode-credit-hint">{m.credits} kredit</span>
+                        : <span className="mode-credit-hint">{m.credits} credits</span>
                       }
                     </button>
                   )
@@ -304,12 +304,12 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
           )}
         </div>
         <span className="mode-credit-hint" style={{ display: 'inline-block', marginBottom: 8 }}>
-          ≈ {OUTPUT_MODES.find(m => m.value === outputMode)?.credits ?? 1} kredit
+          ≈ {OUTPUT_MODES.find(m => m.value === outputMode)?.credits ?? 1} credits
         </span>
         <form onSubmit={onSubmit} style={{ display: 'flex', gap: 6 }}>
           <input
             value={query} onChange={e => onQueryChange(e.target.value)}
-            placeholder="Tanya soalan..."
+            placeholder="Ask a question..."
             disabled={loading}
             style={{
               flex: 1, padding: '10px 14px',

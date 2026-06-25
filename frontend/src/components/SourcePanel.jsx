@@ -123,7 +123,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
       {/* Header + collapse */}
       <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
-          Sumber
+          Sources
         </span>
         <button
           onClick={onToggleCollapse}
