@@ -109,7 +109,7 @@ export function AccountSettingsPage() {
             </span>
           </div>
           <div style={rowStyle}>
-            <span style={labelStyle}>Baki Kredit Kajian</span>
+            <span style={labelStyle}>Research Credits Balance</span>
             <span style={valueStyle}>{account.kredit_remaining} / {account.kredit_total} kredit</span>
           </div>
           <div style={rowStyle}>
@@ -137,7 +137,7 @@ export function AccountSettingsPage() {
               }}
               style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--ink)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: 'pointer' }}
             >
-              Naik Taraf ke Pro — RM39/bulan
+              Upgrade to Pro — RM39/month
             </button>
           )}
         </section>
@@ -182,7 +182,7 @@ export function AccountSettingsPage() {
             }}
             style={{ padding: '10px 20px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: 'pointer', opacity: profileName.trim() ? 1 : 0.5 }}
           >
-            {profileLoading ? 'Menyimpan...' : 'Simpan Profil'}
+            {profileLoading ? 'Saving...' : 'Save Profile'}
           </button>
         </section>
 
@@ -218,7 +218,7 @@ export function AccountSettingsPage() {
               disabled={pwLoading || !newPassword || !confirmPassword}
               style={{ padding: '10px 20px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: 'pointer' }}
             >
-              {pwLoading ? 'Menyimpan...' : account.password_is_permanent ? 'Kemaskini Kata Laluan' : 'Tetapkan Kata Laluan Tetap'}
+              {pwLoading ? 'Saving...' : account.password_is_permanent ? 'Update Password' : 'Set Permanent Password'}
             </button>
           </form>
         </section>
@@ -268,7 +268,7 @@ export function AccountSettingsPage() {
                 disabled={deleteInput !== 'PADAM' || deleteLoading}
                 style={{ flex: 1, padding: '10px 0', background: deleteInput === 'PADAM' ? '#EF4444' : 'var(--line)', color: deleteInput === 'PADAM' ? '#fff' : 'var(--ink-soft)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: deleteInput === 'PADAM' ? 'pointer' : 'not-allowed' }}
               >
-                {deleteLoading ? 'Memproses...' : 'Padam Akaun'}
+                {deleteLoading ? 'Processing...' : 'Delete Account'}
               </button>
             </div>
           </div>

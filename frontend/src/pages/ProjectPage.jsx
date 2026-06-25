@@ -501,11 +501,11 @@ export function ProjectPage() {
       }}>
         {showVoiceProfile === 'onboarding' && (
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 8px', letterSpacing: '0.04em' }}>
-            Langkah 3 daripada 3 — Gaya Penulisan Anda
+            Step 3 of 3 — Your Writing Style
           </p>
         )}
         <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 6px', fontSize: 20 }}>
-          🎙 Profil Gaya Penulisan
+          🎙 Writing Style Profile
         </h2>
         <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 20px' }}>
           Bantu AI faham cara anda menulis untuk output yang lebih semula jadi.{' '}
@@ -516,16 +516,16 @@ export function ProjectPage() {
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <p style={{ fontSize: 24, margin: '0 0 8px' }}>🔒</p>
             <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, margin: '0 0 6px' }}>
-              Profil Gaya Penulisan — Eksklusif Pro
+              Writing Style Profile — Pro Exclusive
             </p>
             <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 20px' }}>
-              Naik taraf untuk peribadikan output AI mengikut gaya penulisan anda.
+              Upgrade to personalize AI output to match your writing style.
             </p>
             <button
               onClick={() => nav('/account')}
               style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--ink)', border: 'none', borderRadius: 8, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: 'pointer', marginBottom: 10, display: 'block', width: '100%' }}
             >
-              Naik Taraf ke Pro — RM39/bulan
+              Upgrade to Pro — RM39/month
             </button>
             <button
               onClick={() => setShowVoiceProfile(false)}
@@ -605,7 +605,7 @@ export function ProjectPage() {
                 opacity: (!voiceQ1 && !voiceQ2) ? 0.5 : 1, marginBottom: 10,
               }}
             >
-              {voiceSaving ? 'Menyimpan...' : 'Simpan Profil Gaya →'}
+              {voiceSaving ? 'Saving...' : 'Save Style Profile →'}
             </button>
             <p style={{ textAlign: 'center' }}>
               <button
@@ -920,7 +920,7 @@ export function ProjectPage() {
               <button
                 onClick={() => { handleExport(activeChapterId); setOpenMenu(null) }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
-              >Export Bab Aktif</button>
+              >Export Active Chapter</button>
               <button
                 onClick={() => { fileRef.current?.click(); setOpenMenu(null) }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
@@ -935,7 +935,7 @@ export function ProjectPage() {
                     fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)',
                   }}
                 >
-                  {compiling ? 'Menjana tesis...' : 'Compile Tesis Penuh (.docx)'}
+                  {compiling ? 'Generating thesis...' : 'Compile Full Thesis (.docx)'}
                 </button>
               ) : (
                 <button disabled style={{
@@ -964,7 +964,7 @@ export function ProjectPage() {
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--line)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
           >
-            🎙 Profil Gaya{voiceSaved ? ' ✓' : ''}
+            🎙 Style Profile{voiceSaved ? ' ✓' : ''}
           </button>
         </div>
 

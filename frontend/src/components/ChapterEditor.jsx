@@ -148,7 +148,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
               opacity: (saving || !hasChanges) ? 0.5 : 1,
             }}
           >
-            {saving ? 'Menyimpan...' : 'Simpan'}
+            {saving ? 'Saving...' : 'Save'}
           </button>
         )}
       </div>
@@ -182,7 +182,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
               <span style={{ fontSize: 18 }}>💡</span>
               <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}>
-                  Ni cadangan AI{pendingSuggestion.stageLabel ? ` — ${pendingSuggestion.stageLabel}` : ''} — klik <strong>Terima</strong> untuk masuk ke bab, atau <strong>Tolak</strong> untuk buang.
+                  This is an AI suggestion{pendingSuggestion.stageLabel ? ` — ${pendingSuggestion.stageLabel}` : ''} — click <strong>Accept</strong> to add to chapter, or <strong>Reject</strong> to discard.
                 </p>
               </div>
               <button onClick={() => { localStorage.setItem(TOOLTIP_KEY, '1'); setTooltipDismissed(true) }} style={{
@@ -216,7 +216,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
               fontWeight: 700, fontSize: 14, cursor: saving ? 'wait' : 'pointer',
               opacity: saving ? 0.6 : 1,
             }}>
-              {saving ? 'Menyimpan...' : 'Terima'}
+              {saving ? 'Saving...' : 'Accept'}
             </button>
             <button onClick={onReject} disabled={saving} style={{
               padding: '10px 24px', background: 'transparent',
@@ -224,7 +224,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
               fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14,
               cursor: 'pointer', color: 'var(--ink-soft)',
             }}>
-              Tolak
+              Reject
             </button>
           </div>
 
@@ -232,7 +232,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
           {(content || '').trim() && (
             <div>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Kandungan semasa (tidak berubah jika Tolak)
+                Current content (unchanged if Rejected)
               </p>
               <div
                 dangerouslySetInnerHTML={{ __html: content }}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import api from '../api/client'
 
 const CATEGORIES = [
-  { value: 'artikel', label: 'Artikel Rujukan', icon: '📄' },
+  { value: 'artikel', label: 'Reference Articles', icon: '📄' },
   { value: 'proposal', label: 'Proposal Kajian', icon: '📋' },
   { value: 'catatan_sv', label: 'Catatan SV', icon: '📝' },
   { value: 'draf', label: 'Draf Sendiri', icon: '📑' },
@@ -107,7 +107,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
       }}>
         <button
           onClick={onToggleCollapse}
-          title="Buka panel Sumber"
+          title="Open Sources panel"
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 16, padding: 4 }}
         >›</button>
       </div>
@@ -127,7 +127,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         </span>
         <button
           onClick={onToggleCollapse}
-          title="Tutup panel Sumber"
+          title="Close Sources panel"
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 16, padding: 0 }}
         >‹</button>
       </div>
@@ -135,9 +135,9 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
       {/* Tab toggle */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', padding: '4px 8px', gap: 4 }}>
         {[
-          { key: 'docs', label: 'Sumber' },
-          { key: 'search', label: 'Cari Artikel' },
-          { key: 'bibliography', label: 'Rujukan' },
+          { key: 'docs', label: 'Sources' },
+          { key: 'search', label: 'Search Articles' },
+          { key: 'bibliography', label: 'References' },
         ].map(t => (
           <button
             key={t.key}
@@ -181,7 +181,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                     color: 'var(--ink-soft)', fontStyle: 'italic',
                     margin: 0,
                   }}>
-                    Tiada dokumen dalam kategori ini.
+                    No documents in this category.
                   </p>
                 )}
                 {activeCategory === cat.value && cat.docs.map(doc => (
@@ -237,7 +237,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
             <button
               onClick={uploadDisabled || uploading ? undefined : onUpload}
               disabled={uploadDisabled || uploading}
-              title={uploadDisabled ? 'Free tier: 1 PDF sahaja. Naik taraf ke Pro untuk sehingga 5 PDF.' : ''}
+              title={uploadDisabled ? 'Free tier: 1 PDF only. Upgrade to Pro for up to 5 PDFs.' : ''}
               style={{
                 width: '100%', padding: '8px 0',
                 background: uploadDisabled ? 'var(--line)' : 'var(--accent-soft)',
@@ -248,7 +248,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                 opacity: uploadDisabled || uploading ? 0.6 : 1,
               }}
             >
-              {uploadDisabled ? '🔒 Had Dicapai' : uploading ? 'Memproses...' : '+ Muat naik'}
+              {uploadDisabled ? '🔒 Limit Reached' : uploading ? 'Processing...' : '+ Upload'}
             </button>
             <p style={{
               margin: '6px 0 0',
@@ -321,7 +321,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
             )}
             {tier !== 'pro' && searchResults.length > 0 && (
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)', padding: '4px 12px', background: 'var(--accent-soft)', margin: '0 0 4px' }}>
-                Free: 5 hasil sahaja · <span style={{ textDecoration: 'underline', cursor: 'pointer' }}>Naik taraf ke Pro</span>
+                Free: 5 results only · <span style={{ textDecoration: 'underline', cursor: 'pointer' }}>Upgrade to Pro</span>
               </p>
             )}
             {searchResults.map((article, i) => (
@@ -374,7 +374,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                       opacity: accepting === i ? 0.6 : 1,
                     }}
                   >
-                    {accepting === i ? '...' : 'Terima'}
+                    {accepting === i ? '...' : 'Accept'}
                   </button>
                 </div>
                 {expandedAbstract === i && article.abstract && (
@@ -406,7 +406,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
               }}
               style={{ padding: '8px 14px', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 11 }}
             >
-              Muatkan Rujukan
+              Load References
             </button>
           )}
           {bibLoading && <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Memuatkan...</p>}

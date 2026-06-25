@@ -66,12 +66,12 @@ export function ProfileMenu({ user, tier: tierProp, userName }) {
             <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: userName ? 'var(--ink-soft)' : 'var(--ink)' }}>{user?.email}</p>
             {credits && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>
-                Baki Kredit Kajian: {credits.kredit_remaining}
+                Research Credits: {credits.kredit_remaining}
               </p>
             )}
           </div>
           {[
-            { label: 'Tetapan Akaun', action: () => nav('/account') },
+            { label: 'Account Settings', action: () => nav('/account') },
             { label: 'Laporkan Isu', action: () => nav('/support') },
           ].map(item => (
             <button key={item.label} onClick={item.action} style={menuItemStyle}>
@@ -93,11 +93,11 @@ export function ProfileMenu({ user, tier: tierProp, userName }) {
               disabled={topping}
               style={{ ...menuItemStyle, color: 'var(--accent)', fontWeight: 600, opacity: topping ? 0.7 : 1 }}
             >
-              {topping ? 'Memproses...' : 'Topup +200 kredit — RM10'}
+              {topping ? 'Processing...' : 'Top up +200 credits — RM10'}
             </button>
           )}
           <button onClick={logout} style={{ ...menuItemStyle, color: '#EF4444', borderTop: '1px solid var(--line)', marginTop: 4 }}>
-            Log Keluar
+            Sign Out
           </button>
         </div>
       )}

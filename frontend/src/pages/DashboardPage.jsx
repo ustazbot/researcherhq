@@ -197,7 +197,7 @@ export function DashboardPage() {
                     opacity: profileName.trim() ? 1 : 0.5,
                   }}
                 >
-                  {savingProfile ? 'Menyimpan...' : 'Teruskan →'}
+                  {savingProfile ? 'Saving...' : 'Continue →'}
                 </button>
                 <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: 'var(--ink-soft)' }}>
                   <button
@@ -217,14 +217,14 @@ export function DashboardPage() {
       <main style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: 0, fontSize: 24 }}>
-            Projek Saya
+            My Projects
           </h1>
           <button onClick={() => setCreating(true)} style={{
             padding: '10px 20px', background: 'var(--ink)', color: 'var(--bg)',
             border: 'none', borderRadius: 'var(--radius-sm)',
             fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: 'pointer',
           }}>
-            + Projek Baru
+            + New Project
           </button>
         </div>
 
@@ -239,7 +239,7 @@ export function DashboardPage() {
               </p>
             )}
             <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 16px' }}>
-              Projek Baru
+              New Project
             </h3>
             <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
               placeholder="Contoh: Kesedaran Kewangan dalam Kalangan Pelajar IPTA" required
@@ -271,7 +271,7 @@ export function DashboardPage() {
                 </label>
                 <select value={newOutputTarget} onChange={e => setNewOutputTarget(e.target.value)}
                   style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 15, boxSizing: 'border-box' }}>
-                  <option value="thesis">Tesis</option>
+                  <option value="thesis">Thesis</option>
                   <option value="article">Artikel Jurnal</option>
                   <option value="proposal">Proposal</option>
                 </select>

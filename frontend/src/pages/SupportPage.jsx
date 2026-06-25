@@ -5,7 +5,7 @@ import api from '../api/client'
 const CATEGORIES = [
   { value: 'bug', label: 'Pepijat / Masalah Teknikal' },
   { value: 'billing', label: 'Pembayaran & Langganan' },
-  { value: 'kredit', label: 'Kredit Kajian' },
+  { value: 'kredit', label: 'Research Credits' },
   { value: 'lain-lain', label: 'Lain-lain' },
 ]
 
@@ -83,7 +83,7 @@ export function SupportPage() {
             </div>
             {error && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 16px' }}>{error}</p>}
             <button type="submit" disabled={loading || !description.trim()} style={{ width: '100%', padding: '12px 0', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
-              {loading ? 'Menghantar...' : 'Hantar Laporan'}
+              {loading ? 'Sending...' : 'Send Report'}
             </button>
           </form>
         )}

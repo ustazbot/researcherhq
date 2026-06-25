@@ -24,7 +24,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
       }}>
         <button
           onClick={onToggleCollapse}
-          title="Buka panel Struktur"
+          title="Open Structure panel"
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             color: 'var(--ink-soft)', fontSize: 16, padding: 4,
@@ -100,7 +100,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
               fontFamily: 'var(--font-heading)', fontSize: 14, opacity: upgrading ? 0.7 : 1,
             }}
           >
-            {upgrading ? 'Memproses...' : 'Naik taraf ke Pro — RM39/bulan'}
+            {upgrading ? 'Processing...' : 'Upgrade to Pro — RM39/month'}
           </button>
         </div>
       )}
@@ -109,11 +109,11 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={onToggleCollapse}
-            title="Tutup panel Struktur"
+            title="Close Structure panel"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 16, padding: 0 }}
           >›</button>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
-            Struktur Tesis
+            Thesis Structure
           </span>
         </div>
         {total > 0 && (
@@ -220,7 +220,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
                       opacity: exportingChapterId === chap.id ? 0.6 : 1,
                     }}
                   >
-                    {exportingChapterId === chap.id ? 'Menjana...' : '.docx'}
+                    {exportingChapterId === chap.id ? 'Generating...' : '.docx'}
                   </button>
                 )}
 
@@ -322,7 +322,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
                   fontWeight: 700, cursor: compiling ? 'wait' : 'pointer',
                 }}
               >
-                {compiling ? 'Menjana...' : '⬇ Compile Tesis Penuh'}
+                {compiling ? 'Generating...' : '⬇ Compile Full Thesis'}
               </button>
             </>
           )}

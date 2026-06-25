@@ -15,7 +15,7 @@ export function CreditTank({ remaining, total, resetDate, onTopup }) {
         letterSpacing: '0.08em', textTransform: 'uppercase',
         color: 'var(--ink-soft)', marginBottom: 10,
       }}>
-        Kredit Kajian
+        Research Credits
       </div>
       <div style={{
         height: 8, background: 'var(--line)', borderRadius: 4,
@@ -37,7 +37,7 @@ export function CreditTank({ remaining, total, resetDate, onTopup }) {
           {remaining} / {total}
         </span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-soft)' }}>
-          Reset: {resetStr}
+          Resets: {resetStr}
         </span>
       </div>
       {onTopup && (
@@ -48,7 +48,7 @@ export function CreditTank({ remaining, total, resetDate, onTopup }) {
           fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500,
           cursor: 'pointer',
         }}>
-          Topup +200 kredit — RM10
+          Top up +200 credits — RM10
         </button>
       )}
     </div>

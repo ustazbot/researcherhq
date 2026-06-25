@@ -4,9 +4,9 @@ import { CitationCard } from './CitationCard'
 import { parseCitation } from '../utils/parseCitation'
 
 const SOURCE_BADGE = {
-  rag_document:  { label: '📄 Dokumen anda',                              bg: '#F0FDF4', color: '#166534' },
-  web_search:    { label: '🌐 Sumber web',                                bg: '#EFF6FF', color: '#1D4ED8' },
-  llm_knowledge: { label: '⚠ Pengetahuan am — tiada sandaran sahih',     bg: '#FFFBEB', color: '#92400E' },
+  rag_document:  { label: '📄 Your documents',                            bg: '#F0FDF4', color: '#166534' },
+  web_search:    { label: '🌐 Web sources',                               bg: '#EFF6FF', color: '#1D4ED8' },
+  llm_knowledge: { label: '⚠ General knowledge — verify independently',  bg: '#FFFBEB', color: '#92400E' },
 }
 
 const CITE_STYLES = `
@@ -81,12 +81,12 @@ function CiteChip({ index, source }) {
 }
 
 const OUTPUT_MODES = [
-  { value: 'qa',                label: 'Soal-Jawab',          credits: 1,  proOnly: false },
-  { value: 'key_findings',      label: 'Dapatan Utama',       credits: 3,  proOnly: false },
-  { value: 'executive_summary', label: 'Ringkasan Eksekutif', credits: 5,  proOnly: true  },
-  { value: 'literature_review', label: 'Sorotan Kajian',      credits: 10, proOnly: true  },
-  { value: 'research_gap',      label: 'Analisis Jurang',     credits: 10, proOnly: true  },
-  { value: 'discovery',         label: 'Mod Penemuan Topik',  credits: 1,  proOnly: false },
+  { value: 'qa',                label: 'Q&A',               credits: 1,  proOnly: false },
+  { value: 'key_findings',      label: 'Key Findings',      credits: 3,  proOnly: false },
+  { value: 'executive_summary', label: 'Executive Summary', credits: 5,  proOnly: true  },
+  { value: 'literature_review', label: 'Literature Review', credits: 10, proOnly: true  },
+  { value: 'research_gap',      label: 'Research Gap',      credits: 10, proOnly: true  },
+  { value: 'discovery',         label: 'Topic Discovery',   credits: 1,  proOnly: false },
 ]
 
 export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, outputMode, onOutputModeChange, credits, onSendToEditor, hasActiveChapter, bottomRef, tier, isDiscoveryMode }) {
@@ -153,7 +153,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
               background: tier === 'pro' ? 'var(--accent)' : 'var(--accent-soft)',
               color: 'var(--ink)', padding: '2px 8px', borderRadius: 4,
             }}>
-              {tier === 'pro' ? 'Discovery Penuh' : 'Discovery Ringkas (Free)'}
+              {tier === 'pro' ? 'Full Discovery' : 'Discovery (Free)'}
             </span>
           </div>
         )}
@@ -218,7 +218,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
                   opacity: hasActiveChapter ? 1 : 0.5,
                 }}
               >
-                → Hantar ke Editor
+                → Send to Editor
               </button>
             )}
 
@@ -275,7 +275,7 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
             onClick={() => setPillOpen(o => !o)}
             type="button"
           >
-            {OUTPUT_MODES.find(m => m.value === outputMode)?.label ?? 'Soal-Jawab'}
+            {OUTPUT_MODES.find(m => m.value === outputMode)?.label ?? 'Q&A'}
             <span>▾</span>
           </button>
           {pillOpen && (
