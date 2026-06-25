@@ -1,5 +1,6 @@
 // frontend/src/components/ChatPanel.jsx
 import { useState, useRef, useEffect } from 'react'
+import { IconArrowUp } from '@tabler/icons-react'
 import { CitationCard } from './CitationCard'
 import { parseCitation } from '../utils/parseCitation'
 
@@ -318,10 +319,15 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
             }}
           />
           <button type="submit" disabled={loading || !query.trim()} style={{
-            padding: '10px 16px', background: 'var(--accent)', color: 'var(--ink)',
+            width: 42, height: 42, flexShrink: 0,
+            background: loading || !query.trim() ? 'var(--line)' : 'var(--accent)',
             border: 'none', borderRadius: 'var(--radius-sm)',
-            fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: 'pointer',
-          }}>→</button>
+            cursor: loading || !query.trim() ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.1s',
+          }}>
+            <IconArrowUp size={20} stroke={2.5} color="var(--ink)" />
+          </button>
         </form>
       </div>
     </div>

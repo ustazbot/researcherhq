@@ -315,38 +315,42 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         ) : activePanel === 'search' ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)' }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+              <div style={{ marginBottom: 6 }}>
                 <input
                   value={searchQuery}
                   onChange={e => { setSearchQuery(e.target.value); setSearchError('') }}
                   onKeyDown={e => e.key === 'Enter' && handleSearch()}
                   placeholder="Search keywords..."
                   style={{
-                    flex: 1, padding: '7px 10px', border: '1px solid var(--line)',
+                    width: '100%', padding: '7px 10px',
+                    border: '1px solid var(--line)',
                     borderRadius: 6, fontFamily: 'var(--font-body)', fontSize: 13,
                     background: 'var(--bg)', color: 'var(--ink)',
+                    boxSizing: 'border-box',
                   }}
                 />
                 <button
                   onClick={handleSearch}
                   disabled={searching}
                   style={{
-                    padding: '7px 10px', background: 'var(--ink)', color: 'var(--bg)',
-                    border: 'none', borderRadius: 6, fontFamily: 'var(--font-mono)',
-                    fontSize: 11, cursor: searching ? 'not-allowed' : 'pointer',
-                    opacity: searching ? 0.6 : 1, flexShrink: 0,
+                    width: '100%', marginTop: 4,
+                    padding: '7px 0', background: 'var(--ink)', color: 'var(--bg)',
+                    border: 'none', borderRadius: 6,
+                    fontFamily: 'var(--font-mono)', fontSize: 11,
+                    cursor: searching ? 'not-allowed' : 'pointer',
+                    opacity: searching ? 0.6 : 1,
                   }}
                 >
-                  {searching ? '...' : 'Search'}
+                  {searching ? 'Searching...' : 'Search'}
                 </button>
               </div>
               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}>Year:</span>
-                <input value={yearFrom} onChange={e => setYearFrom(e.target.value)} placeholder="dari" type="number"
-                  style={{ flex: 1, padding: '4px 6px', border: '1px solid var(--line)', borderRadius: 5, fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--bg)', color: 'var(--ink)' }} />
-                <span style={{ color: 'var(--ink-soft)', fontSize: 11 }}>-</span>
-                <input value={yearTo} onChange={e => setYearTo(e.target.value)} placeholder="ke" type="number"
-                  style={{ flex: 1, padding: '4px 6px', border: '1px solid var(--line)', borderRadius: 5, fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--bg)', color: 'var(--ink)' }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)', flexShrink: 0 }}>Year:</span>
+                <input value={yearFrom} onChange={e => setYearFrom(e.target.value)} placeholder="from" type="number"
+                  style={{ flex: 1, minWidth: 0, padding: '4px 6px', border: '1px solid var(--line)', borderRadius: 5, fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--bg)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+                <span style={{ color: 'var(--ink-soft)', fontSize: 11, flexShrink: 0 }}>–</span>
+                <input value={yearTo} onChange={e => setYearTo(e.target.value)} placeholder="to" type="number"
+                  style={{ flex: 1, minWidth: 0, padding: '4px 6px', border: '1px solid var(--line)', borderRadius: 5, fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--bg)', color: 'var(--ink)', boxSizing: 'border-box' }} />
               </div>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
