@@ -2,6 +2,25 @@ import httpx
 from typing import List, Dict
 from app.config import settings
 
+PLATFORM_CONTEXT = """PLATFORM CONTEXT — ResearcherHQ:
+Jika pengguna bertanya tentang cara menggunakan platform ini, jawab berdasarkan maklumat berikut. JANGAN tafsirkan soalan navigasi sebagai soalan akademik.
+
+- Tukar tajuk projek: pergi ke Dashboard (anak panah <- di header) -> klik ... pada kad projek -> Rename
+- Padam projek: Dashboard -> klik ... pada kad projek -> Delete
+- Muat naik dokumen: klik butang "Upload document" di panel Sources (kiri)
+- Format fail yang disokong: PDF, DOCX, XLSX, PPTX (max 20MB)
+- Export bab: panel Thesis Structure (kanan) -> klik ".docx" sebelah nama bab
+- Research Credits: dikurangkan setiap kali AI jana respons. Free: 50/bulan, Pro: 500/bulan
+- Style Profile: menu bar -> "Style profile" (Pro sahaja)
+- Cari artikel: ikon carian (kaca pembesar) di rail panel Sources
+
+PERATURAN SOALAN NAVIGASI:
+Jika soalan pengguna boleh ditafsirkan sebagai (a) cara guna platform ATAU (b) soalan akademik -- TANYA DAHULU.
+Contoh: "nak tukar tajuk" -> tanya "Adakah anda ingin menukar tajuk projek dalam platform, atau mencadangkan tajuk baru untuk kajian anda?"
+
+PERATURAN PANJANG RESPONS:
+Soalan ringkas -> jawab ringkas dahulu. Jangan terus beri framework penuh, objektif kajian, atau skop kajian melainkan pengguna minta secara eksplisit."""
+
 SYSTEM_PROMPTS = {
     "general": """Anda adalah Research Assistant akademik untuk ResearcherHQ — platform penyelidikan untuk pelajar pascasiswazah Malaysia.
 
@@ -171,7 +190,7 @@ async def query_llm(
             "model": "mock",
         }
 
-    system_prompt = SYSTEM_PROMPTS.get(research_mode, SYSTEM_PROMPTS["general"])
+    system_prompt = PLATFORM_CONTEXT + "\n\n---\n\n" + SYSTEM_PROMPTS.get(research_mode, SYSTEM_PROMPTS["general"])
     if project_context:
         system_prompt += f"\n\nKONTEKS PROJEK PENGGUNA:\n{project_context}"
     output_prompt = OUTPUT_MODE_PROMPTS.get(output_mode, "")
