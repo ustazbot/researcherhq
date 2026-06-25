@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { IconUser, IconFile, IconLayout } from '@tabler/icons-react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ProfileMenu } from '../components/ProfileMenu'
@@ -525,8 +526,8 @@ export function ProjectPage() {
             Step 3 of 3 — Your Writing Style
           </p>
         )}
-        <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 6px', fontSize: 20 }}>
-          🎙 Writing Style Profile
+        <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, margin: '0 0 6px', fontSize: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <IconUser size={20} stroke={1.5} /> Writing Style Profile
         </h2>
         <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: '0 0 20px' }}>
           Help the AI understand your writing style for more natural output.{' '}
@@ -930,7 +931,7 @@ export function ProjectPage() {
             }}
             onMouseEnter={e => { if (openMenu !== 'fail') e.currentTarget.style.background = 'var(--line)' }}
             onMouseLeave={e => { if (openMenu !== 'fail') e.currentTarget.style.background = 'none' }}
-          >File <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span></button>
+          ><IconFile size={15} stroke={1.5} /> File <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span></button>
           {openMenu === 'fail' && (
             <div onClick={e => e.stopPropagation()} style={{
               position: 'absolute', top: '100%', left: 0, zIndex: 100,
@@ -985,7 +986,7 @@ export function ProjectPage() {
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--line)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
           >
-            🎙 Style Profile{voiceSaved ? ' ✓' : ''}
+            <IconUser size={15} stroke={1.5} /> Style profile{voiceSaved ? ' ✓' : ''}
           </button>
         </div>
 
@@ -1003,7 +1004,7 @@ export function ProjectPage() {
             }}
             onMouseEnter={e => { if (openMenu !== 'paparan') e.currentTarget.style.background = 'var(--line)' }}
             onMouseLeave={e => { if (openMenu !== 'paparan') e.currentTarget.style.background = 'none' }}
-          >View <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span></button>
+          ><IconLayout size={15} stroke={1.5} /> View <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span></button>
           {openMenu === 'paparan' && (
             <div onClick={e => e.stopPropagation()} style={{
               position: 'absolute', top: '100%', left: 0, zIndex: 100,
