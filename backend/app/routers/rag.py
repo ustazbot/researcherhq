@@ -19,6 +19,28 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
+def deduct_credits(db, user_id: str, cost: int) -> int:
+    """Deduct from kredit_subscription first, then kredit_topup. Returns new kredit_remaining."""
+    row = db.execute(
+        "SELECT kredit_subscription, kredit_topup FROM users WHERE id = ?",
+        (user_id,)
+    ).fetchone()
+    sub, top = row["kredit_subscription"], row["kredit_topup"]
+    if sub >= cost:
+        new_sub, new_top = sub - cost, top
+    elif sub + top >= cost:
+        new_sub, new_top = 0, top - (cost - sub)
+    else:
+        raise ValueError("Insufficient credits")
+    db.execute(
+        """UPDATE users
+           SET kredit_subscription = ?, kredit_topup = ?, kredit_remaining = ?
+           WHERE id = ?""",
+        (new_sub, new_top, new_sub + new_top, user_id)
+    )
+    return new_sub + new_top
+
 OUTPUT_MODES = {"qa", "literature_review", "executive_summary", "key_findings", "research_gap", "discovery", "proposal_extract"}
 PRO_ONLY_MODES = {"literature_review", "executive_summary", "research_gap"}
 
@@ -228,10 +250,7 @@ async def query_project(
         )
         kredit_cost = 1
         with get_db() as db:
-            db.execute(
-                "UPDATE users SET kredit_remaining = kredit_remaining - ? WHERE id = ?",
-                (kredit_cost, user["user_id"]),
-            )
+            new_kredit = deduct_credits(db, user["user_id"], kredit_cost)
             msg_id = str(uuid.uuid4())
             now = datetime.utcnow().isoformat()
             db.execute(
@@ -245,7 +264,7 @@ async def query_project(
             "web_citations": web_citations,
             "source_type": source_type,
             "kredit_used": kredit_cost,
-            "kredit_remaining": user_row["kredit_remaining"] - kredit_cost,
+            "kredit_remaining": new_kredit,
         }
 
     # Build context from chunks
@@ -312,17 +331,17 @@ async def query_project(
 
     # Deduct kredit, save message, log interaction
     with get_db() as db:
-        result_update = db.execute(
-            """UPDATE users
-               SET kredit_remaining = kredit_remaining - ?,
-                   tokens_used_internal = tokens_used_internal + ?
-               WHERE id = ? AND kredit_remaining >= ?""",
-            (kredit_cost, result["tokens_used"], user["user_id"], kredit_cost),
-        )
-        if result_update.rowcount == 0:
-            # Kredit habis antara check dan deduct (race condition)
+        # Re-check kredit inside the write transaction to guard race condition
+        fresh = db.execute(
+            "SELECT kredit_remaining FROM users WHERE id = ?", (user["user_id"],)
+        ).fetchone()
+        if not fresh or fresh["kredit_remaining"] < kredit_cost:
             raise HTTPException(402, "Kredit Kajian tidak mencukupi.")
-        new_kredit = user_row["kredit_remaining"] - kredit_cost
+        new_kredit = deduct_credits(db, user["user_id"], kredit_cost)
+        db.execute(
+            "UPDATE users SET tokens_used_internal = tokens_used_internal + ? WHERE id = ?",
+            (result["tokens_used"], user["user_id"]),
+        )
         now = datetime.utcnow().isoformat()
         # Save user message for discovery mode (enables multi-turn history)
         if body.output_mode == "discovery":

@@ -3,20 +3,25 @@ from app.database import get_db
 
 
 def reset_expired_credits():
-    today = date.today().isoformat()
+    today = date.today()
     with get_db() as db:
         rows = db.execute(
-            "SELECT id, tier, kredit_total, reset_date FROM users WHERE reset_date <= ?",
-            (today,),
+            """SELECT id, tier, kredit_total, kredit_topup, subscription_start_date
+               FROM users
+               WHERE subscription_start_date IS NOT NULL""",
         ).fetchall()
+
         for row in rows:
-            # Calculate next reset: first day of next month from reset_date
-            reset = date.fromisoformat(row["reset_date"])
-            if reset.month == 12:
-                next_reset = date(reset.year + 1, 1, 1)
-            else:
-                next_reset = date(reset.year, reset.month + 1, 1)
-            db.execute(
-                "UPDATE users SET kredit_remaining = ?, reset_date = ? WHERE id = ?",
-                (row["kredit_total"], next_reset.isoformat(), row["id"]),
-            )
+            start = date.fromisoformat(row["subscription_start_date"])
+            days_elapsed = (today - start).days
+
+            # Fire exactly once per 30-day cycle boundary
+            if days_elapsed > 0 and days_elapsed % 30 == 0:
+                new_sub = row["kredit_total"]
+                db.execute(
+                    """UPDATE users
+                       SET kredit_subscription = ?,
+                           kredit_remaining = ? + kredit_topup
+                       WHERE id = ?""",
+                    (new_sub, new_sub, row["id"]),
+                )

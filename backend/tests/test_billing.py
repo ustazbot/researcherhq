@@ -280,6 +280,7 @@ def test_upgrade_rejected_for_pro_user(tmp_path):
 # --- Task 17: Monthly Kredit Reset ---
 
 def test_reset_expired_credits_resets_to_tier_allocation(tmp_path):
+    # Updated for Task 23: rolling 30-day reset from subscription_start_date
     from datetime import date, timedelta
     db_path = str(tmp_path / "reset_test.db")
     with patch("app.database._db_path", db_path):
@@ -291,11 +292,14 @@ def test_reset_expired_credits_resets_to_tier_allocation(tmp_path):
             c.post("/projects", json={"title": "T", "research_mode": "general"}, headers=headers)
 
         import sqlite3
+        thirty_days_ago = (date.today() - timedelta(days=30)).isoformat()
         conn = sqlite3.connect(db_path)
-        yesterday = (date.today() - timedelta(days=1)).isoformat()
         conn.execute(
-            "UPDATE users SET kredit_remaining = 5, kredit_total = 500, reset_date = ? WHERE id = 'user-bill'",
-            (yesterday,),
+            """UPDATE users
+               SET kredit_remaining = 5, kredit_subscription = 5,
+                   kredit_total = 500, subscription_start_date = ?
+               WHERE id = 'user-bill'""",
+            (thirty_days_ago,),
         )
         conn.commit()
         conn.close()
@@ -305,12 +309,11 @@ def test_reset_expired_credits_resets_to_tier_allocation(tmp_path):
 
         conn2 = sqlite3.connect(db_path)
         row = conn2.execute(
-            "SELECT kredit_remaining, reset_date FROM users WHERE id = 'user-bill'"
+            "SELECT kredit_remaining FROM users WHERE id = 'user-bill'"
         ).fetchone()
         conn2.close()
 
     assert row[0] == 500
-    assert row[1] > date.today().isoformat()
 
 
 def test_reset_does_not_affect_unexpired_users(tmp_path):
