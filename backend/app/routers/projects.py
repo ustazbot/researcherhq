@@ -122,3 +122,32 @@ def delete_project(project_id: str, user=Depends(get_current_user)):
         )
     if result.rowcount == 0:
         raise HTTPException(404, "Projek tidak dijumpai.")
+
+class ProjectUpdate(BaseModel):
+    title: Optional[str] = None
+
+@router.patch("/{project_id}", status_code=200)
+def update_project(project_id: str, body: ProjectUpdate, user=Depends(get_current_user)):
+    if body.title is not None and not body.title.strip():
+        raise HTTPException(400, "Project title cannot be empty.")
+
+    with get_db() as db:
+        proj = db.execute(
+            "SELECT id FROM projects WHERE id = ? AND user_id = ?",
+            (project_id, user["user_id"])
+        ).fetchone()
+        if not proj:
+            raise HTTPException(404, "Project not found.")
+
+        if body.title is not None:
+            db.execute(
+                "UPDATE projects SET title = ? WHERE id = ? AND user_id = ?",
+                (body.title.strip(), project_id, user["user_id"])
+            )
+
+        updated = db.execute(
+            "SELECT id, title, research_mode, field, created_at FROM projects WHERE id = ?",
+            (project_id,)
+        ).fetchone()
+
+    return dict(updated)
