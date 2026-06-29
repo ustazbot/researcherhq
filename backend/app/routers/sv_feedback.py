@@ -78,11 +78,15 @@ def update_sv_feedback_status(
             raise HTTPException(404, "Feedback item not found.")
 
         resolved_at = datetime.utcnow().isoformat() if body.status in ("addressed", "dismissed") else None
+        sets = ["status = ?", "resolved_at = ?"]
+        params: list = [body.status, resolved_at]
+        if body.chapter_id is not None:
+            sets.append("chapter_id = ?")
+            params.append(body.chapter_id)
+        params += [item_id, project_id]
         db.execute(
-            """UPDATE supervisor_feedback
-               SET status = ?, resolved_at = ?, chapter_id = ?
-               WHERE id = ? AND project_id = ?""",
-            (body.status, resolved_at, body.chapter_id, item_id, project_id)
+            f"UPDATE supervisor_feedback SET {', '.join(sets)} WHERE id = ? AND project_id = ?",
+            params
         )
     return {"id": item_id, "status": body.status}
 

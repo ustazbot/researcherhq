@@ -303,7 +303,7 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
                 </button>
               </div>
               {alignmentError && <p style={{ color: '#EF4444', fontSize: 13 }}>{alignmentError}</p>}
-              {alignmentIssues.length === 0 ? (
+              {!alignmentError && alignmentIssues.length === 0 ? (
                 <p style={{ fontSize: 13, color: '#16A34A' }}>✓ Chapter addresses all open SV feedback items.</p>
               ) : (
                 alignmentIssues.map((issue, i) => (
