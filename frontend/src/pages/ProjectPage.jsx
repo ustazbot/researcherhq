@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { IconUser, IconFile, IconLayout } from '@tabler/icons-react'
+import { IconUser, IconFile, IconLayout, IconArrowLeft, IconFiles, IconListTree, IconHelpCircle, IconPencil, IconMessageCircle, IconX } from '@tabler/icons-react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ProfileMenu } from '../components/ProfileMenu'
@@ -76,6 +76,7 @@ export function ProjectPage() {
   const [mobileView, setMobileView] = useState('editor') // 'editor' | 'chat'
   const [drawerOpen, setDrawerOpen] = useState(false) // source + navigator drawer
   const [drawerTab, setDrawerTab] = useState('sumber') // 'sumber' | 'struktur'
+  const [drawerDefaultTab, setDrawerDefaultTab] = useState('sumber')
 
   const fileRef = useRef()
   const bottomRef = useRef()
@@ -651,30 +652,44 @@ export function ProjectPage() {
         {voiceProfileModal}
         {/* Header */}
         <header style={{
-          borderBottom: '1px solid var(--line)', padding: '0 16px',
-          height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'var(--card)', flexShrink: 0,
+          borderBottom: '0.5px solid var(--line)',
+          padding: '0 14px',
+          height: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'var(--card)',
+          flexShrink: 0,
+          gap: 10,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button onClick={() => nav('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 18 }}>←</button>
-            <Logo size="sm" />
+          {/* Left: back + logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <button
-              onClick={() => setDrawerOpen(true)}
-              title="Open Sources & Structure panel"
+              onClick={() => nav('/')}
+              aria-label="Back to dashboard"
               style={{
-                background: 'var(--accent-soft)',
-                border: '1.5px solid var(--accent)',
-                borderRadius: 6, cursor: 'pointer',
-                padding: '6px 12px', fontSize: 12,
-                color: 'var(--ink)', fontFamily: 'var(--font-body)',
-                fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--ink-soft)', padding: 4, display: 'flex', alignItems: 'center',
               }}
             >
-              <span>☰</span>
-              <span>Sources & Thesis Structure</span>
+              <IconArrowLeft size={18} stroke={1.5} />
             </button>
+            <Logo size="sm" />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+
+          {/* Centre: project title — truncates cleanly */}
+          <span style={{
+            flex: 1, minWidth: 0,
+            fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500,
+            color: 'var(--ink)',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            textAlign: 'center',
+          }}>
+            {project?.title || ''}
+          </span>
+
+          {/* Right: credits + avatar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {credits && (
               <CreditTank
                 remaining={credits.kredit_remaining}
