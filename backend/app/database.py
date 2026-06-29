@@ -239,6 +239,11 @@ def _create_schema(conn: sqlite3.Connection):
     except Exception:
         pass
 
+    # Migration: Task 27 — sample_analysis column for voice_profile
+    voice_cols = [row["name"] for row in conn.execute("PRAGMA table_info(voice_profile)").fetchall()]
+    if "sample_analysis" not in voice_cols:
+        conn.execute("ALTER TABLE voice_profile ADD COLUMN sample_analysis TEXT")
+
     # Migration: Task 23 — rolling 30-day billing model
     user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
     if "kredit_subscription" not in user_cols:
