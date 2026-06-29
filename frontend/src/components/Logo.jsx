@@ -1,39 +1,34 @@
-function RMark({ height }) {
-  return (
-    <img
-      src={`${import.meta.env.BASE_URL}logo-researcherhq-v1.svg`}
-      alt="ResearcherHQ"
-      style={{ height, width: 'auto', display: 'block' }}
-    />
-  )
-}
-
-export function Logo({ size = 'md', dark = false }) {
-  const sizes = {
-    sm: { mark: 24, badge: 11, gap: 6, pad: '4px 8px', radius: 6 },
-    md: { mark: 34, badge: 14, gap: 8, pad: '5px 10px', radius: 7 },
-    lg: { mark: 52, badge: 18, gap: 12, pad: '7px 14px', radius: 8 },
-  }
-  const s = sizes[size]
+export function Logo({ size = 'md', darkMark = false }) {
+  const heights = { sm: 24, md: 32, lg: 44 }
+  const h = heights[size]
+  const textSize = { sm: 14, md: 18, lg: 24 }[size]
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: s.gap }}>
-      <span style={{ color: dark ? 'var(--bg)' : 'var(--ink)', lineHeight: 1, display: 'inline-flex' }}>
-        <RMark height={s.mark} />
-      </span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <svg
+        viewBox="0 0 1254 1254"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ width: h, height: h, flexShrink: 0 }}
+      >
+        <g transform="translate(0,1254) scale(0.1,-0.1)">
+          <path
+            fill={darkMark ? '#ffffff' : '#1C1B19'}
+            d="M 7436 9845 c422 -68 772 -241 1073 -531 448 -429 668 -1003 622 -1615 -33 -442 -191 -843 -461 -1174 -69 -85 -252 -263 -335 -326 -318 -243 -702 -387 -1077 -405 -76 -4 -138 -11 -138 -16 0 -4 118 -167 263 -361 746 -998 953 -1275 1058 -1417 64 -85 201 -270 305 -410 105 -140 216 -291 248 -335 33 -44 63 -85 68 -92 8 -10 -137 -12 -655 -13 l-666 0 -70 92 c-39 51 -173 230 -297 398 -341 460 -457 616 -709 955 -295 395 -548 736 -850 1143 -132 178 -361 486 -508 684 -148 198 -267 361 -265 363 2 2 494 7 1093 12 1060 10 1092 10 1167 31 191 52 350 145 484 284 200 206 296 437 295 711 0 268 -88 482 -279 679 -155 160 -333 248 -563 278 -44 6 -697 10 -1636 10 l-1561 0 -109 153 c-60 83 -188 262 -283 397 -95 135 -218 307 -272 383 l-98 137 2033 0 c1739 0 2045 -2 2123 -15z"
+          />
+          <path
+            fill="#F5A623"
+            d="M 4747 4723 c37 -54 82 -118 100 -143 18 -25 65 -92 105 -150 41 -58 157 -220 258 -360 101 -140 209 -291 240 -335 31 -44 79 -111 107 -150 154 -216 303 -427 303 -431 0 -2 -257 -4 -570 -4 l-570 0 -45 63 c-24 34 -74 105 -111 157 -37 52 -101 142 -142 200 -42 58 -130 182 -196 275 -65 94 -146 208 -179 255 -33 47 -104 148 -158 225 -134 192 -177 253 -264 375 -41 58 -75 108 -75 113 0 4 254 7 564 7 l565 0 68 -97z"
+          />
+        </g>
+      </svg>
       <span style={{
-        fontFamily: 'var(--font-mono)',
-        fontWeight: 500,
-        fontSize: s.badge,
-        letterSpacing: '0.05em',
-        background: dark ? 'var(--accent)' : 'var(--ink)',
-        color: dark ? 'var(--ink)' : 'var(--bg)',
-        padding: s.pad,
-        borderRadius: s.radius,
-        transform: 'translateY(-2px)',
+        fontSize: textSize,
+        fontWeight: 700,
+        color: darkMark ? '#ffffff' : 'var(--ink)',
+        letterSpacing: '-0.3px',
         lineHeight: 1,
       }}>
-        HQ
+        researcher<span style={{ color: '#F5A623' }}>HQ</span>
       </span>
     </div>
   )
@@ -45,12 +40,25 @@ export function AppIcon({ size = 96, alt = false }) {
     <div style={{
       width: size, height: size,
       borderRadius: radius,
-      background: alt ? 'var(--accent)' : 'var(--ink)',
+      background: alt ? '#F5A623' : '#1C1B19',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <span style={{ color: alt ? 'var(--ink)' : 'var(--accent)', display: 'inline-flex' }}>
-        <RMark height={Math.round(size * 0.55)} />
-      </span>
+      <svg
+        viewBox="0 0 1254 1254"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ width: Math.round(size * 0.6), height: Math.round(size * 0.6) }}
+      >
+        <g transform="translate(0,1254) scale(0.1,-0.1)">
+          <path
+            fill={alt ? '#1C1B19' : '#ffffff'}
+            d="M 7436 9845 c422 -68 772 -241 1073 -531 448 -429 668 -1003 622 -1615 -33 -442 -191 -843 -461 -1174 -69 -85 -252 -263 -335 -326 -318 -243 -702 -387 -1077 -405 -76 -4 -138 -11 -138 -16 0 -4 118 -167 263 -361 746 -998 953 -1275 1058 -1417 64 -85 201 -270 305 -410 105 -140 216 -291 248 -335 33 -44 63 -85 68 -92 8 -10 -137 -12 -655 -13 l-666 0 -70 92 c-39 51 -173 230 -297 398 -341 460 -457 616 -709 955 -295 395 -548 736 -850 1143 -132 178 -361 486 -508 684 -148 198 -267 361 -265 363 2 2 494 7 1093 12 1060 10 1092 10 1167 31 191 52 350 145 484 284 200 206 296 437 295 711 0 268 -88 482 -279 679 -155 160 -333 248 -563 278 -44 6 -697 10 -1636 10 l-1561 0 -109 153 c-60 83 -188 262 -283 397 -95 135 -218 307 -272 383 l-98 137 2033 0 c1739 0 2045 -2 2123 -15z"
+          />
+          <path
+            fill="#F5A623"
+            d="M 4747 4723 c37 -54 82 -118 100 -143 18 -25 65 -92 105 -150 41 -58 157 -220 258 -360 101 -140 209 -291 240 -335 31 -44 79 -111 107 -150 154 -216 303 -427 303 -431 0 -2 -257 -4 -570 -4 l-570 0 -45 63 c-24 34 -74 105 -111 157 -37 52 -101 142 -142 200 -42 58 -130 182 -196 275 -65 94 -146 208 -179 255 -33 47 -104 148 -158 225 -134 192 -177 253 -264 375 -41 58 -75 108 -75 113 0 4 254 7 564 7 l565 0 68 -97z"
+          />
+        </g>
+      </svg>
     </div>
   )
 }
