@@ -227,3 +227,24 @@ async def query_llm(
         "tokens_used": data["usage"]["total_tokens"],
         "model": model,
     }
+
+
+async def call_deepseek_raw(prompt: str, max_tokens: int = 300) -> str:
+    """Single-turn completion with no system prompt. For internal analysis tasks."""
+    payload = {
+        "model": "deepseek-chat",
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.deepseek_api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+        )
+        r.raise_for_status()
+        data = r.json()
+        return data["choices"][0]["message"]["content"]
