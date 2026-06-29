@@ -10,6 +10,7 @@ from app.database import get_db
 from app.routers.auth import get_current_user
 from app.services.rag_pipeline import chunk_text
 from app.services.ocr_service import is_scanned_pdf
+from app.services.sv_extractor import extract_sv_feedback
 import sqlite_vec as _sqlite_vec
 
 router = APIRouter()
@@ -23,6 +24,23 @@ ALLOWED_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
 }
+
+async def _extract_and_store_sv_feedback(doc_id: str, project_id: str, full_text: str):
+    """Background task: extract SV feedback items and store in DB."""
+    import uuid
+    from datetime import datetime
+    items = await extract_sv_feedback(full_text)
+    if not items:
+        return
+    now = datetime.utcnow().isoformat()
+    with get_db() as db:
+        for item_text in items:
+            db.execute(
+                """INSERT INTO supervisor_feedback (id, project_id, doc_id, feedback_text, status, created_at)
+                   VALUES (?, ?, ?, ?, 'open', ?)""",
+                (str(uuid.uuid4()), project_id, doc_id, item_text, now)
+            )
+
 
 async def _embed_and_store_chunks(doc_id: str, chunk_texts: List[str], chunk_ids: List[str]):
     """Background task: embed chunks and store in chunk_vectors."""
@@ -137,6 +155,16 @@ async def upload_document(body: DocumentUpload, user=Depends(get_current_user)):
             _embed_and_store_chunks(doc_id, chunk_texts_for_embedding, saved_chunk_ids)
         )
 
+    # Auto-extract SV feedback if category is catatan_sv
+    if body.category == "catatan_sv":
+        full_text = "\n\n".join(
+            p.text for p in body.pages if p.text and p.text.strip()
+        )
+        if full_text.strip():
+            asyncio.create_task(
+                _extract_and_store_sv_feedback(doc_id, body.project_id, full_text)
+            )
+
     return {
         "id": doc_id,
         "filename": body.filename,
@@ -247,6 +275,16 @@ async def upload_office_document(
         asyncio.create_task(
             _embed_and_store_chunks(doc_id, chunk_texts_for_embedding, saved_chunk_ids)
         )
+
+    # Auto-extract SV feedback if category is catatan_sv
+    if category == "catatan_sv":
+        full_text = "\n\n".join(
+            p["text"] for p in pages if p.get("text", "").strip()
+        )
+        if full_text.strip():
+            asyncio.create_task(
+                _extract_and_store_sv_feedback(doc_id, project_id, full_text)
+            )
 
     return {
         "id": doc_id,
