@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   IconFiles, IconSearch, IconBookmark, IconHelpCircle,
   IconChevronLeft, IconChevronRight,
   IconFileText, IconClipboard, IconNotes, IconPencil, IconChartBar, IconSchool,
   IconUpload, IconLock,
+  IconClipboardCheck, IconCircleCheck, IconCircleX, IconClock,
 } from '@tabler/icons-react'
 import api from '../api/client'
 
@@ -43,6 +44,92 @@ function RailIcon({ icon, active, title, onClick, style }) {
     >
       {icon}
     </button>
+  )
+}
+
+function SVFeedbackPanel({ projectId }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (!projectId) return
+    setLoading(true)
+    api.get(`/projects/${projectId}/sv-feedback`)
+      .then(r => { setItems(r.data); setLoading(false) })
+      .catch(() => { setError('Failed to load feedback.'); setLoading(false) })
+  }, [projectId])
+
+  async function handleStatusChange(itemId, newStatus) {
+    try {
+      await api.patch(`/projects/${projectId}/sv-feedback/${itemId}`, { status: newStatus })
+      setItems(prev => prev.map(i =>
+        i.id === itemId ? { ...i, status: newStatus } : i
+      ))
+    } catch {
+      // silent fail — item stays as is
+    }
+  }
+
+  if (loading) return <div style={{ padding: 16, color: 'var(--ink-soft)', fontSize: 13 }}>Loading...</div>
+  if (error) return <div style={{ padding: 16, color: '#EF4444', fontSize: 13 }}>{error}</div>
+  if (items.length === 0) return (
+    <div style={{ padding: 16, color: 'var(--ink-soft)', fontSize: 13, lineHeight: 1.5 }}>
+      No SV feedback yet. Upload a supervisor notes document (category: SV Notes) to extract feedback items.
+    </div>
+  )
+
+  const open = items.filter(i => i.status === 'open')
+  const addressed = items.filter(i => i.status === 'addressed')
+  const dismissed = items.filter(i => i.status === 'dismissed')
+
+  const statusIcon = (status) => {
+    if (status === 'addressed') return <IconCircleCheck size={15} stroke={1.5} style={{ color: '#16A34A', flexShrink: 0 }} />
+    if (status === 'dismissed') return <IconCircleX size={15} stroke={1.5} style={{ color: 'var(--ink-soft)', flexShrink: 0 }} />
+    return <IconClock size={15} stroke={1.5} style={{ color: '#F59E0B', flexShrink: 0 }} />
+  }
+
+  function FeedbackGroup({ label, groupItems }) {
+    if (!groupItems.length) return null
+    return (
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 14px', marginBottom: 4 }}>
+          {label} ({groupItems.length})
+        </div>
+        {groupItems.map(item => (
+          <div key={item.id} style={{
+            display: 'flex', gap: 8, alignItems: 'flex-start',
+            padding: '8px 14px', borderBottom: '1px solid var(--line)',
+          }}>
+            <div style={{ paddingTop: 2 }}>{statusIcon(item.status)}</div>
+            <div style={{ flex: 1, fontSize: 13, color: 'var(--ink)', lineHeight: 1.4 }}>
+              {item.feedback_text}
+            </div>
+            <select
+              value={item.status}
+              onChange={e => handleStatusChange(item.id, e.target.value)}
+              style={{
+                fontSize: 11, border: '1px solid var(--line)', borderRadius: 4,
+                background: 'var(--bg)', color: 'var(--ink)', padding: '2px 4px',
+                cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              <option value="open">Open</option>
+              <option value="addressed">Addressed</option>
+              <option value="dismissed">Dismissed</option>
+            </select>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ overflowY: 'auto', flex: 1 }}>
+      <FeedbackGroup label="Open" groupItems={open} />
+      <FeedbackGroup label="Addressed" groupItems={addressed} />
+      <FeedbackGroup label="Dismissed" groupItems={dismissed} />
+    </div>
   )
 }
 
@@ -153,6 +240,11 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         <RailIcon icon={<IconFiles size={18} stroke={1.5} />} title="Sources" onClick={() => { onToggleCollapse(); setActivePanel('docs') }} />
         <RailIcon icon={<IconSearch size={18} stroke={1.5} />} title="Search articles" onClick={() => { onToggleCollapse(); setActivePanel('search') }} />
         <RailIcon icon={<IconBookmark size={18} stroke={1.5} />} title="References" onClick={() => { onToggleCollapse(); setActivePanel('bibliography') }} />
+        <RailIcon
+          icon={<IconClipboardCheck size={18} stroke={1.5} />}
+          title="SV Feedback"
+          onClick={() => { onToggleCollapse(); setActivePanel('sv-feedback') }}
+        />
         <div style={{ flex: 1 }} />
         <RailIcon icon={<IconHelpCircle size={18} stroke={1.5} />} title="Help & documentation" onClick={onShowHelp} style={{ marginBottom: 10 }} />
       </div>
@@ -176,6 +268,12 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         <RailIcon icon={<IconFiles size={18} stroke={1.5} />} active={activePanel === 'docs'} title="Sources" onClick={() => setActivePanel('docs')} />
         <RailIcon icon={<IconSearch size={18} stroke={1.5} />} active={activePanel === 'search'} title="Search articles" onClick={() => setActivePanel('search')} />
         <RailIcon icon={<IconBookmark size={18} stroke={1.5} />} active={activePanel === 'bibliography'} title="References" onClick={() => setActivePanel('bibliography')} />
+        <RailIcon
+          icon={<IconClipboardCheck size={18} stroke={1.5} />}
+          active={activePanel === 'sv-feedback'}
+          title="SV Feedback"
+          onClick={() => setActivePanel('sv-feedback')}
+        />
         <div style={{ flex: 1 }} />
         <RailIcon icon={<IconHelpCircle size={18} stroke={1.5} />} title="Help & documentation" onClick={onShowHelp} style={{ marginBottom: 10 }} />
       </div>
@@ -184,7 +282,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
-            {activePanel === 'docs' ? 'Sources' : activePanel === 'search' ? 'Search' : 'References'}
+            {activePanel === 'docs' ? 'Sources' : activePanel === 'search' ? 'Search' : activePanel === 'sv-feedback' ? 'SV Feedback' : 'References'}
           </span>
           <button
             onClick={onToggleCollapse}
@@ -395,6 +493,8 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
               ))}
             </div>
           </div>
+        ) : activePanel === 'sv-feedback' ? (
+          <SVFeedbackPanel projectId={projectId} />
         ) : (
           <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
             {!bibData && !bibLoading && (
