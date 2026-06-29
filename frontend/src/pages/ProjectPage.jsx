@@ -961,6 +961,8 @@ export function ProjectPage() {
                 onReject={handleRejectSuggestion}
                 onSave={handleSaveContent}
                 saving={saving}
+                projectId={id}
+                chapterId={activeChapterId}
               />
             ) : (
               <div style={{
@@ -1391,6 +1393,8 @@ export function ProjectPage() {
           onReject={handleRejectSuggestion}
           onSave={handleSaveContent}
           saving={saving}
+          projectId={id}
+          chapterId={activeChapterId}
         />
 
         {/* Chat — right sidebar */}

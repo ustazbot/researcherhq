@@ -4,7 +4,9 @@ import StarterKit from '@tiptap/starter-kit'
 import Highlight from '@tiptap/extension-highlight'
 import Underline from '@tiptap/extension-underline'
 import Superscript from '@tiptap/extension-superscript'
+import { IconClipboardCheck, IconX } from '@tabler/icons-react'
 import { mdToHtml } from '../utils/markdown'
+import api from '../api/client'
 
 const EDITOR_STYLES = `
 .editor-paper {
@@ -53,8 +55,11 @@ function ToolbarButton({ onClick, active, children, title }) {
   )
 }
 
-export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, onReject, onSave, saving }) {
+export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, onReject, onSave, saving, projectId, chapterId }) {
   const [tooltipDismissed, setTooltipDismissed] = useState(false)
+  const [alignmentLoading, setAlignmentLoading] = useState(false)
+  const [alignmentIssues, setAlignmentIssues] = useState(null) // null = not run yet
+  const [alignmentError, setAlignmentError] = useState(null)
   const saveTimer = useRef(null)
   const lastSavedContent = useRef(content || '')
 
@@ -108,6 +113,24 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
         </div>
       </div>
     )
+  }
+
+  async function handleCheckAlignment() {
+    if (!editor || !projectId || !chapterId) return
+    setAlignmentLoading(true)
+    setAlignmentError(null)
+    try {
+      const content = editor.getHTML()
+      const { data } = await api.post(
+        `/projects/${projectId}/chapters/${chapterId}/check-alignment`,
+        { content }
+      )
+      setAlignmentIssues(data.issues)
+    } catch {
+      setAlignmentError('Alignment check failed. Please try again.')
+      setAlignmentIssues([])
+    }
+    setAlignmentLoading(false)
   }
 
   function handleManualSave() {
@@ -167,6 +190,23 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
           <span style={{ width: 1, background: 'var(--line)', margin: '0 4px' }} />
           <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })} title="Heading 1">H1</ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Heading 2">H2</ToolbarButton>
+          <span style={{ width: 1, background: 'var(--line)', margin: '0 4px' }} />
+          <button
+            onClick={handleCheckAlignment}
+            disabled={alignmentLoading || !projectId || !chapterId}
+            title="Check content against supervisor feedback"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '4px 10px', fontSize: 12,
+              border: '1px solid var(--line)', borderRadius: 6,
+              background: 'var(--bg)', color: 'var(--ink)',
+              cursor: (alignmentLoading || !projectId || !chapterId) ? 'not-allowed' : 'pointer',
+              opacity: (alignmentLoading || !projectId || !chapterId) ? 0.6 : 1,
+            }}
+          >
+            <IconClipboardCheck size={14} stroke={1.5} />
+            {alignmentLoading ? 'Checking...' : 'Check SV Alignment'}
+          </button>
         </div>
       )}
 
@@ -248,6 +288,38 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
           <div className="editor-paper">
             <EditorContent editor={editor} />
           </div>
+          {alignmentIssues !== null && (
+            <div style={{
+              margin: '12px 0', padding: 14, borderRadius: 8,
+              border: '1px solid var(--line)', background: 'var(--card)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontWeight: 700, fontSize: 13 }}>SV Alignment Check</span>
+                <button
+                  onClick={() => { setAlignmentIssues(null); setAlignmentError(null) }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)' }}
+                >
+                  <IconX size={16} stroke={1.5} />
+                </button>
+              </div>
+              {alignmentError && <p style={{ color: '#EF4444', fontSize: 13 }}>{alignmentError}</p>}
+              {alignmentIssues.length === 0 ? (
+                <p style={{ fontSize: 13, color: '#16A34A' }}>✓ Chapter addresses all open SV feedback items.</p>
+              ) : (
+                alignmentIssues.map((issue, i) => (
+                  <div key={i} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: i < alignmentIssues.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 4 }}>
+                      ⚠ {issue.feedback_item}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--ink)', marginBottom: 4 }}>{issue.concern}</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-soft)', fontStyle: 'italic' }}>
+                      Suggestion: {issue.suggestion}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
