@@ -359,3 +359,80 @@ def test_admin_without_jwt_returns_401(setup):
     for method, path in endpoints:
         r = s["client"].request(method, path)
         assert r.status_code == 401, f"{method} {path} sepatutnya 401, dapat {r.status_code}"
+
+
+# --- Test 13: GET /admin/stats returns correct user counts ---
+def test_admin_stats_returns_correct_counts(setup):
+    s = setup
+    conn = sqlite3.connect(s["db_path"])
+    _make_user(conn, "free1@test.com", tier="free")
+    _make_user(conn, "free2@test.com", tier="free")
+    _make_user(conn, "pro1@test.com", tier="pro")
+    conn.close()
+
+    r = s["client"].get("/admin/stats", headers=_admin_headers(s))
+    assert r.status_code == 200
+    data = r.json()
+    # admin is 'pro', pengguna@test.com is 'free', plus 2 free + 1 pro seeded above
+    assert data["free_users"] >= 2
+    assert data["pro_users"] >= 2  # admin + pro1
+    assert data["total_users"] >= 3
+    assert "revenue_this_month" in data
+    assert "pro_expiring_7d" in data
+
+
+# --- Test 14: GET /admin/stats revenue_this_month sums upgrade_success events ---
+def test_admin_stats_revenue_this_month(setup):
+    s = setup
+    conn = sqlite3.connect(s["db_path"])
+    eid1 = str(uuid.uuid4())
+    eid2 = str(uuid.uuid4())
+    now = datetime.utcnow().isoformat()
+    conn.execute(
+        "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, created_at) VALUES (?, ?, 'upgrade_success', 39.0, 500, ?)",
+        (eid1, s["user_id"], now)
+    )
+    conn.execute(
+        "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, created_at) VALUES (?, ?, 'upgrade_success', 39.0, 500, ?)",
+        (eid2, s["user_id"], now)
+    )
+    conn.commit()
+    conn.close()
+
+    r = s["client"].get("/admin/stats", headers=_admin_headers(s))
+    assert r.status_code == 200
+    assert r.json()["revenue_this_month"] == 78.0
+
+
+# --- Test 15: GET /admin/export/users-csv?tier=free returns CSV ---
+def test_export_free_csv_returns_csv(setup):
+    s = setup
+    conn = sqlite3.connect(s["db_path"])
+    _make_user(conn, "csvtest@test.com", tier="free")
+    conn.close()
+
+    r = s["client"].get("/admin/export/users-csv", params={"tier": "free"}, headers=_admin_headers(s))
+    assert r.status_code == 200
+    assert "text/csv" in r.headers.get("content-type", "")
+    body = r.text
+    assert "csvtest@test.com" in body
+
+
+# --- Test 16: GET /admin/export/users-csv?tier=pro has subscription_expiry column ---
+def test_export_pro_csv_has_expiry_column(setup):
+    s = setup
+    conn = sqlite3.connect(s["db_path"])
+    uid = str(uuid.uuid4())
+    conn.execute(
+        "INSERT INTO users (id, email, tier, kredit_remaining, kredit_total, subscription_start_date, created_at) VALUES (?, ?, 'pro', 500, 500, '2026-06-01', ?)",
+        (uid, "procsv@test.com", datetime.utcnow().isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+    r = s["client"].get("/admin/export/users-csv", params={"tier": "pro"}, headers=_admin_headers(s))
+    assert r.status_code == 200
+    assert "text/csv" in r.headers.get("content-type", "")
+    body = r.text
+    assert "subscription_expiry" in body
+    assert "procsv@test.com" in body
