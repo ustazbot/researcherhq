@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { IconUser, IconFile, IconLayout, IconArrowLeft, IconFiles, IconListTree, IconHelpCircle, IconPencil, IconMessageCircle, IconX } from '@tabler/icons-react'
+import { IconUser, IconFile, IconLayout, IconArrowLeft, IconFiles, IconListTree, IconHelpCircle, IconPencil, IconMessageCircle, IconX, IconUpload } from '@tabler/icons-react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ProfileMenu } from '../components/ProfileMenu'
@@ -54,6 +54,11 @@ export function ProjectPage() {
   const [voiceSaving, setVoiceSaving] = useState(false)
   const [voiceError, setVoiceError] = useState('')
   const [voiceSaved, setVoiceSaved] = useState(false)
+  const [voiceSampleFile, setVoiceSampleFile] = useState(null)
+  const [voiceSampleAnalysis, setVoiceSampleAnalysis] = useState('')
+  const [voiceAnalysing, setVoiceAnalysing] = useState(false)
+  const [voiceAnalysisError, setVoiceAnalysisError] = useState('')
+  const [voiceSampleMode, setVoiceSampleMode] = useState('paste')
   const [showHelp, setShowHelp] = useState(false)
   const [exportingChapterId, setExportingChapterId] = useState(null)
   const [compiling, setCompiling] = useState(false)
@@ -244,12 +249,39 @@ export function ProjectPage() {
     try {
       const { data } = await api.get(`/voice-profile/${id}`)
       if (data.exists && data.sample_excerpt) setVoiceSample(data.sample_excerpt)
+      if (data.exists && data.sample_analysis) {
+        setVoiceSampleAnalysis(data.sample_analysis)
+        setVoiceSampleMode('upload')
+      }
     } catch {}
     setVoiceError('')
     setVoiceQ1('')
     setVoiceQ2('')
     setVoiceQ3('')
+    setVoiceSampleFile(null)
+    setVoiceAnalysisError('')
     setShowVoiceProfile('edit')
+  }
+
+  async function handleAnalyseSample() {
+    if (!voiceSampleFile) return
+    setVoiceAnalysing(true)
+    setVoiceAnalysisError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', voiceSampleFile)
+      const { data } = await api.post(
+        `/voice-profile/${id}/analyse-sample`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      setVoiceSampleAnalysis(data.style_description)
+    } catch (err) {
+      setVoiceAnalysisError(
+        err.response?.data?.detail || 'Analysis failed. Please try again.'
+      )
+    }
+    setVoiceAnalysing(false)
   }
 
   async function handleSaveVoiceProfile() {
@@ -258,7 +290,8 @@ export function ProjectPage() {
     try {
       await api.post(`/voice-profile/${id}`, {
         answers: { q1: voiceQ1, q2: voiceQ2, q3: voiceQ3 },
-        sample_excerpt: voiceSample || null,
+        sample_excerpt: voiceSampleMode === 'paste' ? (voiceSample || null) : null,
+        sample_analysis: voiceSampleMode === 'upload' ? (voiceSampleAnalysis || null) : null,
       })
       setVoiceSaved(true)
       setShowVoiceProfile(false)
@@ -605,16 +638,143 @@ export function ProjectPage() {
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)', margin: '0 0 8px' }}>
-                Your writing sample (optional)
+              <p style={{
+                fontFamily: 'var(--font-mono)', fontSize: 11,
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                color: 'var(--ink-soft)', margin: '0 0 8px',
+              }}>
+                4. Writing sample (optional)
               </p>
-              <textarea
-                value={voiceSample}
-                onChange={e => setVoiceSample(e.target.value)}
-                placeholder="Paste 1-2 sentences from your own work as a style example..."
-                rows={3}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 14, boxSizing: 'border-box', resize: 'vertical' }}
-              />
+
+              {/* Tab toggle */}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                {[
+                  { key: 'paste',  label: 'Paste text' },
+                  { key: 'upload', label: 'Upload file' },
+                ].map(t => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setVoiceSampleMode(t.key)}
+                    style={{
+                      padding: '5px 12px',
+                      background: voiceSampleMode === t.key ? 'var(--ink)' : 'transparent',
+                      color: voiceSampleMode === t.key ? 'var(--bg)' : 'var(--ink-soft)',
+                      border: voiceSampleMode === t.key ? '1px solid var(--ink)' : '1px solid var(--line)',
+                      borderRadius: 5, cursor: 'pointer',
+                      fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 500,
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {voiceSampleMode === 'paste' ? (
+                <textarea
+                  value={voiceSample}
+                  onChange={e => setVoiceSample(e.target.value)}
+                  placeholder="Paste 1–2 paragraphs from your own writing as a style example..."
+                  rows={3}
+                  style={{
+                    width: '100%', padding: '8px 12px',
+                    border: '1px solid var(--line)', borderRadius: 8,
+                    fontFamily: 'var(--font-body)', fontSize: 14,
+                    boxSizing: 'border-box', resize: 'vertical',
+                  }}
+                />
+              ) : (
+                <div>
+                  <p style={{
+                    fontFamily: 'var(--font-body)', fontSize: 12,
+                    color: 'var(--ink-soft)', margin: '0 0 8px', lineHeight: 1.5,
+                  }}>
+                    Upload a document written entirely in your own words — not AI-generated or copied from others.
+                    The AI will analyse your writing style from the file.
+                  </p>
+
+                  <label style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 12px',
+                    border: '1px dashed var(--line)', borderRadius: 8,
+                    cursor: 'pointer', fontSize: 13, color: 'var(--ink-soft)',
+                    marginBottom: 8,
+                  }}>
+                    <IconUpload size={15} stroke={1.5} />
+                    {voiceSampleFile ? voiceSampleFile.name : 'Choose .docx or .txt file'}
+                    <input
+                      type="file"
+                      accept=".docx,.txt"
+                      style={{ display: 'none' }}
+                      onChange={e => {
+                        setVoiceSampleFile(e.target.files?.[0] || null)
+                        setVoiceSampleAnalysis('')
+                        setVoiceAnalysisError('')
+                      }}
+                    />
+                  </label>
+
+                  {voiceSampleFile && !voiceSampleAnalysis && (
+                    <button
+                      type="button"
+                      onClick={handleAnalyseSample}
+                      disabled={voiceAnalysing}
+                      style={{
+                        width: '100%', padding: '8px',
+                        background: 'var(--accent-soft)',
+                        border: '1px solid var(--accent)',
+                        borderRadius: 8, cursor: voiceAnalysing ? 'not-allowed' : 'pointer',
+                        fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                        color: 'var(--ink)', marginBottom: 8,
+                      }}
+                    >
+                      {voiceAnalysing ? 'Analysing writing style...' : 'Analyse my writing style →'}
+                    </button>
+                  )}
+
+                  {voiceAnalysisError && (
+                    <p style={{ color: '#EF4444', fontSize: 12, margin: '0 0 8px' }}>
+                      {voiceAnalysisError}
+                    </p>
+                  )}
+
+                  {voiceSampleAnalysis && (
+                    <div style={{
+                      background: 'var(--bg)', border: '1px solid var(--line)',
+                      borderRadius: 8, padding: '10px 12px', marginBottom: 4,
+                    }}>
+                      <p style={{
+                        fontFamily: 'var(--font-mono)', fontSize: 10,
+                        textTransform: 'uppercase', letterSpacing: '0.05em',
+                        color: 'var(--ink-soft)', margin: '0 0 6px',
+                      }}>
+                        Style analysis result
+                      </p>
+                      <p style={{
+                        fontFamily: 'var(--font-body)', fontSize: 13,
+                        color: 'var(--ink)', margin: 0, lineHeight: 1.6,
+                      }}>
+                        {voiceSampleAnalysis}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVoiceSampleAnalysis('')
+                          setVoiceSampleFile(null)
+                          setVoiceAnalysisError('')
+                        }}
+                        style={{
+                          marginTop: 8, background: 'none', border: 'none',
+                          cursor: 'pointer', color: 'var(--ink-soft)',
+                          fontSize: 12, textDecoration: 'underline', padding: 0,
+                        }}
+                      >
+                        Remove and re-upload
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {voiceError && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 12px' }}>{voiceError}</p>}
