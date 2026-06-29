@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ProfileMenu } from '../components/ProfileMenu'
+import { IconPencil, IconTrash } from '@tabler/icons-react'
 import api from '../api/client'
 
 const MODES = [
@@ -35,6 +36,11 @@ export function DashboardPage() {
   const [step0Success, setStep0Success] = useState(false)
   const [justCompletedStep0, setJustCompletedStep0] = useState(false)
   const [userName, setUserName] = useState('')
+  const [menuOpenId, setMenuOpenId] = useState(null)
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [deletingId, setDeletingId] = useState(null)
+  const [actionError, setActionError] = useState('')
   const user = JSON.parse(localStorage.getItem('rhq_user') || '{}')
 
   useEffect(() => {
@@ -55,6 +61,37 @@ export function DashboardPage() {
       }
     })
   }, [])
+
+  useEffect(() => {
+    if (!menuOpenId) return
+    function handleOutsideClick() { setMenuOpenId(null) }
+    document.addEventListener('click', handleOutsideClick)
+    return () => document.removeEventListener('click', handleOutsideClick)
+  }, [menuOpenId])
+
+  async function handleRename(projectId) {
+    if (!renameValue.trim()) return
+    setActionError('')
+    try {
+      const { data } = await api.patch(`/projects/${projectId}`, { title: renameValue.trim() })
+      setProjects(prev => prev.map(p => p.id === projectId ? { ...p, title: data.title } : p))
+      setRenamingId(null)
+      setRenameValue('')
+    } catch (err) {
+      setActionError(err.response?.data?.detail || 'Failed to rename project.')
+    }
+  }
+
+  async function handleDelete(projectId) {
+    setActionError('')
+    try {
+      await api.delete(`/projects/${projectId}`)
+      setProjects(prev => prev.filter(p => p.id !== projectId))
+      setDeletingId(null)
+    } catch (err) {
+      setActionError(err.response?.data?.detail || 'Failed to delete project.')
+    }
+  }
 
   async function createProject(e) {
     e.preventDefault()
@@ -325,25 +362,175 @@ export function DashboardPage() {
         ) : (
           <div style={{ display: 'grid', gap: 12 }}>
             {projects.map(p => (
-              <div key={p.id} onClick={() => nav(`/project/${p.id}`)}
+              <div key={p.id}
                 style={{
                   background: 'var(--card)', border: '1px solid var(--line)',
                   borderRadius: 'var(--radius-md)', padding: '20px 24px',
-                  cursor: 'pointer', transition: 'border-color 0.15s',
+                  transition: 'border-color 0.15s', position: 'relative',
                 }}
                 onMouseOver={e => e.currentTarget.style.borderColor = 'var(--accent)'}
                 onMouseOut={e => e.currentTarget.style.borderColor = 'var(--line)'}
               >
-                <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 4px', fontSize: 18 }}>
-                  {p.title}
-                </h3>
-                <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 11,
-                  background: 'var(--accent-soft)', color: 'var(--ink)',
-                  padding: '2px 8px', borderRadius: 4,
-                }}>
-                  {MODES.find(m => m.value === p.research_mode)?.label || p.research_mode}
-                </span>
+                {renamingId === p.id ? (
+                  <div onClick={e => e.stopPropagation()}>
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={e => { setRenameValue(e.target.value); setActionError('') }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleRename(p.id)
+                        if (e.key === 'Escape') { setRenamingId(null); setRenameValue(''); setActionError('') }
+                      }}
+                      style={{
+                        width: '100%', padding: '8px 10px', marginBottom: 8,
+                        border: '1.5px solid var(--accent)', borderRadius: 6,
+                        fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700,
+                        background: 'var(--bg)', color: 'var(--ink)',
+                        boxSizing: 'border-box', outline: 'none',
+                      }}
+                    />
+                    {actionError && <p style={{ color: '#EF4444', fontSize: 12, margin: '0 0 8px' }}>{actionError}</p>}
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => handleRename(p.id)}
+                        style={{
+                          padding: '6px 14px', background: 'var(--ink)', color: 'var(--bg)',
+                          border: 'none', borderRadius: 5, cursor: 'pointer',
+                          fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                        }}
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => { setRenamingId(null); setRenameValue(''); setActionError('') }}
+                        style={{
+                          padding: '6px 14px', background: 'transparent',
+                          border: '1px solid var(--line)', borderRadius: 5, cursor: 'pointer',
+                          fontFamily: 'var(--font-body)', fontSize: 13,
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : deletingId === p.id ? (
+                  <div onClick={e => e.stopPropagation()}>
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, margin: '0 0 4px', fontWeight: 600, color: 'var(--ink)' }}>
+                      Delete "{p.title}"?
+                    </p>
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 12px' }}>
+                      All documents and chapters will be permanently deleted. This cannot be undone.
+                    </p>
+                    {actionError && <p style={{ color: '#EF4444', fontSize: 12, margin: '0 0 8px' }}>{actionError}</p>}
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        style={{
+                          padding: '6px 14px', background: '#EF4444', color: 'white',
+                          border: 'none', borderRadius: 5, cursor: 'pointer',
+                          fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                        }}
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => { setDeletingId(null); setActionError('') }}
+                        style={{
+                          padding: '6px 14px', background: 'transparent',
+                          border: '1px solid var(--line)', borderRadius: 5, cursor: 'pointer',
+                          fontFamily: 'var(--font-body)', fontSize: 13,
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => nav(`/project/${p.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, margin: '0 0 4px', fontSize: 18, paddingRight: 32 }}>
+                      {p.title}
+                    </h3>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 11,
+                      background: 'var(--accent-soft)', color: 'var(--ink)',
+                      padding: '2px 8px', borderRadius: 4,
+                    }}>
+                      {MODES.find(m => m.value === p.research_mode)?.label || p.research_mode}
+                    </span>
+                  </div>
+                )}
+
+                {renamingId !== p.id && deletingId !== p.id && (
+                  <div
+                    style={{ position: 'absolute', top: 16, right: 16 }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => setMenuOpenId(menuOpenId === p.id ? null : p.id)}
+                      aria-label="Project options"
+                      style={{
+                        width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: menuOpenId === p.id ? 'var(--accent-soft)' : 'none',
+                        border: menuOpenId === p.id ? '1px solid var(--accent)' : '1px solid transparent',
+                        borderRadius: 5, cursor: 'pointer', color: 'var(--ink-soft)',
+                        fontSize: 16, lineHeight: 1,
+                      }}
+                    >
+                      ⋯
+                    </button>
+
+                    {menuOpenId === p.id && (
+                      <div style={{
+                        position: 'absolute', top: 32, right: 0, zIndex: 50,
+                        background: 'var(--card)', border: '1px solid var(--line)',
+                        borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                        minWidth: 140, padding: '4px 0',
+                      }}>
+                        <button
+                          onClick={() => {
+                            setRenamingId(p.id)
+                            setRenameValue(p.title)
+                            setMenuOpenId(null)
+                            setActionError('')
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            width: '100%', padding: '8px 14px', border: 'none',
+                            background: 'none', cursor: 'pointer', textAlign: 'left',
+                            fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--ink)',
+                          }}
+                          onMouseOver={e => e.currentTarget.style.background = 'var(--accent-soft)'}
+                          onMouseOut={e => e.currentTarget.style.background = 'none'}
+                        >
+                          <IconPencil size={14} stroke={1.5} />
+                          Rename
+                        </button>
+                        <div style={{ height: '1px', background: 'var(--line)', margin: '2px 0' }} />
+                        <button
+                          onClick={() => {
+                            setDeletingId(p.id)
+                            setMenuOpenId(null)
+                            setActionError('')
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            width: '100%', padding: '8px 14px', border: 'none',
+                            background: 'none', cursor: 'pointer', textAlign: 'left',
+                            fontFamily: 'var(--font-body)', fontSize: 14, color: '#EF4444',
+                          }}
+                          onMouseOver={e => e.currentTarget.style.background = '#FEF2F2'}
+                          onMouseOut={e => e.currentTarget.style.background = 'none'}
+                        >
+                          <IconTrash size={14} stroke={1.5} />
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
