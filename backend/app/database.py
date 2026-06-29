@@ -171,6 +171,17 @@ def _create_schema(conn: sqlite3.Connection):
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_admin_log_target ON admin_action_log(target_type, target_id);
+
+    CREATE TABLE IF NOT EXISTS supervisor_feedback (
+      id TEXT PRIMARY KEY,
+      project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      doc_id TEXT REFERENCES documents(id) ON DELETE CASCADE,
+      chapter_id TEXT REFERENCES chapters(id) ON DELETE SET NULL,
+      feedback_text TEXT NOT NULL,
+      status TEXT DEFAULT 'open',
+      created_at TEXT,
+      resolved_at TEXT
+    );
     """)
 
     # chunk_vectors virtual table — created separately from executescript
@@ -243,6 +254,23 @@ def _create_schema(conn: sqlite3.Connection):
     voice_cols = [row["name"] for row in conn.execute("PRAGMA table_info(voice_profile)").fetchall()]
     if "sample_analysis" not in voice_cols:
         conn.execute("ALTER TABLE voice_profile ADD COLUMN sample_analysis TEXT")
+
+    # Migration: Task 28 — supervisor_feedback table
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS supervisor_feedback (
+                id TEXT PRIMARY KEY,
+                project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+                doc_id TEXT REFERENCES documents(id) ON DELETE CASCADE,
+                chapter_id TEXT REFERENCES chapters(id) ON DELETE SET NULL,
+                feedback_text TEXT NOT NULL,
+                status TEXT DEFAULT 'open',
+                created_at TEXT,
+                resolved_at TEXT
+            )
+        """)
+    except Exception:
+        pass
 
     # Migration: Task 23 — rolling 30-day billing model
     user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
