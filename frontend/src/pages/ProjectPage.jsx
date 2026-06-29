@@ -713,32 +713,32 @@ export function ProjectPage() {
           background: 'var(--bg)', flexShrink: 0, padding: '6px 12px', gap: 4,
         }}>
           {[
-            { key: 'editor', label: 'Editor' },
-            { key: 'chat', label: 'Chat AI' },
+            { key: 'editor', label: 'Editor', icon: <IconPencil size={14} stroke={1.5} /> },
+            { key: 'chat',   label: 'Chat AI', icon: <IconMessageCircle size={14} stroke={1.5} /> },
           ].map(tab => (
             <button
               key={tab.key}
               onClick={() => setMobileView(tab.key)}
               style={{
-                flex: 1, padding: '7px 0',
+                flex: 1, padding: '6px 0',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                 background: mobileView === tab.key ? 'var(--card)' : 'transparent',
                 color: mobileView === tab.key ? 'var(--ink)' : 'var(--ink-soft)',
-                border: 'none',
-                borderRadius: 6,
-                boxShadow: mobileView === tab.key ? '0 1px 4px rgba(0,0,0,0.12)' : 'none',
-                fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: mobileView === tab.key ? 600 : 400,
+                border: 'none', borderRadius: 6,
+                boxShadow: mobileView === tab.key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                fontFamily: 'var(--font-body)', fontSize: 13,
+                fontWeight: mobileView === tab.key ? 600 : 400,
                 cursor: 'pointer', position: 'relative',
-                transition: 'background 0.15s, box-shadow 0.15s',
+                transition: 'background 0.15s',
               }}
             >
+              {tab.icon}
               {tab.label}
-              {/* Dot indicator for pending suggestion on Editor tab */}
               {tab.key === 'editor' && pendingSuggestion && mobileView !== 'editor' && (
                 <span style={{
-                  position: 'absolute', top: 6, right: 'calc(50% - 24px)',
-                  width: 7, height: 7,
+                  position: 'absolute', top: 5, right: 'calc(50% - 28px)',
+                  width: 6, height: 6,
                   background: 'var(--accent)', borderRadius: '50%',
-                  display: 'inline-block',
                 }} />
               )}
             </button>
@@ -792,15 +792,57 @@ export function ProjectPage() {
             </div>
           )}
           {mobileView === 'editor' && !showProposalUpload && (
-            <ChapterEditor
-              chapter={activeChapter}
-              content={contentLoading ? '' : activeChapterContent}
-              pendingSuggestion={pendingSuggestion}
-              onAccept={handleAcceptSuggestion}
-              onReject={handleRejectSuggestion}
-              onSave={handleSaveContent}
-              saving={saving}
-            />
+            activeChapterId ? (
+              <ChapterEditor
+                chapter={activeChapter}
+                content={contentLoading ? '' : activeChapterContent}
+                pendingSuggestion={pendingSuggestion}
+                onAccept={handleAcceptSuggestion}
+                onReject={handleRejectSuggestion}
+                onSave={handleSaveContent}
+                saving={saving}
+              />
+            ) : (
+              <div style={{
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                height: '100%', padding: '0 32px',
+                textAlign: 'center', gap: 10,
+              }}>
+                <IconListTree size={36} stroke={1} color="var(--ink-soft)" />
+                <p style={{
+                  fontFamily: 'var(--font-heading)', fontSize: 15, fontWeight: 600,
+                  color: 'var(--ink)', margin: 0,
+                }}>
+                  No chapter selected
+                </p>
+                <p style={{
+                  fontFamily: 'var(--font-body)', fontSize: 13,
+                  color: 'var(--ink-soft)', margin: 0, lineHeight: 1.6,
+                }}>
+                  Open the Chapters panel to select or create a chapter.
+                </p>
+                <button
+                  onClick={() => {
+                    setDrawerDefaultTab('struktur')
+                    setDrawerTab('struktur')
+                    setDrawerOpen(true)
+                  }}
+                  style={{
+                    marginTop: 6,
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '9px 18px',
+                    background: 'var(--ink)', color: 'var(--bg)',
+                    border: 'none', borderRadius: 8,
+                    fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <IconListTree size={15} stroke={2} />
+                  Open Chapters
+                </button>
+              </div>
+            )
           )}
           {mobileView === 'chat' && (
             <ChatPanel
@@ -818,6 +860,51 @@ export function ProjectPage() {
           )}
         </div>
 
+        {/* Bottom navigation */}
+        <div style={{
+          height: 54,
+          background: 'var(--card)',
+          borderTop: '0.5px solid var(--line)',
+          display: 'flex',
+          alignItems: 'center',
+          flexShrink: 0,
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}>
+          {[
+            { key: 'sumber',   label: 'Sources',  icon: <IconFiles size={22} stroke={1.5} /> },
+            { key: 'struktur', label: 'Chapters', icon: <IconListTree size={22} stroke={1.5} /> },
+            { key: 'help',     label: 'Help',     icon: <IconHelpCircle size={22} stroke={1.5} /> },
+          ].map(item => (
+            <button
+              key={item.key}
+              aria-label={item.label}
+              onClick={() => {
+                if (item.key === 'help') {
+                  setShowHelp(true)
+                } else {
+                  setDrawerTab(item.key)
+                  setDrawerOpen(true)
+                }
+              }}
+              style={{
+                flex: 1, height: '100%',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                gap: 3,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: drawerOpen && drawerTab === item.key ? 'var(--ink)' : 'var(--ink-soft)',
+                borderTop: drawerOpen && drawerTab === item.key ? '2px solid var(--accent)' : '2px solid transparent',
+                transition: 'color 0.1s, border-color 0.1s',
+              }}
+            >
+              {item.icon}
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 500, letterSpacing: '0.02em' }}>
+                {item.label}
+              </span>
+            </button>
+          ))}
+        </div>
+
         {/* Drawer — Source + Navigator */}
         {drawerOpen && (
           <>
@@ -830,25 +917,40 @@ export function ProjectPage() {
               background: 'var(--card)', zIndex: 50, display: 'flex', flexDirection: 'column',
               overflowY: 'auto',
             }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15 }}>Panel</span>
-                <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-soft)' }}>×</button>
+              {/* Drawer header */}
+              <div style={{
+                padding: '12px 14px',
+                borderBottom: '0.5px solid var(--line)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                flexShrink: 0,
+              }}>
+                <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>
+                  {drawerTab === 'sumber' ? 'Sources' : 'Chapters'}
+                </span>
+                <button
+                  onClick={() => setDrawerOpen(false)}
+                  aria-label="Close panel"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', display: 'flex', padding: 2, borderRadius: 4 }}
+                >
+                  <IconX size={18} stroke={1.5} />
+                </button>
               </div>
-              {/* Tab row inside drawer */}
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', padding: '4px 12px', gap: 4 }}>
+              {/* Drawer tabs */}
+              <div style={{ display: 'flex', padding: '5px 8px', gap: 4, borderBottom: '0.5px solid var(--line)', flexShrink: 0 }}>
                 {[
                   { key: 'sumber', label: 'Sources' },
-                  { key: 'struktur', label: 'Thesis Structure' },
+                  { key: 'struktur', label: 'Chapters' },
                 ].map(t => (
                   <button
                     key={t.key}
                     onClick={() => setDrawerTab(t.key)}
                     style={{
-                      padding: '5px 12px',
+                      flex: 1, padding: '5px 0',
                       background: drawerTab === t.key ? 'var(--accent-soft)' : 'none',
                       border: drawerTab === t.key ? '1px solid var(--accent)' : '1px solid transparent',
                       borderRadius: 5, cursor: 'pointer',
                       fontFamily: 'var(--font-mono)', fontSize: 11,
+                      fontWeight: drawerTab === t.key ? 600 : 400,
                       color: drawerTab === t.key ? 'var(--ink)' : 'var(--ink-soft)',
                     }}
                   >{t.label}</button>
