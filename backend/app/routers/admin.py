@@ -1,6 +1,9 @@
 import uuid
+import csv
+import io
 from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
@@ -10,6 +13,74 @@ from app.routers.account import _delete_user_account
 from app.routers.billing import UPGRADE_KREDIT
 
 router = APIRouter()
+
+
+# ---------- STATS ----------
+
+@router.get("/stats")
+def get_stats(admin=Depends(require_admin)):
+    with get_db() as db:
+        row = db.execute("""
+            SELECT
+                COUNT(*) AS total_users,
+                COUNT(CASE WHEN tier = 'free' THEN 1 END) AS free_users,
+                COUNT(CASE WHEN tier = 'pro' THEN 1 END) AS pro_users,
+                (SELECT COALESCE(SUM(amount), 0) FROM billing_events
+                 WHERE event_type IN ('topup_success', 'upgrade_success')
+                 AND created_at >= strftime('%Y-%m-01', 'now')) AS revenue_this_month,
+                COUNT(CASE WHEN tier = 'pro'
+                    AND DATE(subscription_start_date, '+30 days') BETWEEN DATE('now') AND DATE('now', '+7 days')
+                    THEN 1 END) AS pro_expiring_7d
+            FROM users
+        """).fetchone()
+    return {
+        "total_users": row["total_users"],
+        "free_users": row["free_users"],
+        "pro_users": row["pro_users"],
+        "revenue_this_month": float(row["revenue_this_month"]),
+        "pro_expiring_7d": row["pro_expiring_7d"],
+    }
+
+
+# ---------- EXPORT ----------
+
+@router.get("/export/users-csv")
+def export_users_csv(tier: str, admin=Depends(require_admin)):
+    if tier not in ("free", "pro"):
+        raise HTTPException(status_code=400, detail="tier must be 'free' or 'pro'")
+    today = datetime.utcnow().strftime("%Y%m%d")
+    filename = f"rhq_users_{tier}_{today}.csv"
+    with get_db() as db:
+        if tier == "pro":
+            rows = db.execute("""
+                SELECT email, tier, kredit_remaining, kredit_total,
+                       subscription_start_date,
+                       DATE(subscription_start_date, '+30 days') AS subscription_expiry,
+                       created_at
+                FROM users WHERE tier = 'pro'
+                ORDER BY created_at DESC
+            """).fetchall()
+            fieldnames = ["email", "tier", "kredit_remaining", "kredit_total",
+                          "subscription_start_date", "subscription_expiry", "created_at"]
+        else:
+            rows = db.execute("""
+                SELECT email, tier, kredit_remaining, kredit_total, created_at
+                FROM users WHERE tier = 'free'
+                ORDER BY created_at DESC
+            """).fetchall()
+            fieldnames = ["email", "tier", "kredit_remaining", "kredit_total", "created_at"]
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(dict(row))
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ---------- USERS ----------
