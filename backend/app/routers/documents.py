@@ -25,23 +25,6 @@ ALLOWED_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
 }
 
-async def _extract_and_store_sv_feedback(doc_id: str, project_id: str, full_text: str):
-    """Background task: extract SV feedback items and store in DB."""
-    import uuid
-    from datetime import datetime
-    items = await extract_sv_feedback(full_text)
-    if not items:
-        return
-    now = datetime.utcnow().isoformat()
-    with get_db() as db:
-        for item_text in items:
-            db.execute(
-                """INSERT INTO supervisor_feedback (id, project_id, doc_id, feedback_text, status, created_at)
-                   VALUES (?, ?, ?, ?, 'open', ?)""",
-                (str(uuid.uuid4()), project_id, doc_id, item_text, now)
-            )
-
-
 async def _embed_and_store_chunks(doc_id: str, chunk_texts: List[str], chunk_ids: List[str]):
     """Background task: embed chunks and store in chunk_vectors."""
     from app.services.embedding_pool import embedding_pool
@@ -60,6 +43,21 @@ async def _embed_and_store_chunks(doc_id: str, chunk_texts: List[str], chunk_ids
     except Exception as e:
         # Log but don't crash — embedding is best-effort in background
         print(f"Embedding error for doc {doc_id}: {e}")
+
+
+async def _extract_and_store_sv_feedback(doc_id: str, project_id: str, full_text: str):
+    """Background task: extract SV feedback items and store in DB."""
+    items = await extract_sv_feedback(full_text)
+    if not items:
+        return
+    now = datetime.utcnow().isoformat()
+    with get_db() as db:
+        for item_text in items:
+            db.execute(
+                """INSERT INTO supervisor_feedback (id, project_id, doc_id, feedback_text, status, created_at)
+                   VALUES (?, ?, ?, ?, 'open', ?)""",
+                (str(uuid.uuid4()), project_id, doc_id, item_text, now)
+            )
 
 class PageData(BaseModel):
     page_number: int
