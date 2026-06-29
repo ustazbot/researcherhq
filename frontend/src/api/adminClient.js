@@ -16,4 +16,7 @@ export const adminApi = {
   deleteProject: (id) => api.delete(`/admin/projects/${id}`),
 
   getActionLog: (params) => api.get('/admin/action-log', { params }),
+
+  getStats: () => api.get('/admin/stats'),
+  exportUsersCsv: (tier) => api.get('/admin/export/users-csv', { params: { tier }, responseType: 'blob' }),
 }

@@ -17,6 +17,51 @@ function Badge({ value }) {
   )
 }
 
+// ---------- STATS BAR ----------
+function StatsBar() {
+  const [stats, setStats] = useState(null)
+
+  useEffect(() => {
+    adminApi.getStats()
+      .then(r => setStats(r.data))
+      .catch(() => { /* fail silently */ })
+  }, [])
+
+  if (!stats) return null
+
+  const cardStyle = {
+    flex: 1, minWidth: 140, background: 'var(--card)', border: '1px solid var(--line)',
+    borderRadius: 8, padding: '14px 18px',
+  }
+  const labelStyle = { fontSize: 11, fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }
+  const valueStyle = { fontSize: 22, fontFamily: 'var(--font-heading)', fontWeight: 800, color: 'var(--ink)' }
+
+  return (
+    <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div style={cardStyle}>
+        <div style={labelStyle}>Total Users</div>
+        <div style={valueStyle}>{stats.total_users}</div>
+      </div>
+      <div style={cardStyle}>
+        <div style={labelStyle}>Free</div>
+        <div style={valueStyle}>{stats.free_users}</div>
+      </div>
+      <div style={cardStyle}>
+        <div style={labelStyle}>Pro</div>
+        <div style={valueStyle}>{stats.pro_users}</div>
+      </div>
+      <div style={cardStyle}>
+        <div style={labelStyle}>Revenue (Bulan Ini)</div>
+        <div style={valueStyle}>RM {stats.revenue_this_month.toFixed(2)}</div>
+      </div>
+      <div style={cardStyle}>
+        <div style={labelStyle}>Pro Expiring ≤7 hari</div>
+        <div style={{ ...valueStyle, color: stats.pro_expiring_7d > 0 ? '#D97706' : 'var(--ink)' }}>{stats.pro_expiring_7d}</div>
+      </div>
+    </div>
+  )
+}
+
 // ---------- USERS TAB ----------
 function UsersTab() {
   const [users, setUsers] = useState([])
@@ -38,6 +83,16 @@ function UsersTab() {
   }
 
   useEffect(() => { load() }, [])
+
+  async function handleExport(tier) {
+    const { data } = await adminApi.exportUsersCsv(tier)
+    const url = URL.createObjectURL(new Blob([data]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `rhq_users_${tier}_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   function startEdit(u) {
     setEditing(u.id)
@@ -83,6 +138,10 @@ function UsersTab() {
 
   return (
     <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button onClick={() => handleExport('free')} style={btn({ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' })}>Export Free CSV</button>
+        <button onClick={() => handleExport('pro')} style={btn({ background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' })}>Export Pro CSV</button>
+      </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari emel..." style={{ ...inputStyle, width: 280 }} />
         <button onClick={() => load(search)} style={btn({ background: 'var(--ink)', color: 'var(--bg)' })}>Cari</button>
@@ -430,6 +489,7 @@ export function AdminPage() {
       </div>
 
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
+        <StatsBar />
         {apiError && (
           <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '12px 16px', marginBottom: 20, color: '#DC2626', fontSize: 14 }}>
             {apiError}
