@@ -3,6 +3,7 @@ import io
 import re
 import uuid
 from typing import Dict
+from bs4 import BeautifulSoup
 
 try:
     from docx import Document
@@ -13,6 +14,69 @@ try:
     DOCX_AVAILABLE = True
 except ImportError:
     DOCX_AVAILABLE = False
+
+def _html_to_docx_paragraphs(doc, html_content: str):
+    """Convert TipTap HTML content to python-docx paragraphs with formatting."""
+    html_content = re.sub(r'\[\[cite:\d+\]\]', '', html_content)
+    html_content = html_content.strip()
+    if not html_content:
+        return
+
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    for el in soup.children:
+        if not hasattr(el, 'name') or not el.name:
+            continue
+        tag = el.name
+
+        if tag in ('h1', 'h2', 'h3', 'h4'):
+            level = int(tag[1])
+            text = el.get_text(strip=True)
+            if text:
+                doc.add_heading(text, level=level)
+
+        elif tag == 'p':
+            text = el.get_text(strip=True)
+            if not text:
+                continue
+            para = doc.add_paragraph()
+            for child in el.children:
+                if not hasattr(child, 'name') or child.name is None:
+                    raw = str(child)
+                    if raw:
+                        para.add_run(raw)
+                elif child.name == 'strong':
+                    run = para.add_run(child.get_text())
+                    run.bold = True
+                elif child.name == 'em':
+                    run = para.add_run(child.get_text())
+                    run.italic = True
+                elif child.name == 'u':
+                    run = para.add_run(child.get_text())
+                    run.underline = True
+                elif child.name == 'mark':
+                    para.add_run(child.get_text())
+                else:
+                    para.add_run(child.get_text())
+
+        elif tag == 'ul':
+            for li in el.find_all('li', recursive=False):
+                text = li.get_text(separator=' ', strip=True)
+                if text:
+                    doc.add_paragraph(text, style='List Bullet')
+
+        elif tag == 'ol':
+            for li in el.find_all('li', recursive=False):
+                text = li.get_text(separator=' ', strip=True)
+                if text:
+                    doc.add_paragraph(text, style='List Number')
+
+        elif tag == 'blockquote':
+            text = el.get_text(separator=' ', strip=True)
+            if text:
+                para = doc.add_paragraph(text)
+                para.style = 'Quote' if 'Quote' in [s.name for s in doc.styles] else 'Normal'
+
 
 # job_id → {"status": "pending"|"done"|"error", "bytes": bytes|None, "filename": str}
 _jobs: Dict[str, dict] = {}
@@ -58,10 +122,7 @@ def _build_docx(chapter_title: str, content: str) -> bytes:
         raise RuntimeError("python-docx tidak dipasang.")
     doc = Document()
     doc.add_heading(chapter_title, level=1)
-    for para in content.split("\n\n"):
-        stripped = para.strip()
-        if stripped:
-            doc.add_paragraph(stripped)
+    _html_to_docx_paragraphs(doc, content)
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
@@ -112,12 +173,7 @@ def _build_thesis_docx(project_title: str, chapters: list, bibliography: list, c
         if not chap["content"].strip():
             continue
         doc.add_heading(chap["title"], level=1)
-        for para in chap["content"].split("\n\n"):
-            stripped = para.strip()
-            if stripped:
-                cleaned = re.sub(r'\[\[cite:\d+\]\]', '', stripped).strip()
-                if cleaned:
-                    doc.add_paragraph(cleaned)
+        _html_to_docx_paragraphs(doc, chap["content"])
         doc.add_page_break()
 
     # Bibliography
