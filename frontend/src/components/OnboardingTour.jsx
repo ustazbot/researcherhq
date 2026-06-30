@@ -5,21 +5,22 @@ const SEEN_KEY = 'rhq_tour_seen_v1'
 const STEPS = [
   {
     targetId: 'rhq-tour-sources',
-    copy: 'Upload your reference articles, proposal, and notes here. This is what the AI reads — answers are grounded in your own documents, not generic knowledge.',
+    copy: 'Upload your reference articles, proposal, supervisor notes, and drafts here. The AI reads only what you upload — answers are grounded in your own documents, not generic knowledge.',
   },
   {
     targetId: 'rhq-tour-chat-input',
-    copy: 'Ask questions about your sources. Every answer traces back to the exact document and page — no guessing, no made-up citations. This is the core difference from ChatGPT.',
+    copy: 'Ask anything about your sources here. Every answer traces back to the exact document and page — no guessing, no made-up citations. This is the core difference from ChatGPT.',
   },
   {
     targetId: null,
     illustration: true,
-    copy: 'Like an answer? Send it to your chapter, review it, then Accept to add it to your thesis draft — you stay in control of what goes in.',
+    copy: 'Like an answer? Click "→ Send to Editor", review the suggestion in your chapter, then Accept to add it to your thesis — you stay in control of what goes in.',
   },
   {
     targetId: 'rhq-tour-thesis',
-    copy: 'This is where your chapters live — assign AI-generated content to each one and export a complete draft.',
-    proCopy: ' This is what a complete research workflow looks like on Pro.',
+    copy: (isPro) => isPro
+      ? 'This is where your chapters live. Add chapters, assign AI-generated content to each one, and export a complete thesis draft when you\'re ready.'
+      : 'This is where your chapters live. Assign AI-generated content to each one and compile a complete thesis draft. Thesis Workspace is a Pro feature — unlocks once your account is upgraded.',
   },
 ]
 
@@ -72,7 +73,7 @@ export function OnboardingTour({ active, isPro }) {
   if (!visible) return null
 
   function finish() {
-    localStorage.setItem(SEEN_KEY, '1')
+    localStorage.setItem(SEEN_KEY, 'true')
     setSeen(true)
   }
 
@@ -109,7 +110,7 @@ export function OnboardingTour({ active, isPro }) {
         </p>
         {current.illustration && <SendToEditorIllustration />}
         <p style={{ margin: 0, fontSize: 14, color: 'var(--ink)', lineHeight: 1.5 }}>
-          {current.copy}{!isPro && current.proCopy}
+          {typeof current.copy === 'function' ? current.copy(isPro) : current.copy}
         </p>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
           <button
@@ -118,15 +119,28 @@ export function OnboardingTour({ active, isPro }) {
           >
             Skip
           </button>
-          <button
-            onClick={() => (step < STEPS.length - 1 ? setStep(step + 1) : finish())}
-            style={{
-              background: 'var(--accent)', color: 'var(--ink)', border: 'none', borderRadius: 'var(--radius-md)',
-              padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            {step < STEPS.length - 1 ? 'Next' : 'Got it'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {step > 0 && (
+              <button
+                onClick={() => setStep(step - 1)}
+                style={{
+                  background: 'none', color: 'var(--ink-soft)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)',
+                  padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Back
+              </button>
+            )}
+            <button
+              onClick={() => (step < STEPS.length - 1 ? setStep(step + 1) : finish())}
+              style={{
+                background: 'var(--accent)', color: 'var(--ink)', border: 'none', borderRadius: 'var(--radius-md)',
+                padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              {step < STEPS.length - 1 ? 'Next' : 'Got it'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
