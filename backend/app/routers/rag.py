@@ -72,29 +72,39 @@ def _build_project_context(project: dict) -> str:
     return "\n".join(lines) if lines else ""
 
 
-async def _handle_no_document_query(query: str, research_mode: str, style_notes: str, project_context: str = ""):
-    """Route no-document queries to web search or llm_knowledge fallback."""
-    if settings.perplexity_api_key:
-        try:
-            result = await search_with_citations(query)
-            return "web_search", result["answer"], result["citations"]
-        except WebSearchUnavailable:
-            pass  # fall through to llm_knowledge
-
+async def _handle_no_document_query(
+    query: str, research_mode: str, style_notes: str,
+    project_context: str = "", chat_language: str = "bm", output_language: str = "bm"
+):
+    """Route no-document queries to llm_knowledge fallback (web search is explicit toggle now)."""
+    no_doc_prefix = (
+        "[SITUASI: Pengguna belum muat naik sebarang dokumen dalam projek ini. "
+        "Jawab soalan mereka secara umum (LLM_GENERAL mode) dengan label [💬 Jawapan Umum]. "
+        "Di akhir jawapan, WAJIB cadangkan: cari artikel melalui Search Panel atau muat naik dokumen.]\n\n"
+    )
     result = await query_llm(
         messages=[{
             "role": "user",
-            "content": (
-                f"[TIADA DOKUMEN — jawab berdasarkan pengetahuan umum dengan jujur]\n\n"
-                f"Soalan: {query}"
-            ),
+            "content": no_doc_prefix + f"Soalan: {query}",
         }],
         research_mode=research_mode,
         output_mode="qa",
         style_notes=style_notes,
         project_context=project_context,
+        chat_language=chat_language,
+        output_language=output_language,
     )
     return "llm_knowledge", result["content"], []
+
+
+def _assess_chunk_relevance(chunks: list, scores: list) -> str:
+    """Returns: 'none' | 'low' | 'good'"""
+    if not chunks or not scores:
+        return "none"
+    avg_score = sum(scores) / len(scores)
+    if avg_score < 0.35:
+        return "low"
+    return "good"
 
 
 def normalize_query(query: str) -> str:
@@ -187,11 +197,13 @@ async def query_project(
             raise HTTPException(404, "Projek tidak dijumpai.")
 
         user_row = db.execute(
-            "SELECT kredit_remaining, tier FROM users WHERE id = ?",
+            "SELECT kredit_remaining, tier, chat_language FROM users WHERE id = ?",
             (user["user_id"],),
         ).fetchone()
 
         tier = user_row["tier"]
+        chat_language = user_row["chat_language"] if user_row["chat_language"] else "bm"
+        output_language = proj["output_language"] if proj["output_language"] else "bm"
         # ponytail: server-side only — client cannot influence this via request fields
         is_discovery_lite = (body.output_mode == "discovery" and tier != "pro")
 
@@ -241,12 +253,17 @@ async def query_project(
         db_path=_db_module._db_path,
     )
 
-    if not chunks:
+    scores = [c.get("similarity", 0) for c in chunks]
+    relevance = _assess_chunk_relevance(chunks, scores)
+
+    if relevance == "none":
         source_type, answer, web_citations = await _handle_no_document_query(
             query=body.query,
             research_mode=project_dict["research_mode"],
             style_notes=style_notes,
             project_context=project_context,
+            chat_language=chat_language,
+            output_language=output_language,
         )
         kredit_cost = 1
         with get_db() as db:
@@ -308,9 +325,17 @@ async def query_project(
             ).fetchall()
         history_messages = [{"role": r["role"], "content": r["content"]} for r in history_rows]
 
+    low_rel_prefix = ""
+    if relevance == "low":
+        low_rel_prefix = (
+            "[KONTEKS: Dokumen yang ada mungkin tidak merangkumi topik ini secara mendalam. "
+            "Jawab berdasarkan chunk yang ada, tapi maklumkan user bahawa sumber mungkin terhad. "
+            "Tambah nota ringkas di akhir jawapan: sumber terhad, cadang tambah artikel yang lebih relevan.]\n\n"
+        )
+
     current_message = {
         "role": "user",
-        "content": f"KONTEKS DOKUMEN:\n\n{context}\n\n---\n\nSOALAN: {effective_query}",
+        "content": low_rel_prefix + f"KONTEKS DOKUMEN:\n\n{context}\n\n---\n\nSOALAN: {effective_query}",
     }
     messages = history_messages + [current_message]
 
@@ -321,6 +346,8 @@ async def query_project(
         query_type=body.query_type,
         style_notes=style_notes,
         project_context=project_context,
+        chat_language=chat_language,
+        output_language=output_language,
     )
 
     # Store response in cache for future hits
