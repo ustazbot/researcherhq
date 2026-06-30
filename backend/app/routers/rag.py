@@ -174,10 +174,13 @@ def _get_voice_style(project_id: str, db) -> str:
     return row["style_notes"] if row else ""
 
 
+WEB_SEARCH_CREDIT_COST = 5
+
 class QueryRequest(BaseModel):
     query: str
     output_mode: str = "qa"
     query_type: str = "normal"  # "normal" | "deep"
+    use_web_search: bool = False
 
 @router.post("/{project_id}/query")
 async def query_project(
@@ -218,6 +221,37 @@ async def query_project(
 
         project_dict = dict(proj)
         project_context = _build_project_context(project_dict)
+
+    # Web search — explicit Pro-only path, independent of RAG pipeline
+    if body.use_web_search:
+        if tier != "pro":
+            raise HTTPException(403, "Carian web hanya untuk pengguna Pro.")
+        if not settings.perplexity_api_key:
+            raise HTTPException(503, "Carian web tidak tersedia pada masa ini.")
+        if user_row["kredit_remaining"] < WEB_SEARCH_CREDIT_COST:
+            raise HTTPException(402, f"Kredit tidak mencukupi untuk carian web. Diperlukan: {WEB_SEARCH_CREDIT_COST} kredit.")
+        try:
+            web_result = await search_with_citations(body.query)
+            with get_db() as db:
+                new_kredit = deduct_credits(db, user["user_id"], WEB_SEARCH_CREDIT_COST)
+                msg_id = str(uuid.uuid4())
+                now = datetime.utcnow().isoformat()
+                db.execute(
+                    """INSERT INTO messages (id, project_id, role, content, output_mode,
+                       source_chunks, kredit_used, tokens_used_internal, created_at)
+                       VALUES (?, ?, 'assistant', ?, ?, '[]', ?, 0, ?)""",
+                    (msg_id, project_id, web_result["answer"], body.output_mode, WEB_SEARCH_CREDIT_COST, now),
+                )
+            return {
+                "answer": web_result["answer"],
+                "sources": [],
+                "web_citations": web_result["citations"],
+                "source_type": "web_search",
+                "kredit_used": WEB_SEARCH_CREDIT_COST,
+                "kredit_remaining": new_kredit,
+            }
+        except WebSearchUnavailable as e:
+            raise HTTPException(503, f"Carian web gagal: {str(e)}")
 
     # Embed query
     query_embedding = await embedding_pool.embed(body.query)
