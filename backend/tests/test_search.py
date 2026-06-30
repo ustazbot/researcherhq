@@ -244,20 +244,12 @@ def test_accept_article_duplicate_doi_rejected(client):
 
 
 def test_accept_article_free_tier_limit(client):
+    """Free users now get 403 at the Pro gate, before doc count check."""
     c, db_path = client
     token, uid, email = make_token()
     _seed_user(db_path, uid, email, tier="free")
     pid = str(uuid.uuid4())
     _seed_project(db_path, pid, uid)
-
-    # Seed one doc already (free limit = 1)
-    conn = sqlite3.connect(db_path)
-    conn.execute(
-        "INSERT INTO documents (id, project_id, filename, category, page_count, chunk_count, uploaded_at) VALUES (?, ?, 'existing.pdf', 'artikel', 1, 1, ?)",
-        (str(uuid.uuid4()), pid, datetime.utcnow().isoformat()),
-    )
-    conn.commit()
-    conn.close()
 
     r = c.post("/search/accept", json={
         "project_id": pid,
@@ -271,3 +263,212 @@ def test_accept_article_free_tier_limit(client):
         "source": "crossref",
     }, headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 403
+
+
+# ── 32A: Schema columns ────────────────────────────────────────────────────────
+
+def test_documents_has_source_type_column(client):
+    _, db_path = client
+    conn = sqlite3.connect(db_path)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(documents)").fetchall()}
+    conn.close()
+    assert "source_type" in cols
+
+
+def test_documents_has_content_level_column(client):
+    _, db_path = client
+    conn = sqlite3.connect(db_path)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(documents)").fetchall()}
+    conn.close()
+    assert "content_level" in cols
+
+
+def test_documents_has_openalex_id_column(client):
+    _, db_path = client
+    conn = sqlite3.connect(db_path)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(documents)").fetchall()}
+    conn.close()
+    assert "openalex_id" in cols
+
+
+# ── 32B: Pro gate accept ───────────────────────────────────────────────────────
+
+def test_accept_article_free_user_forbidden(client):
+    c, db_path = client
+    token, uid, email = make_token()
+    _seed_user(db_path, uid, email, tier="free")
+    pid = str(uuid.uuid4())
+    _seed_project(db_path, pid, uid)
+
+    r = c.post("/search/accept", json={
+        "project_id": pid,
+        "title": "Some Article",
+        "authors": ["X"],
+        "year": 2022,
+        "journal": "J",
+        "doi": "10.x/free",
+        "abstract": "abstract here",
+        "url": "",
+        "source": "openalex",
+    }, headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 403
+    assert "Pro" in r.json()["detail"]
+
+
+# ── 32B: columns stored on accept ─────────────────────────────────────────────
+
+def _accept_payload(pid, doi="10.x/col1", is_oa=False, oa_url=None, openalex_id=None):
+    return {
+        "project_id": pid,
+        "title": "Column Test Article",
+        "authors": ["Tester"],
+        "year": 2023,
+        "journal": "Journal T",
+        "doi": doi,
+        "abstract": "This is a test abstract for column verification purposes.",
+        "url": "",
+        "source": "openalex",
+        "is_oa": is_oa,
+        "oa_url": oa_url,
+        "openalex_id": openalex_id,
+        "cited_by": 5,
+    }
+
+
+def test_accept_article_stores_source_type(client):
+    c, db_path = client
+    token, uid, email = make_token()
+    _seed_user(db_path, uid, email, tier="pro")
+    pid = str(uuid.uuid4())
+    _seed_project(db_path, pid, uid)
+
+    r = c.post("/search/accept", json=_accept_payload(pid, doi="10.x/st1"),
+               headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 201
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    doc = conn.execute("SELECT * FROM documents WHERE project_id = ?", (pid,)).fetchone()
+    conn.close()
+    assert doc["source_type"] == "search_result"
+
+
+def test_accept_article_stores_content_level_abstract(client):
+    """Non-OA article → content_level = abstract_only."""
+    c, db_path = client
+    token, uid, email = make_token()
+    _seed_user(db_path, uid, email, tier="pro")
+    pid = str(uuid.uuid4())
+    _seed_project(db_path, pid, uid)
+
+    r = c.post("/search/accept", json=_accept_payload(pid, doi="10.x/cl1", is_oa=False),
+               headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 201
+    assert r.json()["content_level"] == "abstract_only"
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    doc = conn.execute("SELECT content_level FROM documents WHERE project_id = ?", (pid,)).fetchone()
+    conn.close()
+    assert doc["content_level"] == "abstract_only"
+
+
+def test_accept_article_stores_openalex_id(client):
+    c, db_path = client
+    token, uid, email = make_token()
+    _seed_user(db_path, uid, email, tier="pro")
+    pid = str(uuid.uuid4())
+    _seed_project(db_path, pid, uid)
+
+    r = c.post("/search/accept",
+               json=_accept_payload(pid, doi="10.x/oa1", openalex_id="W12345678"),
+               headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 201
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    doc = conn.execute("SELECT openalex_id FROM documents WHERE project_id = ?", (pid,)).fetchone()
+    conn.close()
+    assert doc["openalex_id"] == "W12345678"
+
+
+# ── 32B: duplicate check endpoint ─────────────────────────────────────────────
+
+def test_check_duplicate_no_match(client):
+    c, db_path = client
+    token, uid, email = make_token()
+    _seed_user(db_path, uid, email, tier="pro")
+    pid = str(uuid.uuid4())
+    _seed_project(db_path, pid, uid)
+
+    r = c.get(f"/search/check-duplicate?project_id={pid}&doi=10.x/nonexistent",
+              headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    assert r.json()["exists"] is False
+
+
+def test_check_duplicate_doi_match(client):
+    c, db_path = client
+    token, uid, email = make_token()
+    _seed_user(db_path, uid, email, tier="pro")
+    pid = str(uuid.uuid4())
+    _seed_project(db_path, pid, uid)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Accept article first
+    c.post("/search/accept", json=_accept_payload(pid, doi="10.x/dup99"),
+           headers=headers)
+
+    r = c.get(f"/search/check-duplicate?project_id={pid}&doi=10.x/dup99",
+              headers=headers)
+    assert r.status_code == 200
+    assert r.json()["exists"] is True
+
+
+def test_check_duplicate_wrong_project(client):
+    c, db_path = client
+    token, uid, email = make_token()
+    _seed_user(db_path, uid, email, tier="pro")
+    pid = str(uuid.uuid4())
+    _seed_project(db_path, pid, uid)
+
+    token2, uid2, email2 = make_token()
+    _seed_user(db_path, uid2, email2, tier="pro")
+
+    r = c.get(f"/search/check-duplicate?project_id={pid}&doi=10.x/x",
+              headers={"Authorization": f"Bearer {token2}"})
+    assert r.status_code == 403
+
+
+# ── 32B: is_oa in search results ──────────────────────────────────────────────
+
+def test_search_results_include_is_oa_field(client):
+    c, db_path = client
+    token, uid, email = make_token()
+    _seed_user(db_path, uid, email, tier="pro")
+    pid = str(uuid.uuid4())
+    _seed_project(db_path, pid, uid)
+
+    fake_with_oa = [{
+        "source": "openalex", "title": "OA Paper", "authors": ["A"], "year": 2023,
+        "journal": "J", "doi": "10.x/oa", "abstract": "abs", "cited_by": 10,
+        "url": "", "is_oa": True, "oa_url": "https://example.com/paper.pdf",
+        "openalex_id": "W99999",
+    }]
+
+    async def fake_oa(*a, **kw): return fake_with_oa
+    async def fake_ss(*a, **kw): return []
+    async def fake_cr(*a, **kw): return []
+
+    with patch("app.routers.search.search_openalex", side_effect=fake_oa), \
+         patch("app.routers.search.search_semantic_scholar", side_effect=fake_ss), \
+         patch("app.routers.search.search_crossref", side_effect=fake_cr):
+        r = c.get(f"/search/articles?q=oa+paper&project_id={pid}",
+                  headers={"Authorization": f"Bearer {token}"})
+
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) == 1
+    assert "is_oa" in results[0]
+    assert results[0]["is_oa"] is True
+    assert results[0]["oa_url"] == "https://example.com/paper.pdf"
