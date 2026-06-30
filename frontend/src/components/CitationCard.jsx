@@ -13,7 +13,7 @@ export function CitationCard({ source }) {
         padding: '8px 12px', background: 'var(--bg)',
       }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-soft)' }}>
-          📄 {source.filename}, ms. {source.page_number}
+          📄 {source.filename}, p. {source.page_number}
         </span>
         <button
           onClick={() => setExpanded(!expanded)}

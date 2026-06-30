@@ -40,9 +40,9 @@ export function AccountSettingsPage() {
     setLangSuccess('')
     try {
       await api.patch('/account/preferences', { chat_language: chatLanguage })
-      setLangSuccess('Tetapan disimpan ✓')
+      setLangSuccess('Settings saved ✓')
     } catch (err) {
-      setLangError(err.response?.data?.detail || 'Gagal simpan tetapan.')
+      setLangError(err.response?.data?.detail || 'Failed to save settings.')
     }
     setLangLoading(false)
   }
@@ -204,11 +204,11 @@ export function AccountSettingsPage() {
           </button>
         </section>
 
-        {/* Keutamaan */}
+        {/* Preferences */}
         <section style={sectionStyle}>
-          <h2 style={sectionHeadingStyle}>Keutamaan</h2>
+          <h2 style={sectionHeadingStyle}>Preferences</h2>
           <label style={{ fontSize: 14, color: 'var(--ink-soft)', display: 'block', marginBottom: 8 }}>
-            Bahasa Perbualan AI
+            AI Chat Language
           </label>
           <select
             value={chatLanguage}
@@ -226,7 +226,7 @@ export function AccountSettingsPage() {
               onClick={handleSaveChatLanguage}
               style={{ padding: '10px 20px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: 'pointer' }}
             >
-              {langLoading ? 'Menyimpan...' : 'Simpan'}
+              {langLoading ? 'Saving...' : 'Save'}
             </button>
           </div>
         </section>

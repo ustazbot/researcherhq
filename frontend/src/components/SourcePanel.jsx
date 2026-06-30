@@ -250,7 +250,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         </button>
         <div style={{ width: '80%', height: '1px', background: 'var(--line)', margin: '4px 0' }} />
         <RailIcon icon={<IconFiles size={16} stroke={1.5} />} label="Files" title="Sources" onClick={() => { onToggleCollapse(); setActivePanel('docs') }} />
-        <RailIcon icon={<IconSearch size={16} stroke={1.5} />} label="Search" title="Cari Artikel" onClick={() => { onToggleCollapse(); setSearchOpen(true) }} />
+        <RailIcon icon={<IconSearch size={16} stroke={1.5} />} label="Search" title="Search Articles" onClick={() => { onToggleCollapse(); setSearchOpen(true) }} />
         <RailIcon icon={<IconBookmark size={16} stroke={1.5} />} label="Refs" title="References" onClick={() => { onToggleCollapse(); setActivePanel('bibliography') }} />
         <RailIcon
           icon={<IconClipboardCheck size={16} stroke={1.5} />}
@@ -303,7 +303,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         background: 'var(--bg)',
       }}>
         <RailIcon icon={<IconFiles size={16} stroke={1.5} />} label="Files" active={activePanel === 'docs'} title="Sources" onClick={() => setActivePanel('docs')} />
-        <RailIcon icon={<IconSearch size={16} stroke={1.5} />} label="Search" active={searchOpen} title="Cari Artikel" onClick={() => setSearchOpen(true)} />
+        <RailIcon icon={<IconSearch size={16} stroke={1.5} />} label="Search" active={searchOpen} title="Search Articles" onClick={() => setSearchOpen(true)} />
         <RailIcon icon={<IconBookmark size={16} stroke={1.5} />} label="Refs" active={activePanel === 'bibliography'} title="References" onClick={() => setActivePanel('bibliography')} />
         <RailIcon
           icon={<IconClipboardCheck size={16} stroke={1.5} />}

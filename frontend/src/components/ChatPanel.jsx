@@ -107,9 +107,9 @@ function _relativeTime(isoString) {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
   if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins} minit lalu`
-  if (hours < 24) return `${hours} jam lalu`
-  if (days < 7) return `${days} hari lalu`
+  if (mins < 60) return `${mins} min ago`
+  if (hours < 24) return `${hours} hr ago`
+  if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`
   return new Date(isoString).toLocaleDateString('en-GB')
 }
 
@@ -182,7 +182,7 @@ export function ChatPanel({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
         <button
           onClick={() => setDrawerOpen(v => !v)}
-          title="Sesi Chat"
+          title="Chat Sessions"
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             background: 'none', border: '1px solid var(--line)',
@@ -223,7 +223,7 @@ export function ChatPanel({
             boxShadow: '2px 0 8px rgba(0,0,0,0.08)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Sesi Chat</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Chat Sessions</span>
               <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 18 }}>×</button>
             </div>
             <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)' }}>
@@ -237,7 +237,7 @@ export function ChatPanel({
                   display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center'
                 }}
               >
-                + Chat Baru
+                + New Chat
               </button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>

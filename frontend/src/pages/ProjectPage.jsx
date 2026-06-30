@@ -215,7 +215,7 @@ export function ProjectPage() {
         if (next) { setActiveSessionId(next.id); handleSelectSession(next.id) }
       }
     } catch (err) {
-      alert(err.response?.data?.detail || 'Gagal padam sesi.')
+      alert(err.response?.data?.detail || 'Failed to delete session.')
     }
   }
 
@@ -1424,7 +1424,7 @@ export function ProjectPage() {
               style={{ display: 'block', marginBottom: 12 }}
             />
             {proposalUploading && (
-              <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Mengekstrak proposal... (mungkin ambil masa 30–60 saat)</p>
+              <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Extracting proposal... (may take 30–60 seconds)</p>
             )}
             <button
               type="button"

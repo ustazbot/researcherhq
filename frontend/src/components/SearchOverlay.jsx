@@ -18,7 +18,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
 
   async function handleSearch() {
     if (query.trim().length < 3) {
-      setError('Kata kunci terlalu pendek (minimum 3 aksara).')
+      setError('Keyword too short (minimum 3 characters).')
       return
     }
     setSearching(true)
@@ -31,9 +31,9 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
       if (yearFrom) params.append('year_from', yearFrom)
       const { data } = await api.get(`/search/articles?${params}`)
       setResults(data.results || [])
-      if (!data.results?.length) setError('Tiada hasil ditemui. Cuba kata kunci lain.')
+      if (!data.results?.length) setError('No results found. Try a different keyword.')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Carian gagal. Cuba semula.')
+      setError(err.response?.data?.detail || 'Search failed. Please try again.')
     }
     setSearching(false)
   }
@@ -60,7 +60,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
       setAcceptedIds(prev => new Set([...prev, article.doi || article.title]))
       onAccepted?.()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Gagal menambah artikel.')
+      setError(err.response?.data?.detail || 'Failed to add article.')
     }
     setAccepting(false)
   }
@@ -79,12 +79,12 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
       }}>
         {!searching && !error && results.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--ink-soft)', fontSize: 13 }}>
-            Masukkan kata kunci dan tekan Cari
+            Enter a keyword and press Search
           </div>
         )}
         {searching && (
           <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--ink-soft)', fontSize: 13 }}>
-            Mencari artikel...
+            Searching articles...
           </div>
         )}
         {!searching && error && (
@@ -127,7 +127,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
             )}
             {acceptedIds.has(articleKey(article)) && (
               <div style={{ fontSize: 11, color: '#059669', marginLeft: 19, marginTop: 2, fontWeight: 600 }}>
-                ✓ Dah ditambah
+                ✓ Already added
               </div>
             )}
           </div>
@@ -145,12 +145,12 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
             onClick={() => setMobileView('list')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13, padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 }}
           >
-            ← Balik ke senarai
+            ← Back to list
           </button>
         )}
         {!selectedArticle ? (
           <div style={{ color: 'var(--ink-soft)', fontSize: 13, marginTop: 40, textAlign: 'center' }}>
-            Pilih artikel dari senarai untuk lihat abstract penuh
+            Select an article from the list to view the full abstract
           </div>
         ) : (
           <div>
@@ -191,7 +191,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
               </div>
             ) : (
               <p style={{ fontSize: 13, color: 'var(--ink-soft)', fontStyle: 'italic' }}>
-                Abstract tidak tersedia untuk artikel ini.
+                Abstract not available for this article.
               </p>
             )}
             {!selectedArticle.is_oa && (
@@ -199,7 +199,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
                 marginTop: 20, padding: '12px 16px',
                 background: '#FEF3C7', borderRadius: 6, fontSize: 13, color: '#92400E',
               }}>
-                Artikel ini paywalled — AI hanya akan dapat baca abstract. Untuk analisis mendalam, muat naik PDF penuh setelah ditambah ke Sources.
+                This article is paywalled — the AI will only be able to read the abstract. For in-depth analysis, upload the full PDF after adding it to Sources.
               </div>
             )}
             {error && (
@@ -218,7 +218,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
                   padding: '10px 16px', background: '#D1FAE5',
                   borderRadius: 6, fontSize: 13, color: '#065F46', flex: 1, textAlign: 'center', fontWeight: 600,
                 }}>
-                  ✓ Sudah ditambah ke Sources
+                  ✓ Already added to Sources
                 </div>
               ) : (
                 <button
@@ -231,7 +231,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
                     fontSize: 14, fontWeight: 600, opacity: accepting ? 0.6 : 1,
                   }}
                 >
-                  {accepting ? 'Menambah...' : '+ Tambah ke Sources'}
+                  {accepting ? 'Adding...' : '+ Add to Sources'}
                 </button>
               )}
               {selectedArticle.url && (
@@ -245,7 +245,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
                     textDecoration: 'none', whiteSpace: 'nowrap',
                   }}
                 >
-                  Buka →
+                  Open →
                 </a>
               )}
             </div>
@@ -275,7 +275,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
           onClick={onClose}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 20, lineHeight: 1, padding: 4 }}
         >←</button>
-        <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--ink)' }}>Cari Artikel</span>
+        <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--ink)' }}>Search Articles</span>
       </div>
 
       {/* Search bar */}
@@ -290,7 +290,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
           value={query}
           onChange={e => { setQuery(e.target.value); setError('') }}
           onKeyDown={e => e.key === 'Enter' && handleSearch()}
-          placeholder="Kata kunci, tajuk artikel, nama pengarang..."
+          placeholder="Keyword, article title, author name..."
           style={{
             flex: 1, padding: '8px 12px',
             border: '1px solid var(--line)', borderRadius: 6,
@@ -302,7 +302,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
         <input
           value={yearFrom}
           onChange={e => setYearFrom(e.target.value)}
-          placeholder="Dari tahun"
+          placeholder="From year"
           type="number"
           style={{
             width: isMobile ? 120 : 110, padding: '8px 10px',
@@ -320,7 +320,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
             fontSize: 14, fontWeight: 500, opacity: searching ? 0.6 : 1, flexShrink: 0,
           }}
         >
-          {searching ? 'Mencari...' : 'Cari'}
+          {searching ? 'Searching...' : 'Search'}
         </button>
       </div>
 
