@@ -90,8 +90,31 @@ const OUTPUT_MODES = [
   { value: 'discovery',         label: 'Topic Discovery',   credits: 1,  proOnly: false },
 ]
 
-export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, outputMode, onOutputModeChange, credits, onSendToEditor, hasActiveChapter, bottomRef, tier, isDiscoveryMode, useWebSearch, onWebSearchToggle, isPro }) {
+function _relativeTime(isoString) {
+  if (!isoString) return ''
+  const diff = Date.now() - new Date(isoString).getTime()
+  const mins = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  if (mins < 1) return 'baru sahaja'
+  if (mins < 60) return `${mins} minit lalu`
+  if (hours < 24) return `${hours} jam lalu`
+  if (days < 7) return `${days} hari lalu`
+  return new Date(isoString).toLocaleDateString('ms-MY')
+}
+
+export function ChatPanel({
+  messages, loading, query, onQueryChange, onSubmit,
+  outputMode, onOutputModeChange, credits, onSendToEditor,
+  hasActiveChapter, bottomRef, tier, isDiscoveryMode,
+  useWebSearch, onWebSearchToggle, isPro,
+  sessions, activeSessionId, onNewSession, onSelectSession, onRenameSession, onDeleteSession,
+}) {
   const [pillOpen, setPillOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [sessionMenuId, setSessionMenuId] = useState(null)
   const pillRef = useRef(null)
   useEffect(() => {
     function close(e) { if (pillRef.current && !pillRef.current.contains(e.target)) setPillOpen(false) }
@@ -141,24 +164,134 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%', position: 'relative' }}>
       <style>{CITE_STYLES}</style>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
-          Chat AI
-        </span>
+
+      {/* Chat Header with session switcher */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
+        <button
+          onClick={() => setDrawerOpen(v => !v)}
+          title="Sesi Chat"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: 'none', border: '1px solid var(--line)',
+            borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+            color: 'var(--ink)', fontSize: 13, maxWidth: 200, flex: 1,
+          }}
+        >
+          <span>≡</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
+            {sessions?.find(s => s.id === activeSessionId)?.title || 'Chat Baru'}
+          </span>
+          <span style={{ color: 'var(--ink-soft)', fontSize: 10 }}>▼</span>
+        </button>
         {isDiscoveryMode && (
-          <div style={{ marginTop: 4 }}>
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: 10,
-              background: tier === 'pro' ? 'var(--accent)' : 'var(--accent-soft)',
-              color: 'var(--ink)', padding: '2px 8px', borderRadius: 4,
-            }}>
-              {tier === 'pro' ? 'Full Discovery' : 'Discovery (Free)'}
-            </span>
-          </div>
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 10,
+            background: tier === 'pro' ? 'var(--accent)' : 'var(--accent-soft)',
+            color: 'var(--ink)', padding: '2px 8px', borderRadius: 4, flexShrink: 0,
+          }}>
+            {tier === 'pro' ? 'Full Discovery' : 'Discovery (Free)'}
+          </span>
         )}
       </div>
+
+      {/* Session Drawer */}
+      {drawerOpen && (
+        <>
+          <div
+            onClick={() => setDrawerOpen(false)}
+            style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'rgba(0,0,0,0.15)' }}
+          />
+          <div style={{
+            position: 'absolute', top: 0, left: 0, bottom: 0,
+            width: 240, zIndex: 11,
+            background: 'var(--card)',
+            borderRight: '1px solid var(--line)',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '2px 0 8px rgba(0,0,0,0.08)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Sesi Chat</span>
+              <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 18 }}>×</button>
+            </div>
+            <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)' }}>
+              <button
+                onClick={() => { onNewSession?.(); setDrawerOpen(false); }}
+                style={{
+                  width: '100%', padding: '7px 12px',
+                  background: 'var(--accent)', color: 'white',
+                  border: 'none', borderRadius: 6, cursor: 'pointer',
+                  fontSize: 13, fontWeight: 500,
+                  display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center'
+                }}
+              >
+                + Chat Baru
+              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
+              {(sessions || []).map(sess => (
+                <div key={sess.id} style={{ position: 'relative', background: sess.id === activeSessionId ? 'var(--accent-soft)' : 'transparent' }}>
+                  {renamingId === sess.id ? (
+                    <div style={{ padding: '6px 12px', display: 'flex', gap: 6 }}>
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { onRenameSession?.(sess.id, renameValue); setRenamingId(null); }
+                          if (e.key === 'Escape') setRenamingId(null)
+                        }}
+                        style={{ flex: 1, fontSize: 13, padding: '3px 6px', border: '1px solid var(--accent)', borderRadius: 4, background: 'var(--card)', color: 'var(--ink)' }}
+                      />
+                      <button
+                        onClick={() => { onRenameSession?.(sess.id, renameValue); setRenamingId(null); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)' }}
+                      >✓</button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer' }}
+                      onClick={() => { onSelectSession?.(sess.id); setDrawerOpen(false); }}
+                    >
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, marginRight: 8, background: sess.id === activeSessionId ? 'var(--accent)' : 'transparent' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sess.title}</div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 1 }}>{_relativeTime(sess.updated_at)}</div>
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); setSessionMenuId(sessionMenuId === sess.id ? null : sess.id); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', padding: '2px 4px', fontSize: 16 }}
+                      >⋯</button>
+                    </div>
+                  )}
+                  {sessionMenuId === sess.id && (
+                    <div style={{
+                      position: 'absolute', right: 8, top: '100%', zIndex: 20,
+                      background: 'var(--card)', border: '1px solid var(--line)',
+                      borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      minWidth: 120, overflow: 'hidden'
+                    }}>
+                      <button
+                        onClick={e => { e.stopPropagation(); setRenamingId(sess.id); setRenameValue(sess.title); setSessionMenuId(null); }}
+                        style={{ width: '100%', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13, color: 'var(--ink)' }}
+                      >✏️ Rename</button>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          if (window.confirm('Padam sesi ini? Mesej tidak boleh dipulihkan.')) onDeleteSession?.(sess.id)
+                          setSessionMenuId(null)
+                        }}
+                        style={{ width: '100%', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13, color: '#EF4444' }}
+                      >🗑️ Padam</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       <div style={{ flex: 1, overflow: 'auto', padding: '20px 16px' }}>
         {messages.length === 0 && (

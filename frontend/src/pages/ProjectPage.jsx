@@ -61,6 +61,8 @@ export function ProjectPage() {
   const [voiceSampleMode, setVoiceSampleMode] = useState('paste')
   const [showHelp, setShowHelp] = useState(false)
   const [useWebSearch, setUseWebSearch] = useState(false)
+  const [sessions, setSessions] = useState([])
+  const [activeSessionId, setActiveSessionId] = useState(null)
   const [exportingChapterId, setExportingChapterId] = useState(null)
   const [compiling, setCompiling] = useState(false)
   const [compileError, setCompileError] = useState(null)
@@ -91,14 +93,20 @@ export function ProjectPage() {
   useEffect(() => {
     Promise.all([
       api.get(`/projects/${id}`),
-      api.get(`/projects/${id}/messages`),
+      api.get(`/projects/${id}/sessions`),
       api.get('/credits'),
       api.get(`/documents?project_id=${id}`),
       api.get(`/projects/${id}/chapters`),
       api.get(`/voice-profile/${id}`),
-    ]).then(([p, m, c, docs, chaps, vp]) => {
+    ]).then(([p, sess, c, docs, chaps, vp]) => {
       setProject(p.data)
-      setMessages(m.data)
+      const sessList = sess.data || []
+      setSessions(sessList)
+      const latestSession = sessList[0]
+      if (latestSession) {
+        setActiveSessionId(latestSession.id)
+        api.get(`/projects/${id}/messages?session_id=${latestSession.id}`).then(m => setMessages(m.data))
+      }
       setCredits(c.data)
       setDocuments(docs.data)
       setChapters(chaps.data)
@@ -155,7 +163,13 @@ export function ProjectPage() {
       const wsFlag = useWebSearch
       setUseWebSearch(false)
       const { data } = await api.post(`/projects/${id}/query`, {
-        query: q, output_mode: outputMode, query_type: 'normal', use_web_search: wsFlag
+        query: q, output_mode: outputMode, query_type: 'normal', use_web_search: wsFlag,
+        session_id: activeSessionId,
+      })
+      // Refresh session list to pick up auto-title + updated_at
+      api.get(`/projects/${id}/sessions`).then(r => {
+        setSessions(r.data || [])
+        if (!activeSessionId && r.data?.[0]) setActiveSessionId(r.data[0].id)
       })
       setMessages(prev => [...prev, {
         role: 'assistant', content: data.answer,
@@ -170,6 +184,38 @@ export function ProjectPage() {
       setMessages(prev => [...prev, { role: 'error', content: msg, id: Date.now() + 1 }])
     }
     setLoading(false)
+  }
+
+  async function handleNewSession() {
+    const { data } = await api.post(`/projects/${id}/sessions`)
+    setSessions(prev => [data, ...prev])
+    setActiveSessionId(data.id)
+    setMessages([])
+  }
+
+  async function handleSelectSession(sessionId) {
+    setActiveSessionId(sessionId)
+    const { data } = await api.get(`/projects/${id}/messages?session_id=${sessionId}`)
+    setMessages(data)
+  }
+
+  async function handleRenameSession(sessionId, title) {
+    await api.patch(`/projects/${id}/sessions/${sessionId}`, { title })
+    setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, title } : s))
+  }
+
+  async function handleDeleteSession(sessionId) {
+    try {
+      await api.delete(`/projects/${id}/sessions/${sessionId}`)
+      const updated = sessions.filter(s => s.id !== sessionId)
+      setSessions(updated)
+      if (activeSessionId === sessionId) {
+        const next = updated[0]
+        if (next) { setActiveSessionId(next.id); handleSelectSession(next.id) }
+      }
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Gagal padam sesi.')
+    }
   }
 
   const OFFICE_TYPES = {
@@ -1024,6 +1070,12 @@ export function ProjectPage() {
               useWebSearch={useWebSearch}
               onWebSearchToggle={setUseWebSearch}
               isPro={isPro}
+              sessions={sessions}
+              activeSessionId={activeSessionId}
+              onNewSession={handleNewSession}
+              onSelectSession={handleSelectSession}
+              onRenameSession={handleRenameSession}
+              onDeleteSession={handleDeleteSession}
             />
           )}
         </div>
@@ -1419,6 +1471,12 @@ export function ProjectPage() {
             useWebSearch={useWebSearch}
             onWebSearchToggle={setUseWebSearch}
             isPro={isPro}
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            onNewSession={handleNewSession}
+            onSelectSession={handleSelectSession}
+            onRenameSession={handleRenameSession}
+            onDeleteSession={handleDeleteSession}
           />
         </div>
 
