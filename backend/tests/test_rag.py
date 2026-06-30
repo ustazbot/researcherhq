@@ -463,29 +463,23 @@ def test_pro_only_modes_allowed_for_pro_user(client_with_project, monkeypatch):
 
 # --- Task 21: source_type routing ---
 
-def test_no_document_falls_back_to_web_search(client_with_project, monkeypatch):
+def test_no_document_falls_back_to_llm_general(client_with_project, monkeypatch):
+    # Web search is now an explicit toggle (use_web_search=True), not an auto-fallback.
+    # No-document queries always go to LLM_GENERAL (llm_knowledge).
     client, project_id, headers = client_with_project
 
     monkeypatch.setattr("app.routers.rag.embedding_pool.embed", _mock_embed)
     monkeypatch.setattr("app.routers.rag.retrieve_chunks", AsyncMock(return_value=[]))
 
-    from app.services.web_search_service import WebSearchUnavailable
-    async def _mock_web_search(query):
-        return {
-            "answer": "Jawapan dari web.",
-            "citations": [{"url": "https://example.com", "title": "Contoh"}],
-            "source_type": "web_search",
-        }
-
-    monkeypatch.setattr("app.routers.rag.settings.perplexity_api_key", "test-key")
-    monkeypatch.setattr("app.routers.rag.search_with_citations", _mock_web_search)
+    mock_result = {"content": "Jawapan umum.", "tokens_used": 5, "model": "mock"}
+    monkeypatch.setattr("app.routers.rag.query_llm", AsyncMock(return_value=mock_result))
 
     r = client.post(f"/projects/{project_id}/query",
                     json={"query": "apakah literasi", "output_mode": "qa"},
                     headers=headers)
     assert r.status_code == 200
     data = r.json()
-    assert data["source_type"] == "web_search"
+    assert data["source_type"] == "llm_knowledge"
     assert data["kredit_used"] == 1
 
 
