@@ -175,12 +175,91 @@ def _get_voice_style(project_id: str, db) -> str:
 
 
 WEB_SEARCH_CREDIT_COST = 5
+RECENT_KEEP = 10
+SUMMARY_TRIGGER = 20
+
 
 class QueryRequest(BaseModel):
     query: str
     output_mode: str = "qa"
     query_type: str = "normal"  # "normal" | "deep"
     use_web_search: bool = False
+    session_id: str | None = None
+
+async def _summarize_old_messages(messages: list, project_context: str = "") -> str:
+    from app.services.llm_provider import call_deepseek_raw
+    history_text = "\n".join(
+        f"[{m['role'].upper()}]: {m['content'][:500]}" for m in messages
+    )
+    prompt = (
+        f"Ringkaskan perbualan akademik berikut dalam 150-200 patah perkataan. "
+        f"Fokus pada: topik utama yang dibincangkan, keputusan atau dapatan penting, "
+        f"konteks yang perlu diingat untuk perbualan seterusnya.\n\n"
+        f"KONTEKS PROJEK:\n{project_context}\n\n"
+        f"PERBUALAN:\n{history_text}\n\nRINGKASAN:"
+    )
+    summary = await call_deepseek_raw(prompt, max_tokens=300)
+    return summary.strip()
+
+
+async def build_session_history(session_id: str, project_context: str, db) -> list:
+    all_msgs = db.execute("""
+        SELECT role, content FROM messages
+        WHERE session_id = ? AND role IN ('user', 'assistant')
+        ORDER BY created_at ASC
+    """, (session_id,)).fetchall()
+
+    total = len(all_msgs)
+    if total <= RECENT_KEEP:
+        return [{"role": m["role"], "content": m["content"]} for m in all_msgs]
+
+    recent = all_msgs[-RECENT_KEEP:]
+    if total <= SUMMARY_TRIGGER:
+        return [{"role": m["role"], "content": m["content"]} for m in recent]
+
+    sess = db.execute(
+        "SELECT conversation_summary FROM chat_sessions WHERE id = ?", (session_id,)
+    ).fetchone()
+
+    if sess and sess["conversation_summary"]:
+        summary_text = sess["conversation_summary"]
+    else:
+        old_msgs = all_msgs[:-RECENT_KEEP]
+        summary_text = await _summarize_old_messages(
+            [{"role": m["role"], "content": m["content"]} for m in old_msgs],
+            project_context
+        )
+        db.execute(
+            "UPDATE chat_sessions SET conversation_summary = ? WHERE id = ?",
+            (summary_text, session_id)
+        )
+
+    return [
+        {"role": "system", "content": f"[RINGKASAN PERBUALAN SEBELUM INI]\n{summary_text}"},
+        *[{"role": m["role"], "content": m["content"]} for m in recent]
+    ]
+
+
+async def _auto_title_session(session_id: str, first_query: str):
+    from app.services.llm_provider import call_deepseek_raw
+    prompt = (
+        f"Jana tajuk ringkas (3-5 patah perkataan) untuk sesi chat akademik "
+        f"berdasarkan soalan pertama ini. Tiada tanda baca. Hanya tajuk.\n\n"
+        f"Soalan: {first_query[:200]}\n\nTajuk:"
+    )
+    try:
+        title = await call_deepseek_raw(prompt, max_tokens=20)
+        title = title.strip().strip('"').strip("'")[:80]
+        if title:
+            now = datetime.utcnow().isoformat()
+            with get_db() as db:
+                db.execute(
+                    "UPDATE chat_sessions SET title = ?, updated_at = ? WHERE id = ?",
+                    (title, now, session_id)
+                )
+    except Exception:
+        pass  # silent fail — default title kekal
+
 
 @router.post("/{project_id}/query")
 async def query_project(
@@ -222,6 +301,32 @@ async def query_project(
         project_dict = dict(proj)
         project_context = _build_project_context(project_dict)
 
+    # Resolve active session
+    with get_db() as db:
+        if body.session_id:
+            sess = db.execute(
+                "SELECT id FROM chat_sessions WHERE id = ? AND project_id = ?",
+                (body.session_id, project_id)
+            ).fetchone()
+            if not sess:
+                raise HTTPException(404, "Sesi tidak dijumpai.")
+            active_session_id = body.session_id
+        else:
+            latest = db.execute("""
+                SELECT id FROM chat_sessions
+                WHERE project_id = ?
+                ORDER BY updated_at DESC LIMIT 1
+            """, (project_id,)).fetchone()
+            if not latest:
+                active_session_id = str(uuid.uuid4())
+                now_s = datetime.utcnow().isoformat()
+                db.execute("""
+                    INSERT INTO chat_sessions (id, project_id, title, created_at, updated_at)
+                    VALUES (?, ?, 'Chat Baru', ?, ?)
+                """, (active_session_id, project_id, now_s, now_s))
+            else:
+                active_session_id = latest["id"]
+
     # Web search — explicit Pro-only path, independent of RAG pipeline
     if body.use_web_search:
         if tier != "pro":
@@ -237,10 +342,14 @@ async def query_project(
                 msg_id = str(uuid.uuid4())
                 now = datetime.utcnow().isoformat()
                 db.execute(
-                    """INSERT INTO messages (id, project_id, role, content, output_mode,
+                    """INSERT INTO messages (id, project_id, session_id, role, content, output_mode,
                        source_chunks, kredit_used, tokens_used_internal, created_at)
-                       VALUES (?, ?, 'assistant', ?, ?, '[]', ?, 0, ?)""",
-                    (msg_id, project_id, web_result["answer"], body.output_mode, WEB_SEARCH_CREDIT_COST, now),
+                       VALUES (?, ?, ?, 'assistant', ?, ?, '[]', ?, 0, ?)""",
+                    (msg_id, project_id, active_session_id, web_result["answer"], body.output_mode, WEB_SEARCH_CREDIT_COST, now),
+                )
+                db.execute(
+                    "UPDATE chat_sessions SET updated_at = ? WHERE id = ?",
+                    (now, active_session_id)
                 )
             return {
                 "answer": web_result["answer"],
@@ -305,9 +414,14 @@ async def query_project(
             msg_id = str(uuid.uuid4())
             now = datetime.utcnow().isoformat()
             db.execute(
-                """INSERT INTO messages (id, project_id, role, content, output_mode, source_chunks, kredit_used, tokens_used_internal, created_at)
-                   VALUES (?, ?, 'assistant', ?, ?, '[]', ?, 0, ?)""",
-                (msg_id, project_id, answer, body.output_mode, kredit_cost, now),
+                """INSERT INTO messages (id, project_id, session_id, role, content, output_mode,
+                   source_chunks, kredit_used, tokens_used_internal, created_at)
+                   VALUES (?, ?, ?, 'assistant', ?, ?, '[]', ?, 0, ?)""",
+                (msg_id, project_id, active_session_id, answer, body.output_mode, kredit_cost, now),
+            )
+            db.execute(
+                "UPDATE chat_sessions SET updated_at = ? WHERE id = ?",
+                (now, active_session_id)
             )
         return {
             "answer": answer,
@@ -347,17 +461,13 @@ async def query_project(
     if is_discovery_lite:
         effective_query = f"[MODE LITE AKTIF — hanya langkah 1-2, output nota ringkas]\n\n{body.query}"
 
-    # For discovery mode: load conversation history so AI can track which step we're on
-    history_messages = []
-    if body.output_mode == "discovery":
-        with get_db() as db:
-            history_rows = db.execute(
-                """SELECT role, content FROM messages
-                   WHERE project_id = ? AND output_mode = 'discovery'
-                   ORDER BY created_at ASC LIMIT 20""",
-                (project_id,)
-            ).fetchall()
-        history_messages = [{"role": r["role"], "content": r["content"]} for r in history_rows]
+    # Load session history with progressive summarization
+    with get_db() as db:
+        history_messages = await build_session_history(
+            session_id=active_session_id,
+            project_context=project_context,
+            db=db,
+        )
 
     low_rel_prefix = ""
     if relevance == "low":
@@ -404,26 +514,25 @@ async def query_project(
             (result["tokens_used"], user["user_id"]),
         )
         now = datetime.utcnow().isoformat()
-        # Save user message for discovery mode (enables multi-turn history)
-        if body.output_mode == "discovery":
-            db.execute(
-                """INSERT INTO messages
-                   (id, project_id, role, content, output_mode, source_chunks,
-                    kredit_used, tokens_used_internal, created_at)
-                   VALUES (?, ?, 'user', ?, ?, ?, 0, 0, ?)""",
-                (
-                    str(uuid.uuid4()), project_id, body.query, body.output_mode,
-                    json.dumps([]), now,
-                ),
-            )
+        # Save user message for all modes (enables multi-turn history)
+        db.execute(
+            """INSERT INTO messages
+               (id, project_id, session_id, role, content, output_mode, source_chunks,
+                kredit_used, tokens_used_internal, created_at)
+               VALUES (?, ?, ?, 'user', ?, ?, ?, 0, 0, ?)""",
+            (
+                str(uuid.uuid4()), project_id, active_session_id, body.query,
+                body.output_mode, json.dumps([]), now,
+            ),
+        )
         msg_id = str(uuid.uuid4())
         db.execute(
             """INSERT INTO messages
-               (id, project_id, role, content, output_mode, source_chunks,
+               (id, project_id, session_id, role, content, output_mode, source_chunks,
                 kredit_used, tokens_used_internal, created_at)
-               VALUES (?, ?, 'assistant', ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, 'assistant', ?, ?, ?, ?, ?, ?)""",
             (
-                msg_id, project_id, result["content"], body.output_mode,
+                msg_id, project_id, active_session_id, result["content"], body.output_mode,
                 json.dumps([c["chunk_id"] for c in chunks]),
                 kredit_cost, result["tokens_used"], now,
             ),
@@ -439,6 +548,25 @@ async def query_project(
                 kredit_cost, len(body.query), datetime.utcnow().isoformat(),
             ),
         )
+        # Update session timestamp
+        db.execute(
+            "UPDATE chat_sessions SET updated_at = ? WHERE id = ?",
+            (now, active_session_id)
+        )
+        # Clear summary cache if conversation has grown past trigger
+        total_msgs = db.execute(
+            "SELECT COUNT(*) as cnt FROM messages WHERE session_id = ?",
+            (active_session_id,)
+        ).fetchone()["cnt"]
+        if total_msgs > SUMMARY_TRIGGER:
+            db.execute(
+                "UPDATE chat_sessions SET conversation_summary = '' WHERE id = ?",
+                (active_session_id,)
+            )
+        # Auto-title on first user message (fire-and-forget)
+        if total_msgs == 1:
+            import asyncio
+            asyncio.create_task(_auto_title_session(active_session_id, body.query))
 
     return {
         "answer": result["content"],
@@ -459,7 +587,7 @@ async def query_project(
     }
 
 @router.get("/{project_id}/messages")
-def get_messages(project_id: str, user=Depends(get_current_user)):
+def get_messages(project_id: str, session_id: str | None = None, user=Depends(get_current_user)):
     with get_db() as db:
         proj = db.execute(
             "SELECT id FROM projects WHERE id = ? AND user_id = ?",
@@ -467,8 +595,24 @@ def get_messages(project_id: str, user=Depends(get_current_user)):
         ).fetchone()
         if not proj:
             raise HTTPException(404, "Projek tidak dijumpai.")
-        msgs = db.execute(
-            "SELECT * FROM messages WHERE project_id = ? ORDER BY created_at ASC",
-            (project_id,),
-        ).fetchall()
+
+        if session_id:
+            msgs = db.execute(
+                "SELECT * FROM messages WHERE project_id = ? AND session_id = ? ORDER BY created_at ASC",
+                (project_id, session_id),
+            ).fetchall()
+        else:
+            latest = db.execute("""
+                SELECT id FROM chat_sessions
+                WHERE project_id = ?
+                ORDER BY updated_at DESC LIMIT 1
+            """, (project_id,)).fetchone()
+            if latest:
+                msgs = db.execute(
+                    "SELECT * FROM messages WHERE project_id = ? AND session_id = ? ORDER BY created_at ASC",
+                    (project_id, latest["id"]),
+                ).fetchall()
+            else:
+                msgs = []
+
     return [dict(m) for m in msgs]
