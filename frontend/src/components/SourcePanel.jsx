@@ -358,9 +358,21 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                           >
                             {doc.filename}
                           </p>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}>
-                            {doc.chunk_count} chunk
-                          </span>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}>
+                              {doc.chunk_count} chunk
+                            </span>
+                            {doc.source_type === 'search_result' && (
+                              <span style={{
+                                fontSize: 10, padding: '1px 5px', borderRadius: 3,
+                                background: doc.content_level === 'full_text' ? '#D1FAE5' : '#FEF3C7',
+                                color: doc.content_level === 'full_text' ? '#065F46' : '#92400E',
+                                fontFamily: 'var(--font-mono)',
+                              }}>
+                                {doc.content_level === 'full_text' ? 'Full Text' : 'Abstract'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <button
                           onClick={e => handleDelete(e, doc.id, doc.filename)}
