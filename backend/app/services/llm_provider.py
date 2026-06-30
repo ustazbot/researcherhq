@@ -2,24 +2,106 @@ import httpx
 from typing import List, Dict
 from app.config import settings
 
-PLATFORM_CONTEXT = """PLATFORM CONTEXT — ResearcherHQ:
-Jika pengguna bertanya tentang cara menggunakan platform ini, jawab berdasarkan maklumat berikut. JANGAN tafsirkan soalan navigasi sebagai soalan akademik.
+PLATFORM_CONTEXT = """=== RESEARCHERHQ PLATFORM GUIDE ===
 
-- Tukar tajuk projek: pergi ke Dashboard (anak panah <- di header) -> klik ... pada kad projek -> Rename
-- Padam projek: Dashboard -> klik ... pada kad projek -> Delete
-- Muat naik dokumen: klik butang "Upload document" di panel Sources (kiri)
-- Format fail yang disokong: PDF, DOCX, XLSX, PPTX (max 20MB)
-- Export bab: panel Thesis Structure (kanan) -> klik ".docx" sebelah nama bab
-- Research Credits: dikurangkan setiap kali AI jana respons. Free: 50/bulan, Pro: 500/bulan
-- Style Profile: menu bar -> "Style profile" (Pro sahaja)
-- Cari artikel: ikon carian (kaca pembesar) di rail panel Sources
+PANEL KIRI — SOURCES
+• Tambah dokumen: klik [+ Tambah Sumber] → pilih fail (PDF/DOCX/XLSX/PPTX)
+• Kategori wajib pilih: Artikel Rujukan / Catatan SV / Draf Sendiri / Data & Transkrip / Panduan Format
+• Cari artikel: klik [🔍 Cari Artikel] → Search Panel terbuka (full-screen)
+• Klik nama dokumen → preview kandungan
+• Ikon tong sampah → padam dokumen dari project
 
-PERATURAN SOALAN NAVIGASI:
-Jika soalan pengguna boleh ditafsirkan sebagai (a) cara guna platform ATAU (b) soalan akademik -- TANYA DAHULU.
-Contoh: "nak tukar tajuk" -> tanya "Adakah anda ingin menukar tajuk projek dalam platform, atau mencadangkan tajuk baru untuk kajian anda?"
+PANEL TENGAH — CHAT
+• Taip soalan → AI jawab berdasarkan dokumen (RAG mode default)
+• [📄 Dokumen] / [🔍 Web] toggle atas input bar
+  - Dokumen: RAG dari sumber awak (default, semua tier)
+  - Web: carian Perplexity (Pro sahaja, 5 kredit/query)
+• [💬 Jawapan Umum] = AI guna pengetahuan umum, bukan dokumen awak
+• Output Modes: klik [≡] → pilih jenis analisis
 
-PERATURAN PANJANG RESPONS:
-Soalan ringkas -> jawab ringkas dahulu. Jangan terus beri framework penuh, objektif kajian, atau skop kajian melainkan pengguna minta secara eksplisit."""
+PANEL KANAN — STRUKTUR THESIS
+• Klik nama bab → editor TipTap terbuka
+• [Terima] = apply cadangan AI ke dalam bab awak
+• [Tolak] = buang cadangan, teks asal kekal
+• [Export Bab] → muat turun bab sebagai fail .docx
+• [Semak SV Alignment] → semak sama ada bab selari maklum balas penyelia
+• Tambah bab baharu: klik [+ Bab] dalam panel struktur
+
+OUTPUT MODES (kredit):
+• Soal-Jawab biasa: 1 kredit
+• Soal-Jawab mendalam: 3 kredit
+• Key Findings: 3 kredit
+• Executive Summary: 5 kredit
+• Literature Review: 10 kredit
+• Carian Web (Perplexity): 5 kredit [Pro sahaja]
+
+KREDIT (Research Credits):
+• Free: 50 kredit/bulan, auto-reset setiap 30 hari dari tarikh daftar
+• Pro (RM39/bulan): 500 kredit/bulan + boleh topup
+• Topup: RM10 = +200 kredit (tidak reset, kekal sehingga digunakan)
+• Urutan tolak: kredit langganan habis dulu, kemudian kredit topup
+• Semak baki: klik nama awak → Account Settings → bahagian Kredit
+
+STYLE PROFILE:
+• Tetapkan gaya penulisan — AI akan ikut cara penulisan awak
+• Dua cara: isi manual ATAU upload contoh penulisan awak untuk AI analyse
+• Lokasi: klik ikon Style Profile dalam panel Chat
+
+SV FEEDBACK (Maklum Balas Penyelia):
+• Upload nota atau maklum balas bertulis penyelia awak
+• Kategori: pilih "Catatan SV" semasa upload
+• AI akan extract item maklum balas secara automatik
+• [Semak SV Alignment] dalam editor: AI compare bab awak dengan maklum balas SV
+
+SEARCH PANEL:
+• Cari artikel dari OpenAlex dan Semantic Scholar (250M+ artikel)
+• Free: boleh search + preview abstract
+• Pro: boleh [+ Tambah ke Sources] — artikel masuk terus ke workspace
+• 🔓 = Open Access (full text diproses automatik)
+• 🔒 = Paywalled (abstract sahaja — muat naik PDF untuk analisis penuh)
+
+AKAUN & TETAPAN:
+• Tukar kata laluan: Account Settings → Keselamatan
+• Tukar bahasa chat AI: Account Settings → Keutamaan → Bahasa Perbualan
+• Padam akaun: Account Settings → Padam Akaun (tidak boleh dibatalkan)
+• Naik taraf ke Pro: klik [Naik Taraf] dalam dashboard atau Account Settings
+
+BANTUAN LANJUT:
+• Pusat Bantuan: Menu → Bantuan (atau /app/help)
+• Soal AI terus: taip "macam mana nak..." dalam chat
+
+=== TAMAT PLATFORM GUIDE ==="""
+
+INTENT_ROUTING = """
+KLASIFIKASI SOALAN (tentukan sebelum jawab):
+
+ACADEMIC_RAG: soalan memerlukan analisis dokumen, citation, output akademik
+→ Guna kandungan dokumen, citation wajib format [[cite:N]]
+
+LLM_GENERAL: definisi, konsep, teori umum, cadangan — tiada dokumen atau soalan umum
+→ Jawab dari pengetahuan umum
+→ WAJIB label output dengan: [💬 Jawapan Umum]
+→ WAJIB tambah disclaimer di hujung (lihat format bawah)
+→ TIADA citation rekaan — jika sebut kajian/teori, cadang verify via Search Panel
+→ Kredit: 1 (sama Q&A biasa)
+
+PLATFORM_NAV: soalan tentang cara guna ResearcherHQ, fungsi butang, navigation
+→ Jawab dari PLATFORM GUIDE di atas
+→ Jika soalan boleh tafsir dua cara (platform ATAU akademik) — TANYA DAHULU
+
+CASUAL: sapaan, ucapan terima kasih, soalan peribadi
+→ Jawab ringkas dan mesra dalam bahasa yang digunakan pengguna
+
+FORMAT OUTPUT LLM_GENERAL (wajib ikut):
+[💬 Jawapan Umum]
+
+[Jawapan substantif dari pengetahuan umum — berguna, tepat, seperti research assistant]
+
+─────────────────────────────────────────
+Jawapan ini berdasarkan pengetahuan umum, bukan dokumen awak.
+Untuk analisis berasaskan sumber kajian awak, muat naik artikel
+atau cari melalui Search Panel 🔍.
+"""
 
 SYSTEM_PROMPTS = {
     "general": """Anda adalah Research Assistant akademik untuk ResearcherHQ — platform penyelidikan untuk pelajar pascasiswazah Malaysia.
@@ -181,6 +263,8 @@ async def query_llm(
     query_type: str = "normal",
     style_notes: str = "",
     project_context: str = "",
+    chat_language: str = "bm",
+    output_language: str = "bm",
 ) -> Dict:
     # ponytail: mock path for load tests — zero API cost, returns fixture
     if settings.llm_provider == "mock":
@@ -190,7 +274,7 @@ async def query_llm(
             "model": "mock",
         }
 
-    system_prompt = PLATFORM_CONTEXT + "\n\n---\n\n" + SYSTEM_PROMPTS.get(research_mode, SYSTEM_PROMPTS["general"])
+    system_prompt = PLATFORM_CONTEXT + "\n\n" + INTENT_ROUTING + "\n\n---\n\n" + SYSTEM_PROMPTS.get(research_mode, SYSTEM_PROMPTS["general"])
     if project_context:
         system_prompt += f"\n\nKONTEKS PROJEK PENGGUNA:\n{project_context}"
     output_prompt = OUTPUT_MODE_PROMPTS.get(output_mode, "")
@@ -198,6 +282,14 @@ async def query_llm(
         system_prompt = system_prompt + "\n\n" + output_prompt
     if style_notes:
         system_prompt = system_prompt + "\n\n" + style_notes
+
+    language_instruction = f"""
+BAHASA PERBUALAN: Gunakan {'Bahasa Malaysia' if chat_language == 'bm' else 'English'} untuk semua respons perbualan, clarification, dan mesej sistem.
+
+BAHASA OUTPUT AKADEMIK: Gunakan {'Bahasa Malaysia' if output_language == 'bm' else 'English'} untuk semua output mode (Literature Review, Key Findings, Executive Summary, Research Gap, proposal_extract).
+JANGAN tukar bahasa output akademik walaupun pengguna chat dalam bahasa berbeza.
+"""
+    system_prompt += "\n\n" + language_instruction
 
     use_pro = output_mode in ("literature_review", "research_gap") or query_type == "deep"
     model = settings.deepseek_model_pro if use_pro else settings.deepseek_model_flash
