@@ -7,6 +7,7 @@ import {
   IconClipboardCheck, IconCircleCheck, IconCircleX, IconClock,
 } from '@tabler/icons-react'
 import api from '../api/client'
+import { SearchOverlay } from './SearchOverlay'
 
 const CATEGORIES = [
   { value: 'artikel',        label: 'Reference Articles', icon: <IconFileText size={15} stroke={1.5} /> },
@@ -143,6 +144,9 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
   const [bibData, setBibData] = useState(null)
   const [bibLoading, setBibLoading] = useState(false)
 
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  // legacy search state — kept to avoid breaking handleSearch/handleAccept refs below
   const [searchQuery, setSearchQuery] = useState('')
   const [yearFrom, setYearFrom] = useState('')
   const [yearTo, setYearTo] = useState('')
@@ -238,7 +242,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         </button>
         <div style={{ width: '80%', height: '1px', background: 'var(--line)', margin: '4px 0' }} />
         <RailIcon icon={<IconFiles size={18} stroke={1.5} />} title="Sources" onClick={() => { onToggleCollapse(); setActivePanel('docs') }} />
-        <RailIcon icon={<IconSearch size={18} stroke={1.5} />} title="Search articles" onClick={() => { onToggleCollapse(); setActivePanel('search') }} />
+        <RailIcon icon={<IconSearch size={18} stroke={1.5} />} title="Cari Artikel" onClick={() => { onToggleCollapse(); setSearchOpen(true) }} />
         <RailIcon icon={<IconBookmark size={18} stroke={1.5} />} title="References" onClick={() => { onToggleCollapse(); setActivePanel('bibliography') }} />
         <RailIcon
           icon={<IconClipboardCheck size={18} stroke={1.5} />}
@@ -257,6 +261,13 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
       display: 'flex', flexDirection: 'row', background: 'var(--card)',
       overflow: 'hidden',
     }}>
+      <SearchOverlay
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        projectId={projectId}
+        tier={tier}
+        onAccepted={onAcceptArticle}
+      />
       {/* ICON RAIL */}
       <div style={{
         width: 40, flexShrink: 0,
@@ -266,7 +277,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         background: 'var(--bg)',
       }}>
         <RailIcon icon={<IconFiles size={18} stroke={1.5} />} active={activePanel === 'docs'} title="Sources" onClick={() => setActivePanel('docs')} />
-        <RailIcon icon={<IconSearch size={18} stroke={1.5} />} active={activePanel === 'search'} title="Search articles" onClick={() => setActivePanel('search')} />
+        <RailIcon icon={<IconSearch size={18} stroke={1.5} />} active={searchOpen} title="Cari Artikel" onClick={() => setSearchOpen(true)} />
         <RailIcon icon={<IconBookmark size={18} stroke={1.5} />} active={activePanel === 'bibliography'} title="References" onClick={() => setActivePanel('bibliography')} />
         <RailIcon
           icon={<IconClipboardCheck size={18} stroke={1.5} />}
@@ -410,89 +421,6 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
               </p>
             </div>
           </>
-        ) : activePanel === 'search' ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)' }}>
-              <div style={{ marginBottom: 6 }}>
-                <input
-                  value={searchQuery}
-                  onChange={e => { setSearchQuery(e.target.value); setSearchError('') }}
-                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                  placeholder="Search keywords..."
-                  style={{
-                    width: '100%', padding: '7px 10px',
-                    border: '1px solid var(--line)',
-                    borderRadius: 6, fontFamily: 'var(--font-body)', fontSize: 13,
-                    background: 'var(--bg)', color: 'var(--ink)',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <button
-                  onClick={handleSearch}
-                  disabled={searching}
-                  style={{
-                    width: '100%', marginTop: 4,
-                    padding: '7px 0', background: 'var(--ink)', color: 'var(--bg)',
-                    border: 'none', borderRadius: 6,
-                    fontFamily: 'var(--font-mono)', fontSize: 11,
-                    cursor: searching ? 'not-allowed' : 'pointer',
-                    opacity: searching ? 0.6 : 1,
-                  }}
-                >
-                  {searching ? 'Searching...' : 'Search'}
-                </button>
-              </div>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)', flexShrink: 0 }}>Year:</span>
-                <input value={yearFrom} onChange={e => setYearFrom(e.target.value)} placeholder="from" type="number"
-                  style={{ flex: 1, minWidth: 0, padding: '4px 6px', border: '1px solid var(--line)', borderRadius: 5, fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--bg)', color: 'var(--ink)', boxSizing: 'border-box' }} />
-                <span style={{ color: 'var(--ink-soft)', fontSize: 11, flexShrink: 0 }}>–</span>
-                <input value={yearTo} onChange={e => setYearTo(e.target.value)} placeholder="to" type="number"
-                  style={{ flex: 1, minWidth: 0, padding: '4px 6px', border: '1px solid var(--line)', borderRadius: 5, fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--bg)', color: 'var(--ink)', boxSizing: 'border-box' }} />
-              </div>
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-              {searching && <p style={{ color: 'var(--ink-soft)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Searching...</p>}
-              {!searching && searchError && <p style={{ color: '#EF4444', fontSize: 12, padding: '8px 12px' }}>{searchError}</p>}
-              {tier !== 'pro' && searchResults.length > 0 && (
-                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)', padding: '4px 12px', background: 'var(--accent-soft)', margin: '0 0 4px' }}>
-                  Free: 5 results only
-                </p>
-              )}
-              {searchResults.map((article, i) => (
-                <div key={i} style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)' }}>
-                  <p style={{ margin: '0 0 2px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.4 }}>{article.title}</p>
-                  <p style={{ margin: '0 0 2px', fontSize: 11, color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>
-                    {article.authors?.join(', ')}{article.year ? ` (${article.year})` : ''}
-                  </p>
-                  {article.journal && <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--ink-soft)', fontStyle: 'italic' }}>{article.journal}</p>}
-                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, background: 'var(--line)', padding: '1px 5px', borderRadius: 3 }}>
-                      {SOURCE_LABEL[article.source] || article.source}
-                    </span>
-                    {article.cited_by > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--ink-soft)' }}>Cited: {article.cited_by}</span>}
-                  </div>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {article.abstract && (
-                      <button onClick={() => setExpandedAbstract(expandedAbstract === i ? null : i)}
-                        style={{ flex: 1, padding: '5px 0', background: 'transparent', border: '1px solid var(--line)', borderRadius: 5, fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer', color: 'var(--ink-soft)' }}>
-                        Abstract {expandedAbstract === i ? 'v' : '>'}
-                      </button>
-                    )}
-                    <button onClick={() => handleAccept(article, i)} disabled={accepting === i}
-                      style={{ flex: 1, padding: '5px 0', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 5, fontFamily: 'var(--font-mono)', fontSize: 10, cursor: accepting === i ? 'not-allowed' : 'pointer', color: 'var(--ink)', fontWeight: 600, opacity: accepting === i ? 0.6 : 1 }}>
-                      {accepting === i ? '...' : 'Accept'}
-                    </button>
-                  </div>
-                  {expandedAbstract === i && article.abstract && (
-                    <div style={{ marginTop: 6, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 5, padding: '8px 10px', fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.5, maxHeight: 150, overflowY: 'auto' }}>
-                      {article.abstract}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         ) : activePanel === 'sv-feedback' ? (
           <SVFeedbackPanel projectId={projectId} />
         ) : (
