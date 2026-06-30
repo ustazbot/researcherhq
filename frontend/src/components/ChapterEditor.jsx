@@ -302,13 +302,13 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
                   <IconX size={16} stroke={1.5} />
                 </button>
               </div>
-              {alignmentError && <p style={{ color: '#EF4444', fontSize: 13 }}>{alignmentError}</p>}
+              {alignmentError && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{alignmentError}</p>}
               {!alignmentError && alignmentIssues.length === 0 ? (
-                <p style={{ fontSize: 13, color: '#16A34A' }}>✓ Chapter addresses all open SV feedback items.</p>
+                <p style={{ fontSize: 13, color: 'var(--success)' }}>✓ Chapter addresses all open SV feedback items.</p>
               ) : (
                 alignmentIssues.map((issue, i) => (
                   <div key={i} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: i < alignmentIssues.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning)', marginBottom: 4 }}>
                       ⚠ {issue.feedback_item}
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--ink)', marginBottom: 4 }}>{issue.concern}</div>

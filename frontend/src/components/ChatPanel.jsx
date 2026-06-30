@@ -1,13 +1,14 @@
 // frontend/src/components/ChatPanel.jsx
 import { useState, useRef, useEffect } from 'react'
 import { IconArrowUp } from '@tabler/icons-react'
+import ReactMarkdown from 'react-markdown'
 import { CitationCard } from './CitationCard'
 import { parseCitation } from '../utils/parseCitation'
 
 const SOURCE_BADGE = {
-  rag_document:  { label: '📄 Your documents',                            bg: '#F0FDF4', color: '#166534' },
+  rag_document:  { label: '📄 Your documents',                            bg: 'var(--success-soft)', color: 'var(--success)' },
   web_search:    { label: '🌐 Web sources',                               bg: '#EFF6FF', color: '#1D4ED8' },
-  llm_knowledge: { label: '⚠ General knowledge — verify independently',  bg: '#FFFBEB', color: '#92400E' },
+  llm_knowledge: { label: '⚠ General knowledge — verify independently',  bg: 'var(--warning-soft)', color: 'var(--warning)' },
 }
 
 const CITE_STYLES = `
@@ -39,6 +40,15 @@ const CITE_STYLES = `
   font-family: var(--font-mono); font-size: 11px;
   color: var(--ink-soft);
 }
+`
+
+const MD_STYLES = `
+.rhq-md { font-family: var(--font-body); }
+.rhq-md h1, .rhq-md h2, .rhq-md h3 { font-family: var(--font-heading); margin: 0.4em 0 0.2em; }
+.rhq-md p { margin: 0 0 0.5em; }
+.rhq-md p:last-child { margin-bottom: 0; }
+.rhq-md ul, .rhq-md ol { padding-left: 1.4em; margin: 0 0 0.5em; }
+.rhq-md li { margin: 0.1em 0; }
 `
 
 const PILL_STYLES = `
@@ -143,13 +153,13 @@ export function ChatPanel({
     })
     return (
       <>
-        <span style={{ whiteSpace: 'pre-wrap' }}>
+        <div>
           {segments.map((seg, i) =>
             seg.type === 'text'
-              ? <span key={i}>{seg.content}</span>
+              ? <div key={i} className="rhq-md"><ReactMarkdown>{seg.content}</ReactMarkdown></div>
               : <CiteChip key={i} index={seg.index} source={seg.source} />
           )}
-        </span>
+        </div>
         {hasCites && cited.length > 0 && (
           <div className="cite-footnotes">
             {cited.map(s => (
@@ -166,6 +176,7 @@ export function ChatPanel({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%', position: 'relative' }}>
       <style>{CITE_STYLES}</style>
+      <style>{MD_STYLES}</style>
 
       {/* Chat Header with session switcher */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--line)', background: 'var(--card)', flexShrink: 0 }}>
@@ -282,7 +293,7 @@ export function ChatPanel({
                           if (window.confirm('Padam sesi ini? Mesej tidak boleh dipulihkan.')) onDeleteSession?.(sess.id)
                           setSessionMenuId(null)
                         }}
-                        style={{ width: '100%', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13, color: '#EF4444' }}
+                        style={{ width: '100%', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13, color: 'var(--danger)' }}
                       >🗑️ Padam</button>
                     </div>
                   )}
@@ -307,9 +318,9 @@ export function ChatPanel({
           }}>
             <div style={{
               maxWidth: '90%',
-              background: msg.role === 'user' ? 'var(--ink)' : msg.role === 'error' ? '#FEF2F2' : 'var(--card)',
-              color: msg.role === 'user' ? 'var(--bg)' : msg.role === 'error' ? '#EF4444' : 'var(--ink)',
-              border: msg.role === 'user' ? 'none' : `1px solid ${msg.role === 'error' ? '#FECACA' : 'var(--line)'}`,
+              background: msg.role === 'user' ? 'var(--ink)' : msg.role === 'error' ? 'var(--danger-soft)' : 'var(--card)',
+              color: msg.role === 'user' ? 'var(--bg)' : msg.role === 'error' ? 'var(--danger)' : 'var(--ink)',
+              border: msg.role === 'user' ? 'none' : `1px solid ${msg.role === 'error' ? 'var(--danger)' : 'var(--line)'}`,
               borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
               padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 14,
               lineHeight: 1.6, whiteSpace: msg.role === 'assistant' ? undefined : 'pre-wrap',

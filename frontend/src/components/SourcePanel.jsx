@@ -24,15 +24,16 @@ const SOURCE_LABEL = {
   crossref: 'CrossRef',
 }
 
-function RailIcon({ icon, active, title, onClick, style }) {
+function RailIcon({ icon, active, title, label, onClick, style }) {
   return (
     <button
       onClick={onClick}
       title={title}
       aria-label={title}
       style={{
-        width: 32, height: 32,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 36, height: 'auto',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 2, padding: '4px 2px',
         background: active ? 'var(--accent-soft)' : 'none',
         border: active ? '1px solid var(--accent)' : '1px solid transparent',
         borderRadius: 6, cursor: 'pointer',
@@ -44,6 +45,7 @@ function RailIcon({ icon, active, title, onClick, style }) {
       onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'none' }}
     >
       {icon}
+      {label && <span style={{ fontSize: 10, color: 'var(--ink-soft)', lineHeight: 1, userSelect: 'none' }}>{label}</span>}
     </button>
   )
 }
@@ -73,7 +75,7 @@ function SVFeedbackPanel({ projectId }) {
   }
 
   if (loading) return <div style={{ padding: 16, color: 'var(--ink-soft)', fontSize: 13 }}>Loading...</div>
-  if (error) return <div style={{ padding: 16, color: '#EF4444', fontSize: 13 }}>{error}</div>
+  if (error) return <div style={{ padding: 16, color: 'var(--danger)', fontSize: 13 }}>{error}</div>
   if (items.length === 0) return (
     <div style={{ padding: 16, color: 'var(--ink-soft)', fontSize: 13, lineHeight: 1.5 }}>
       No SV feedback yet. Upload a supervisor notes document (category: SV Notes) to extract feedback items.
@@ -85,9 +87,9 @@ function SVFeedbackPanel({ projectId }) {
   const dismissed = items.filter(i => i.status === 'dismissed')
 
   const statusIcon = (status) => {
-    if (status === 'addressed') return <IconCircleCheck size={15} stroke={1.5} style={{ color: '#16A34A', flexShrink: 0 }} />
+    if (status === 'addressed') return <IconCircleCheck size={15} stroke={1.5} style={{ color: 'var(--success)', flexShrink: 0 }} />
     if (status === 'dismissed') return <IconCircleX size={15} stroke={1.5} style={{ color: 'var(--ink-soft)', flexShrink: 0 }} />
-    return <IconClock size={15} stroke={1.5} style={{ color: '#F59E0B', flexShrink: 0 }} />
+    return <IconClock size={15} stroke={1.5} style={{ color: 'var(--warning)', flexShrink: 0 }} />
   }
 
   function FeedbackGroup({ label, groupItems }) {
@@ -222,45 +224,69 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
   if (collapsed) {
     return (
       <div style={{
-        width: 40, flexShrink: 0,
+        width: 44, flexShrink: 0,
         borderRight: '1px solid var(--line)',
         background: 'var(--card)',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', paddingTop: 10, gap: 2,
+        position: 'relative',
       }}>
+        {/* Floating pill on right divider */}
         <button
           onClick={onToggleCollapse}
-          title="Expand panel"
+          title="Expand sources panel"
           style={{
-            width: 32, height: 32,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'none', border: '1px solid transparent',
-            borderRadius: 6, cursor: 'pointer', color: 'var(--ink-soft)',
+            position: 'absolute', right: -10, top: '50%', transform: 'translateY(-50%)',
+            width: 20, height: 36,
+            background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 2, padding: 0, color: 'var(--ink-soft)',
           }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)' }}
         >
-          <IconChevronRight size={18} stroke={1.5} />
+          <IconChevronRight size={13} stroke={1.5} />
         </button>
         <div style={{ width: '80%', height: '1px', background: 'var(--line)', margin: '4px 0' }} />
-        <RailIcon icon={<IconFiles size={18} stroke={1.5} />} title="Sources" onClick={() => { onToggleCollapse(); setActivePanel('docs') }} />
-        <RailIcon icon={<IconSearch size={18} stroke={1.5} />} title="Cari Artikel" onClick={() => { onToggleCollapse(); setSearchOpen(true) }} />
-        <RailIcon icon={<IconBookmark size={18} stroke={1.5} />} title="References" onClick={() => { onToggleCollapse(); setActivePanel('bibliography') }} />
+        <RailIcon icon={<IconFiles size={16} stroke={1.5} />} label="Files" title="Sources" onClick={() => { onToggleCollapse(); setActivePanel('docs') }} />
+        <RailIcon icon={<IconSearch size={16} stroke={1.5} />} label="Search" title="Cari Artikel" onClick={() => { onToggleCollapse(); setSearchOpen(true) }} />
+        <RailIcon icon={<IconBookmark size={16} stroke={1.5} />} label="Refs" title="References" onClick={() => { onToggleCollapse(); setActivePanel('bibliography') }} />
         <RailIcon
-          icon={<IconClipboardCheck size={18} stroke={1.5} />}
+          icon={<IconClipboardCheck size={16} stroke={1.5} />}
+          label="SV"
           title="SV Feedback"
           onClick={() => { onToggleCollapse(); setActivePanel('sv-feedback') }}
         />
         <div style={{ flex: 1 }} />
-        <RailIcon icon={<IconHelpCircle size={18} stroke={1.5} />} title="Help & documentation" onClick={onShowHelp} style={{ marginBottom: 10 }} />
+        <RailIcon icon={<IconHelpCircle size={16} stroke={1.5} />} label="Help" title="Help & documentation" onClick={onShowHelp} style={{ marginBottom: 10 }} />
       </div>
     )
   }
 
   return (
     <div style={{
-      width: 260, flexShrink: 0, borderRight: '1px solid var(--line)',
+      width: 264, flexShrink: 0, borderRight: '1px solid var(--line)',
       display: 'flex', flexDirection: 'row', background: 'var(--card)',
-      overflow: 'hidden',
+      position: 'relative',
     }}>
+      {/* Floating pill on right divider */}
+      <button
+        onClick={onToggleCollapse}
+        title="Collapse sources panel"
+        style={{
+          position: 'absolute', right: -10, top: '50%', transform: 'translateY(-50%)',
+          width: 20, height: 36,
+          background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 2, padding: 0, color: 'var(--ink-soft)',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)' }}
+      >
+        <IconChevronLeft size={13} stroke={1.5} />
+      </button>
       <SearchOverlay
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
@@ -270,38 +296,32 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
       />
       {/* ICON RAIL */}
       <div style={{
-        width: 40, flexShrink: 0,
+        width: 44, flexShrink: 0,
         borderRight: '1px solid var(--line)',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', paddingTop: 10, gap: 2,
         background: 'var(--bg)',
       }}>
-        <RailIcon icon={<IconFiles size={18} stroke={1.5} />} active={activePanel === 'docs'} title="Sources" onClick={() => setActivePanel('docs')} />
-        <RailIcon icon={<IconSearch size={18} stroke={1.5} />} active={searchOpen} title="Cari Artikel" onClick={() => setSearchOpen(true)} />
-        <RailIcon icon={<IconBookmark size={18} stroke={1.5} />} active={activePanel === 'bibliography'} title="References" onClick={() => setActivePanel('bibliography')} />
+        <RailIcon icon={<IconFiles size={16} stroke={1.5} />} label="Files" active={activePanel === 'docs'} title="Sources" onClick={() => setActivePanel('docs')} />
+        <RailIcon icon={<IconSearch size={16} stroke={1.5} />} label="Search" active={searchOpen} title="Cari Artikel" onClick={() => setSearchOpen(true)} />
+        <RailIcon icon={<IconBookmark size={16} stroke={1.5} />} label="Refs" active={activePanel === 'bibliography'} title="References" onClick={() => setActivePanel('bibliography')} />
         <RailIcon
-          icon={<IconClipboardCheck size={18} stroke={1.5} />}
+          icon={<IconClipboardCheck size={16} stroke={1.5} />}
+          label="SV"
           active={activePanel === 'sv-feedback'}
           title="SV Feedback"
           onClick={() => setActivePanel('sv-feedback')}
         />
         <div style={{ flex: 1 }} />
-        <RailIcon icon={<IconHelpCircle size={18} stroke={1.5} />} title="Help & documentation" onClick={onShowHelp} style={{ marginBottom: 10 }} />
+        <RailIcon icon={<IconHelpCircle size={16} stroke={1.5} />} label="Help" title="Help & documentation" onClick={onShowHelp} style={{ marginBottom: 10 }} />
       </div>
 
       {/* PANEL CONTENT */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center' }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
             {activePanel === 'docs' ? 'Sources' : activePanel === 'search' ? 'Search' : activePanel === 'sv-feedback' ? 'SV Feedback' : 'References'}
           </span>
-          <button
-            onClick={onToggleCollapse}
-            title="Collapse panel"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', display: 'flex', padding: 2, borderRadius: 4 }}
-          >
-            <IconChevronLeft size={16} stroke={1.5} />
-          </button>
         </div>
 
         {activePanel === 'docs' ? (
@@ -365,8 +385,8 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
                             {doc.source_type === 'search_result' && (
                               <span style={{
                                 fontSize: 10, padding: '1px 5px', borderRadius: 3,
-                                background: doc.content_level === 'full_text' ? '#D1FAE5' : '#FEF3C7',
-                                color: doc.content_level === 'full_text' ? '#065F46' : '#92400E',
+                                background: doc.content_level === 'full_text' ? 'var(--success-soft)' : 'var(--warning-soft)',
+                                color: doc.content_level === 'full_text' ? 'var(--success)' : 'var(--warning)',
                                 fontFamily: 'var(--font-mono)',
                               }}>
                                 {doc.content_level === 'full_text' ? 'Full Text' : 'Abstract'}

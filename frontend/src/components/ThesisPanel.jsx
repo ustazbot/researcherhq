@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import api from '../api/client'
 
 const STATUS_LABEL = { draft: 'Draft', dalam_proses: 'In Progress', siap: 'Done' }
-const STATUS_COLOR = { draft: 'var(--line)', dalam_proses: 'var(--accent-soft)', siap: '#D1FAE5' }
+const STATUS_COLOR = { draft: 'var(--line)', dalam_proses: 'var(--accent-soft)', siap: 'var(--success-soft)' }
 
 export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse, onCompile, compiling, compileError, compileWarning, onDismissError }) {
   const [upgrading, setUpgrading] = useState(false)
@@ -20,16 +21,25 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
       <div style={{
         width: 36, flexShrink: 0, borderLeft: '1px solid var(--line)',
         background: 'var(--card)', display: 'flex', flexDirection: 'column', alignItems: 'center',
-        paddingTop: 12,
+        paddingTop: 12, position: 'relative',
       }}>
+        {/* Floating pill on left divider */}
         <button
           onClick={onToggleCollapse}
-          title="Open Structure panel"
+          title="Expand thesis structure panel"
           style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--ink-soft)', fontSize: 16, padding: 4,
+            position: 'absolute', left: -10, top: '50%', transform: 'translateY(-50%)',
+            width: 20, height: 36,
+            background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 2, padding: 0, color: 'var(--ink-soft)',
           }}
-        >‹</button>
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)' }}
+        >
+          <IconChevronLeft size={13} stroke={1.5} />
+        </button>
       </div>
     )
   }
@@ -62,10 +72,27 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
 
   return (
     <div style={{
-      width: 260, flexShrink: 0, borderLeft: '1px solid var(--line)',
+      width: 264, flexShrink: 0, borderLeft: '1px solid var(--line)',
       display: 'flex', flexDirection: 'column', background: 'var(--card)',
       position: 'relative',
     }}>
+      {/* Floating pill on left divider */}
+      <button
+        onClick={onToggleCollapse}
+        title="Collapse thesis structure panel"
+        style={{
+          position: 'absolute', left: -10, top: '50%', transform: 'translateY(-50%)',
+          width: 20, height: 36,
+          background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 2, padding: 0, color: 'var(--ink-soft)',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)' }}
+      >
+        <IconChevronRight size={13} stroke={1.5} />
+      </button>
       {tier !== 'pro' && (
         <div style={{
           position: 'absolute', inset: 0,
@@ -107,17 +134,12 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
 
       <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={onToggleCollapse}
-            title="Close Structure panel"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 16, padding: 0 }}
-          >›</button>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
             Thesis Structure
           </span>
         </div>
         {total > 0 && (
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: done === total ? '#16A34A' : 'var(--ink-soft)' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: done === total ? 'var(--success)' : 'var(--ink-soft)' }}>
             {done}/{total} done
           </span>
         )}
@@ -283,17 +305,17 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
                 <div style={{
                   margin: '6px 0',
                   padding: '8px 12px',
-                  background: '#FEF2F2',
-                  border: '1px solid #FECACA',
+                  background: 'var(--danger-soft)',
+                  border: '1px solid var(--danger)',
                   borderRadius: 'var(--radius-sm)',
                   fontSize: 12,
-                  color: '#991B1B',
+                  color: 'var(--danger)',
                   lineHeight: 1.5,
                 }}>
                   {compileError}
                   <button
                     onClick={onDismissError}
-                    style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#991B1B' }}
+                    style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--danger)' }}
                   >✕</button>
                 </div>
               )}
@@ -301,11 +323,11 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
                 <div style={{
                   margin: '6px 0',
                   padding: '8px 12px',
-                  background: '#FFFBEB',
-                  border: '1px solid #FDE68A',
+                  background: 'var(--warning-soft)',
+                  border: '1px solid var(--warning)',
                   borderRadius: 'var(--radius-sm)',
                   fontSize: 12,
-                  color: '#92400E',
+                  color: 'var(--warning)',
                   lineHeight: 1.5,
                 }}>
                   ⚠ {compileWarning}

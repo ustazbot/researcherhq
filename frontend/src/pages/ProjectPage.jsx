@@ -1351,14 +1351,6 @@ export function ProjectPage() {
               borderRadius: 'var(--radius-sm)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
               minWidth: 200,
             }}>
-              <button
-                onClick={() => { setSourceCollapsed(c => !c); setOpenMenu(null) }}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
-              >{sourceCollapsed ? '› ' : '‹ '}Toggle Sources Panel</button>
-              <button
-                onClick={() => { setThesisCollapsed(c => !c); setOpenMenu(null) }}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink)' }}
-              >{thesisCollapsed ? '› ' : '‹ '}Toggle Thesis Structure</button>
               <button disabled style={{
                 display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
                 background: 'none', border: 'none', cursor: 'not-allowed',
