@@ -7,7 +7,7 @@ import { parseCitation } from '../utils/parseCitation'
 
 const SOURCE_BADGE = {
   rag_document:  { label: '📄 Your documents',                            bg: 'var(--success-soft)', color: 'var(--success)' },
-  web_search:    { label: '🌐 Web sources',                               bg: '#EFF6FF', color: '#1D4ED8' },
+  web_search:    { label: '🌐 Web sources',                               bg: 'var(--info-soft)', color: 'var(--info)' },
   llm_knowledge: { label: '⚠ General knowledge — verify independently',  bg: 'var(--warning-soft)', color: 'var(--warning)' },
 }
 
@@ -15,8 +15,8 @@ const CITE_STYLES = `
 .cite-chip {
   display: inline-flex; align-items: center; justify-content: center;
   width: 16px; height: 16px;
-  background: #EEF2FF; color: #4F46E5;
-  border: 1px solid #C7D2FE;
+  background: var(--info-soft); color: var(--info);
+  border: 1px solid var(--info);
   border-radius: 50%; font-size: 9px; font-weight: 700;
   cursor: pointer; vertical-align: super; margin: 0 1px;
   position: relative; text-decoration: none;
@@ -459,9 +459,9 @@ export function ChatPanel({
             title={isPro ? (useWebSearch ? 'Mod: Web Search' : 'Mod: Dokumen') : 'Carian web — Pro sahaja'}
             style={{
               padding: '4px 10px', borderRadius: 6, border: '1px solid',
-              borderColor: useWebSearch ? '#3B82F6' : 'var(--line)',
-              background: useWebSearch ? '#EFF6FF' : 'transparent',
-              color: useWebSearch ? '#1D4ED8' : 'var(--ink-soft)',
+              borderColor: useWebSearch ? 'var(--info)' : 'var(--line)',
+              background: useWebSearch ? 'var(--info-soft)' : 'transparent',
+              color: useWebSearch ? 'var(--info)' : 'var(--ink-soft)',
               cursor: isPro ? 'pointer' : 'not-allowed',
               opacity: isPro ? 1 : 0.5,
               fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4,

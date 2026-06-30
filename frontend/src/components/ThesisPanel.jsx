@@ -30,13 +30,13 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
           style={{
             position: 'absolute', left: -10, top: '50%', transform: 'translateY(-50%)',
             width: 20, height: 36,
-            background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10,
+            background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 10,
             boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 2, padding: 0, color: 'var(--ink-soft)',
+            zIndex: 2, padding: 0, color: 'var(--accent)',
           }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)' }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)' }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)' }}
         >
           <IconChevronLeft size={13} stroke={1.5} />
         </button>
@@ -83,13 +83,13 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
         style={{
           position: 'absolute', left: -10, top: '50%', transform: 'translateY(-50%)',
           width: 20, height: 36,
-          background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10,
+          background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 10,
           boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 2, padding: 0, color: 'var(--ink-soft)',
+          zIndex: 2, padding: 0, color: 'var(--accent)',
         }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)' }}
+        onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)' }}
+        onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)' }}
       >
         <IconChevronRight size={13} stroke={1.5} />
       </button>
