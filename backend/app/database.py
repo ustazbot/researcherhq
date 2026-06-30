@@ -345,6 +345,17 @@ def _create_schema(conn: sqlite3.Connection):
             WHERE project_id = ? AND session_id IS NULL
         """, (default_session_id, pid))
 
+    # Migration: Task 32A — documents extra columns
+    doc_cols = {r[1] for r in conn.execute("PRAGMA table_info(documents)").fetchall()}
+    if "source_type" not in doc_cols:
+        conn.execute("ALTER TABLE documents ADD COLUMN source_type TEXT DEFAULT 'upload'")
+    if "content_level" not in doc_cols:
+        conn.execute("ALTER TABLE documents ADD COLUMN content_level TEXT DEFAULT 'full_text'")
+    if "openalex_id" not in doc_cols:
+        conn.execute("ALTER TABLE documents ADD COLUMN openalex_id TEXT")
+    if "external_metadata" not in doc_cols:
+        conn.execute("ALTER TABLE documents ADD COLUMN external_metadata TEXT")
+
     conn.commit()
 
 
