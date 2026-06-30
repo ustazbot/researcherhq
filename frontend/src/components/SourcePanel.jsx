@@ -317,7 +317,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
       </div>
 
       {/* PANEL CONTENT */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div id="rhq-tour-sources" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center' }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-soft)' }}>
             {activePanel === 'docs' ? 'Sources' : activePanel === 'search' ? 'Search' : activePanel === 'sv-feedback' ? 'SV Feedback' : 'References'}

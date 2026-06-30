@@ -11,6 +11,7 @@ import api from '../api/client'
 import { extractPdfPages } from '../utils/pdfExtract'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { CreditTank } from '../components/CreditTank'
+import { OnboardingTour } from '../components/OnboardingTour'
 
 // Split proposal_extract output into Bab 1 (pengenalan) and Bab 3 (metodologi) parts
 function splitProposalExtract(text) {
@@ -1220,6 +1221,7 @@ export function ProjectPage() {
   // ── DESKTOP LAYOUT ─────────────────────────────────────────────
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
+      <OnboardingTour active={initMode === 'discovery'} isPro={isPro} />
       {voiceProfileModal}
       <header style={{
         borderBottom: '1px solid var(--line)', padding: '0 24px',

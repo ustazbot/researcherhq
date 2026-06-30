@@ -71,7 +71,7 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
   }
 
   return (
-    <div style={{
+    <div id="rhq-tour-thesis" style={{
       width: 264, flexShrink: 0, borderLeft: '1px solid var(--line)',
       display: 'flex', flexDirection: 'column', background: 'var(--card)',
       position: 'relative',
