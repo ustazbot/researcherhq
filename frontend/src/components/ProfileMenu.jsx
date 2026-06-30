@@ -72,7 +72,7 @@ export function ProfileMenu({ user, tier: tierProp, userName }) {
           </div>
           {[
             { label: 'Account Settings', action: () => nav('/account') },
-            { label: '❓ Bantuan', action: () => nav('/help') },
+            { label: '❓ Help', action: () => nav('/help') },
             { label: 'Report an Issue', action: () => nav('/support') },
           ].map(item => (
             <button key={item.label} onClick={item.action} style={menuItemStyle}>

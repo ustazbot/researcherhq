@@ -211,7 +211,7 @@ export function SearchOverlay({ open, onClose, projectId, tier, onAccepted }) {
                   padding: '10px 16px', background: 'var(--accent-soft)',
                   borderRadius: 6, fontSize: 13, color: 'var(--ink)', flex: 1, textAlign: 'center',
                 }}>
-                  🔒 Tambah ke Sources — Pro sahaja
+                  🔒 Add to Sources — Pro only
                 </div>
               ) : acceptedIds.has(articleKey(selectedArticle)) ? (
                 <div style={{

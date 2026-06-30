@@ -2,7 +2,7 @@ export function CreditTank({ remaining, total, resetDate, onTopup }) {
   const pct = Math.max(0, Math.min(100, (remaining / total) * 100))
   const low = pct < 20
   const resetStr = resetDate
-    ? new Date(resetDate).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(resetDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : '—'
 
   return (

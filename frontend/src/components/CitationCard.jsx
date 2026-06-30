@@ -24,7 +24,7 @@ export function CitationCard({ source }) {
             color: 'var(--ink)',
           }}
         >
-          {expanded ? '▲ Tutup' : '▼ Lihat Sumber'}
+          {expanded ? '▲ Close' : '▼ View Source'}
         </button>
       </div>
       {expanded && (

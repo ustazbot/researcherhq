@@ -106,11 +106,11 @@ function _relativeTime(isoString) {
   const mins = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
-  if (mins < 1) return 'baru sahaja'
+  if (mins < 1) return 'just now'
   if (mins < 60) return `${mins} minit lalu`
   if (hours < 24) return `${hours} jam lalu`
   if (days < 7) return `${days} hari lalu`
-  return new Date(isoString).toLocaleDateString('ms-MY')
+  return new Date(isoString).toLocaleDateString('en-GB')
 }
 
 export function ChatPanel({
@@ -192,7 +192,7 @@ export function ChatPanel({
         >
           <span>≡</span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
-            {sessions?.find(s => s.id === activeSessionId)?.title || 'Chat Baru'}
+            {sessions?.find(s => s.id === activeSessionId)?.title || 'New Chat'}
           </span>
           <span style={{ color: 'var(--ink-soft)', fontSize: 10 }}>▼</span>
         </button>
@@ -290,11 +290,11 @@ export function ChatPanel({
                       <button
                         onClick={e => {
                           e.stopPropagation()
-                          if (window.confirm('Padam sesi ini? Mesej tidak boleh dipulihkan.')) onDeleteSession?.(sess.id)
+                          if (window.confirm('Delete this session? Messages cannot be recovered.')) onDeleteSession?.(sess.id)
                           setSessionMenuId(null)
                         }}
                         style={{ width: '100%', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13, color: 'var(--danger)' }}
-                      >🗑️ Padam</button>
+                      >🗑️ Delete</button>
                     </div>
                   )}
                 </div>
@@ -411,7 +411,7 @@ export function ChatPanel({
       </div>
 
       {/* Input area */}
-      <div style={{ borderTop: '1px solid var(--line)', padding: '12px 16px', background: 'var(--card)', flexShrink: 0 }}>
+      <div id="rhq-tour-chat-input" style={{ borderTop: '1px solid var(--line)', padding: '12px 16px', background: 'var(--card)', flexShrink: 0 }}>
         {/* Mode pill */}
         <div className="mode-pill-wrap" ref={pillRef}>
           <style>{PILL_STYLES}</style>
@@ -456,7 +456,7 @@ export function ChatPanel({
           <button
             type="button"
             onClick={() => isPro && onWebSearchToggle && onWebSearchToggle(v => !v)}
-            title={isPro ? (useWebSearch ? 'Mod: Web Search' : 'Mod: Dokumen') : 'Carian web — Pro sahaja'}
+            title={isPro ? (useWebSearch ? 'Mode: Web Search' : 'Mode: Document') : 'Web search — Pro only'}
             style={{
               padding: '4px 10px', borderRadius: 6, border: '1px solid',
               borderColor: useWebSearch ? 'var(--info)' : 'var(--line)',
@@ -467,10 +467,10 @@ export function ChatPanel({
               fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4,
             }}
           >
-            {useWebSearch ? '🔍 Web' : '📄 Dokumen'}
+            {useWebSearch ? '🔍 Web' : '📄 Document'}
           </button>
           {!isPro && (
-            <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--ink-soft)' }}>Web — Pro sahaja</span>
+            <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--ink-soft)' }}>Web — Pro only</span>
           )}
         </div>
         <form onSubmit={onSubmit} style={{ display: 'flex', gap: 6 }}>
