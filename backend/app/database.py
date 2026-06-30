@@ -290,6 +290,15 @@ def _create_schema(conn: sqlite3.Connection):
         WHERE subscription_start_date IS NULL
     """)
 
+    # Migration: Task 30 — language preferences
+    user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "chat_language" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN chat_language TEXT DEFAULT 'bm'")
+
+    proj_cols = [row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()]
+    if "output_language" not in proj_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN output_language TEXT DEFAULT 'bm'")
+
 
 @contextmanager
 def get_db():
