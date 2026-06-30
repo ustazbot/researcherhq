@@ -90,7 +90,7 @@ const OUTPUT_MODES = [
   { value: 'discovery',         label: 'Topic Discovery',   credits: 1,  proOnly: false },
 ]
 
-export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, outputMode, onOutputModeChange, credits, onSendToEditor, hasActiveChapter, bottomRef, tier, isDiscoveryMode }) {
+export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, outputMode, onOutputModeChange, credits, onSendToEditor, hasActiveChapter, bottomRef, tier, isDiscoveryMode, useWebSearch, onWebSearchToggle, isPro }) {
   const [pillOpen, setPillOpen] = useState(false)
   const pillRef = useRef(null)
   useEffect(() => {
@@ -307,6 +307,28 @@ export function ChatPanel({ messages, loading, query, onQueryChange, onSubmit, o
         <span className="mode-credit-hint" style={{ display: 'inline-block', marginBottom: 8 }}>
           ≈ {OUTPUT_MODES.find(m => m.value === outputMode)?.credits ?? 1} credits
         </span>
+        {/* Web Search Toggle */}
+        <div style={{ marginBottom: 8 }}>
+          <button
+            type="button"
+            onClick={() => isPro && onWebSearchToggle && onWebSearchToggle(v => !v)}
+            title={isPro ? (useWebSearch ? 'Mod: Web Search' : 'Mod: Dokumen') : 'Carian web — Pro sahaja'}
+            style={{
+              padding: '4px 10px', borderRadius: 6, border: '1px solid',
+              borderColor: useWebSearch ? '#3B82F6' : 'var(--line)',
+              background: useWebSearch ? '#EFF6FF' : 'transparent',
+              color: useWebSearch ? '#1D4ED8' : 'var(--ink-soft)',
+              cursor: isPro ? 'pointer' : 'not-allowed',
+              opacity: isPro ? 1 : 0.5,
+              fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            {useWebSearch ? '🔍 Web' : '📄 Dokumen'}
+          </button>
+          {!isPro && (
+            <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--ink-soft)' }}>Web — Pro sahaja</span>
+          )}
+        </div>
         <form onSubmit={onSubmit} style={{ display: 'flex', gap: 6 }}>
           <input
             value={query} onChange={e => onQueryChange(e.target.value)}

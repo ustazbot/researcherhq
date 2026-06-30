@@ -5,6 +5,7 @@ import { ProjectPage } from './pages/ProjectPage'
 import { AdminPage } from './pages/AdminPage'
 import { SupportPage } from './pages/SupportPage'
 import { AccountSettingsPage } from './pages/AccountSettingsPage'
+import HelpPage from './pages/HelpPage'
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('rhq_token')
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
         <Route path="/support" element={<PrivateRoute><SupportPage /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><AccountSettingsPage /></PrivateRoute>} />
+        <Route path="/help" element={<HelpPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

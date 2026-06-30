@@ -60,6 +60,7 @@ export function ProjectPage() {
   const [voiceAnalysisError, setVoiceAnalysisError] = useState('')
   const [voiceSampleMode, setVoiceSampleMode] = useState('paste')
   const [showHelp, setShowHelp] = useState(false)
+  const [useWebSearch, setUseWebSearch] = useState(false)
   const [exportingChapterId, setExportingChapterId] = useState(null)
   const [compiling, setCompiling] = useState(false)
   const [compileError, setCompileError] = useState(null)
@@ -151,8 +152,10 @@ export function ProjectPage() {
     setLoading(true)
     setMessages(prev => [...prev, { role: 'user', content: q, id: Date.now() }])
     try {
+      const wsFlag = useWebSearch
+      setUseWebSearch(false)
       const { data } = await api.post(`/projects/${id}/query`, {
-        query: q, output_mode: outputMode, query_type: 'normal'
+        query: q, output_mode: outputMode, query_type: 'normal', use_web_search: wsFlag
       })
       setMessages(prev => [...prev, {
         role: 'assistant', content: data.answer,
@@ -1018,6 +1021,9 @@ export function ProjectPage() {
               bottomRef={bottomRef}
               tier={user?.tier || 'free'}
               isDiscoveryMode={outputMode === 'discovery'}
+              useWebSearch={useWebSearch}
+              onWebSearchToggle={setUseWebSearch}
+              isPro={isPro}
             />
           )}
         </div>
@@ -1410,6 +1416,9 @@ export function ProjectPage() {
             bottomRef={bottomRef}
             tier={user?.tier || 'free'}
             isDiscoveryMode={outputMode === 'discovery'}
+            useWebSearch={useWebSearch}
+            onWebSearchToggle={setUseWebSearch}
+            isPro={isPro}
           />
         </div>
 

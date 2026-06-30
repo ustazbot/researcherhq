@@ -20,14 +20,32 @@ export function AccountSettingsPage() {
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileSuccess, setProfileSuccess] = useState('')
   const [profileError, setProfileError] = useState('')
+  const [chatLanguage, setChatLanguage] = useState('bm')
+  const [langLoading, setLangLoading] = useState(false)
+  const [langSuccess, setLangSuccess] = useState('')
+  const [langError, setLangError] = useState('')
 
   useEffect(() => {
     api.get('/account').then(r => {
       setAccount(r.data)
       setProfileName(r.data.name || '')
       setProfileIpt(r.data.institution || '')
+      setChatLanguage(r.data.chat_language || 'bm')
     }).catch(() => setError('Failed to load account information.'))
   }, [])
+
+  async function handleSaveChatLanguage() {
+    setLangLoading(true)
+    setLangError('')
+    setLangSuccess('')
+    try {
+      await api.patch('/account/preferences', { chat_language: chatLanguage })
+      setLangSuccess('Tetapan disimpan ✓')
+    } catch (err) {
+      setLangError(err.response?.data?.detail || 'Gagal simpan tetapan.')
+    }
+    setLangLoading(false)
+  }
 
   async function handleSetPassword(e) {
     e.preventDefault()
@@ -184,6 +202,33 @@ export function AccountSettingsPage() {
           >
             {profileLoading ? 'Saving...' : 'Save Profile'}
           </button>
+        </section>
+
+        {/* Keutamaan */}
+        <section style={sectionStyle}>
+          <h2 style={sectionHeadingStyle}>Keutamaan</h2>
+          <label style={{ fontSize: 14, color: 'var(--ink-soft)', display: 'block', marginBottom: 8 }}>
+            Bahasa Perbualan AI
+          </label>
+          <select
+            value={chatLanguage}
+            onChange={e => { setChatLanguage(e.target.value); setLangSuccess(''); setLangError('') }}
+            style={{ padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--ink)', marginBottom: 10, minWidth: 200 }}
+          >
+            <option value="bm">Bahasa Malaysia</option>
+            <option value="english">English</option>
+          </select>
+          {langError && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 8px' }}>{langError}</p>}
+          {langSuccess && <p style={{ color: '#16A34A', fontSize: 13, margin: '0 0 8px' }}>{langSuccess}</p>}
+          <div>
+            <button
+              disabled={langLoading}
+              onClick={handleSaveChatLanguage}
+              style={{ padding: '10px 20px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-heading)', fontWeight: 700, cursor: 'pointer' }}
+            >
+              {langLoading ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </div>
         </section>
 
         {/* Tukar Kata Laluan */}

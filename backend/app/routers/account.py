@@ -91,7 +91,8 @@ def get_account(user=Depends(get_current_user)):
     with get_db() as db:
         row = db.execute(
             """SELECT id, email, tier, kredit_remaining, kredit_total,
-                      subscription_start_date, created_at, password_is_permanent, name, institution
+                      subscription_start_date, created_at, password_is_permanent, name, institution,
+                      chat_language
                FROM users WHERE id = ?""",
             (user["user_id"],)
         ).fetchone()
@@ -117,6 +118,7 @@ def get_account(user=Depends(get_current_user)):
         "password_is_permanent": row["password_is_permanent"],
         "name": row["name"],
         "institution": row["institution"],
+        "chat_language": row["chat_language"] or "bm",
     }
 
 
@@ -136,6 +138,22 @@ def update_profile(body: ProfileUpdate, user=Depends(get_current_user)):
             (user["user_id"],)
         ).fetchone()
     return {"name": row["name"], "institution": row["institution"]}
+
+
+class PreferencesUpdate(BaseModel):
+    chat_language: str
+
+
+@router.patch("/preferences")
+def update_preferences(body: PreferencesUpdate, user=Depends(get_current_user)):
+    if body.chat_language not in ("bm", "english"):
+        raise HTTPException(400, "Nilai chat_language tidak sah.")
+    with get_db() as db:
+        db.execute(
+            "UPDATE users SET chat_language = ? WHERE id = ?",
+            (body.chat_language, user["user_id"])
+        )
+    return {"chat_language": body.chat_language}
 
 
 @router.delete("", status_code=204)
