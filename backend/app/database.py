@@ -1,6 +1,8 @@
+import uuid
 import sqlite3
 import sqlite_vec
 from contextlib import contextmanager
+from datetime import datetime
 from app.config import settings
 
 _db_path: str = settings.database_url
@@ -81,9 +83,19 @@ def _create_schema(conn: sqlite3.Connection):
       updated_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+      id TEXT PRIMARY KEY,
+      project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      title TEXT DEFAULT 'Chat Baru',
+      conversation_summary TEXT DEFAULT '',
+      created_at TEXT,
+      updated_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS messages (
       id TEXT PRIMARY KEY,
       project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      session_id TEXT REFERENCES chat_sessions(id) ON DELETE CASCADE,
       role TEXT,
       content TEXT,
       output_mode TEXT,
@@ -298,6 +310,42 @@ def _create_schema(conn: sqlite3.Connection):
     proj_cols = [row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()]
     if "output_language" not in proj_cols:
         conn.execute("ALTER TABLE projects ADD COLUMN output_language TEXT DEFAULT 'bm'")
+
+    # Migration: Task 31 — chat_sessions table + session_id on messages
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+          id TEXT PRIMARY KEY,
+          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+          title TEXT DEFAULT 'Chat Baru',
+          conversation_summary TEXT DEFAULT '',
+          created_at TEXT,
+          updated_at TEXT
+        )
+    """)
+
+    msg_cols = {r[1] for r in conn.execute("PRAGMA table_info(messages)").fetchall()}
+    if "session_id" not in msg_cols:
+        conn.execute("ALTER TABLE messages ADD COLUMN session_id TEXT REFERENCES chat_sessions(id) ON DELETE CASCADE")
+
+    # Backfill: create default session per project for orphan messages
+    projects_with_orphan_msgs = conn.execute("""
+        SELECT DISTINCT project_id FROM messages WHERE session_id IS NULL
+    """).fetchall()
+
+    now = datetime.utcnow().isoformat()
+    for row in projects_with_orphan_msgs:
+        pid = row[0]
+        default_session_id = str(uuid.uuid4())
+        conn.execute("""
+            INSERT OR IGNORE INTO chat_sessions (id, project_id, title, created_at, updated_at)
+            VALUES (?, ?, 'Perbualan Awal', ?, ?)
+        """, (default_session_id, pid, now, now))
+        conn.execute("""
+            UPDATE messages SET session_id = ?
+            WHERE project_id = ? AND session_id IS NULL
+        """, (default_session_id, pid))
+
+    conn.commit()
 
 
 @contextmanager
