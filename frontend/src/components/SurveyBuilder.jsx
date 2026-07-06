@@ -203,7 +203,7 @@ export function SurveyBuilder() {
       const url = URL.createObjectURL(resp.data)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${survey.title || 'soal-selidik'}.docx`
+      a.download = `${survey.title || 'survey'}.docx`
       a.click()
       URL.revokeObjectURL(url)
     } catch {
@@ -219,7 +219,7 @@ export function SurveyBuilder() {
   }
 
   const addSection = async () => {
-    const title = window.prompt('Section title:', `Bahagian ${String.fromCharCode(65 + survey.sections.length)}`)
+    const title = window.prompt('Section title:', `Section ${String.fromCharCode(65 + survey.sections.length)}`)
     if (!title) return
     await api.post(`/surveys/${survey.id}/sections`, { title })
     refresh()

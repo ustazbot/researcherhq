@@ -125,7 +125,7 @@ def test_create_survey(client):
     r = c.post(f"/projects/{pid}/surveys", json={}, headers=headers)
     assert r.status_code == 201
     body = r.json()
-    assert body["title"] == "Soal Selidik"
+    assert body["title"] == "Survey"
     assert body["status"] == "draft"
 
 

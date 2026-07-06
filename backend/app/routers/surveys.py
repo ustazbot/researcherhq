@@ -189,10 +189,10 @@ def create_survey(project_id: str, body: SurveyCreate, user=Depends(get_current_
         now = datetime.utcnow().isoformat()
         cur = db.execute(
             "INSERT INTO surveys (project_id, title, status, created_at, updated_at) VALUES (?,?,'draft',?,?)",
-            (project_id, body.title or "Soal Selidik", now, now),
+            (project_id, body.title or "Survey", now, now),
         )
         sid = cur.lastrowid
-    return {"id": sid, "project_id": project_id, "title": body.title or "Soal Selidik", "status": "draft"}
+    return {"id": sid, "project_id": project_id, "title": body.title or "Survey", "status": "draft"}
 
 
 @router.get("/projects/{project_id}/surveys")
@@ -417,7 +417,7 @@ def export_survey_docx(survey_id: int, user=Depends(get_current_user)):
         full = _survey_full(db, survey)
 
     docx_bytes = build_survey_docx(full["title"], full["sections"])
-    safe_name = "".join(ch for ch in full["title"] if ch.isalnum() or ch in " -_").strip() or "soal-selidik"
+    safe_name = "".join(ch for ch in full["title"] if ch.isalnum() or ch in " -_").strip() or "survey"
     return Response(
         content=docx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

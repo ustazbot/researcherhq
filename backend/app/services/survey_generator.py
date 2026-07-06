@@ -16,7 +16,7 @@ KONTEKS DARI DOKUMEN PROJEK PENGGUNA (objektif kajian, kerangka konsep, pemboleh
 {instruction_block}ARAHAN:
 1. Jana draf instrumen soal selidik berdasarkan konteks di atas SAHAJA.
 2. Bahasa soalan: {language}.
-3. Ikut struktur lazim tesis Malaysia: Bahagian A Demografi, kemudian Bahagian B dan seterusnya untuk setiap konstruk/pemboleh ubah.
+3. Ikut struktur lazim tesis Malaysia: bahagian pertama demografi, kemudian satu bahagian untuk setiap konstruk/pemboleh ubah. Tajuk bahagian MESTI dalam bahasa yang sama dengan soalan (cth BM: "Bahagian A: Demografi"; English: "Section A: Demographics").
 4. Skala Likert: default 5 mata melainkan dokumen menyatakan sebaliknya.
 5. question_type mesti salah satu: "likert", "mcq", "open", "demographic".
 6. Untuk likert: options = label skala (cth ["Sangat Tidak Setuju", "Tidak Setuju", "Tidak Pasti", "Setuju", "Sangat Setuju"]), likert_points = bilangan mata.

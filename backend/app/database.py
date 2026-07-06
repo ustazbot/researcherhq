@@ -350,7 +350,7 @@ def _create_schema(conn: sqlite3.Connection):
     CREATE TABLE IF NOT EXISTS surveys (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
-        title TEXT NOT NULL DEFAULT 'Soal Selidik',
+        title TEXT NOT NULL DEFAULT 'Survey',
         status TEXT NOT NULL DEFAULT 'draft',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
