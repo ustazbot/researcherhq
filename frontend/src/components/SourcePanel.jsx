@@ -264,7 +264,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         <RailIcon
           icon={<IconClipboardList size={16} stroke={1.5} />}
           label="Survey"
-          title="Soal Selidik"
+          title="Survey Builder"
           onClick={() => nav(`/project/${projectId}/soal-selidik`)}
         />
         <div style={{ flex: 1 }} />
@@ -324,7 +324,7 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
         <RailIcon
           icon={<IconClipboardList size={16} stroke={1.5} />}
           label="Survey"
-          title="Soal Selidik"
+          title="Survey Builder"
           onClick={() => nav(`/project/${projectId}/soal-selidik`)}
         />
         <div style={{ flex: 1 }} />

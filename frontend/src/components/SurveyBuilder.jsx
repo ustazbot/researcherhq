@@ -18,16 +18,16 @@ const GENERATE_COST = 10
 
 function Stepper() {
   const steps = [
-    { n: 1, label: 'Bina', active: true },
-    { n: 2, label: 'Kumpul', active: false },
-    { n: 3, label: 'Analisis', active: false },
+    { n: 1, label: 'Build', active: true },
+    { n: 2, label: 'Collect', active: false },
+    { n: 3, label: 'Analyse', active: false },
   ]
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       {steps.map((s, i) => (
         <div key={s.n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div
-            title={s.active ? undefined : 'Akan datang'}
+            title={s.active ? undefined : 'Coming soon'}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '5px 12px', borderRadius: 999,
@@ -40,7 +40,7 @@ function Stepper() {
             }}
           >
             {s.n}. {s.label}
-            {!s.active && <span style={{ fontSize: 9 }}>· Akan datang</span>}
+            {!s.active && <span style={{ fontSize: 9 }}>· Coming soon</span>}
           </div>
           {i < steps.length - 1 && <IconChevronRight size={13} stroke={1.5} color="var(--ink-soft)" />}
         </div>
@@ -182,8 +182,8 @@ export function SurveyBuilder() {
   const handleGenerate = async () => {
     const hasContent = survey.sections.length > 0
     const msg = hasContent
-      ? `Jana dengan AI menggunakan ${GENERATE_COST} kredit dan akan MENGGANTIKAN semua bahagian & soalan sedia ada. Teruskan?`
-      : `Jana dengan AI menggunakan ${GENERATE_COST} kredit. Teruskan?`
+      ? `Generate with AI uses ${GENERATE_COST} credits and will REPLACE all existing sections & questions. Continue?`
+      : `Generate with AI uses ${GENERATE_COST} credits. Continue?`
     if (!window.confirm(msg)) return
     setGenerating(true)
     setError('')
@@ -332,13 +332,13 @@ export function SurveyBuilder() {
           }}
         >
           <IconSparkles size={15} stroke={1.5} />
-          {generating ? 'Generating draft...' : `Jana dengan AI — ${GENERATE_COST} kredit`}
+          {generating ? 'Generating draft...' : `Generate with AI — ${GENERATE_COST} credits`}
         </button>
         <button
           onClick={addSection}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 13, cursor: 'pointer', color: 'var(--ink)' }}
         >
-          <IconPlus size={14} stroke={1.5} /> Bahagian
+          <IconPlus size={14} stroke={1.5} /> Section
         </button>
         <button
           onClick={handleExport}
@@ -356,7 +356,7 @@ export function SurveyBuilder() {
       {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', maxWidth: 860, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
         <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 14px' }}>
-          Draf AI — semak dengan penyelia anda. Instrumen ini perlukan expert review & pilot study sebelum digunakan.
+          AI draft — review with your supervisor. This instrument requires expert review & a pilot study before use.
         </p>
 
         {survey.sections.length === 0 ? (
@@ -369,8 +369,8 @@ export function SurveyBuilder() {
               No sections yet
             </p>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-soft)', margin: 0, lineHeight: 1.6 }}>
-              Jana draf instrumen dari dokumen projek anda dengan butang "Jana dengan AI",
-              atau bina secara manual dengan "+ Bahagian".
+              Generate an instrument draft from your project documents with "Generate with AI",
+              or build manually with "+ Section".
             </p>
           </div>
         ) : (
@@ -430,7 +430,7 @@ export function SurveyBuilder() {
                     onClick={() => addQuestion(sec)}
                     style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '8px 10px', padding: '6px 12px', background: 'transparent', border: '1px dashed var(--line)', borderRadius: 6, fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer', color: 'var(--ink-soft)' }}
                   >
-                    <IconPlus size={13} stroke={1.5} /> Soalan
+                    <IconPlus size={13} stroke={1.5} /> Question
                   </button>
                 </>
               )}
