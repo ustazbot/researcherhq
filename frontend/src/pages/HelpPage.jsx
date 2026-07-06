@@ -88,6 +88,8 @@ const HELP_SECTIONS = [
       { q: 'Cara kumpul respons', a: 'Klik Terbitkan → pilih mod → dapat link awam. Kongsi link; responden isi tanpa akaun. Owner nampak bilangan respons dan boleh Export CSV.' },
       { q: 'Export data respons', a: 'Dalam dashboard Kumpul, klik Export CSV (pilih pilot atau actual) — satu baris per respons, satu kolum per soalan, termasuk kolum is_pilot.' },
       { q: 'Adakah instrumen ini sah (valid)?', a: 'TIDAK secara automatik. Output adalah DRAF — kesahan instrumen memerlukan semakan penyelia, expert review dan pilot study di luar sistem.' },
+      { q: 'Analisis respons (langkah Analisis)', a: 'Selepas kutip respons, buka langkah Analisis (Pro, 0 kredit). Kumpulkan soalan Likert jadi konstruk, kemudian jana Descriptive (min/SD/kekerapan), Reliability (Cronbach alpha), atau Normality (skewness/kurtosis/Shapiro-Wilk). Semua dikira oleh sistem (bukan AI), output jadual APA + export .docx.' },
+      { q: 'Adakah hasil analisis muktamad?', a: 'TIDAK. Hasil dijana automatik sebagai alat bantu — wajib semak dengan penyelia sebelum guna dalam tesis. Ujian inferential (t-test/ANOVA) dan interpretasi AI naratif akan datang.' },
     ]
   },
   {

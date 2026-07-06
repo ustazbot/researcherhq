@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.config import settings
 from app.database import init_db
-from app.routers import auth, projects, documents, rag, credits, account, support, chapters, billing, admin, voice_profile, search, sv_feedback, chat_sessions, surveys, public_surveys
+from app.routers import auth, projects, documents, rag, credits, account, support, chapters, billing, admin, voice_profile, search, sv_feedback, chat_sessions, surveys, public_surveys, survey_analysis
 from app.services.embedding_pool import embedding_pool
 from app.services.export_service import start_export_worker
 from app.services.credit_reset import reset_expired_credits
@@ -59,3 +59,4 @@ app.include_router(sv_feedback.router, tags=["sv_feedback"])
 app.include_router(chat_sessions.router, prefix="/projects", tags=["chat-sessions"])
 app.include_router(surveys.router, tags=["surveys"])
 app.include_router(public_surveys.router, prefix="/public", tags=["public-surveys"])
+app.include_router(survey_analysis.router, tags=["survey-analysis"])

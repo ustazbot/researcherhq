@@ -75,7 +75,15 @@ KUTIPAN RESPONS (Survey — langkah Kumpul) [Pro sahaja]:
 • Semasa kutipan aktif, struktur soalan DIKUNCI (tidak boleh edit) — elak data rosak
 • Link sama untuk pilot & actual; owner boleh tutup / buka semula / unpublish
 • Dashboard: bilangan respons (pilot vs actual), lihat & padam respons, Export CSV
-• Analisis statistik BELUM tersedia (akan datang)
+
+ANALISIS SOAL SELIDIK (Survey — langkah Analisis) [Pro sahaja, 0 kredit]:
+• Analisis respons yang dikutip (pilot atau actual) — semua pengiraan oleh sistem, bukan AI
+• Construct mapping: kumpulkan beberapa soalan Likert jadi satu konstruk (cth item B1–B5 = "Kepuasan Kerja")
+• Tiga jenis analisis: Descriptive (min, SD, kekerapan), Reliability (Cronbach's alpha + alpha-if-deleted), Normality (skewness, kurtosis, Shapiro-Wilk)
+• Reverse-coded item dikira automatik
+• Output jadual APA 7 + export .docx
+• PENTING: hasil dijana automatik — WAJIB semak dengan penyelia sebelum guna dalam tesis. Sistem alat bantu, bukan pengesah
+• Ujian inferential (t-test/ANOVA/korelasi) dan interpretasi AI naratif BELUM tersedia (akan datang)
 • 🔒 = Paywalled (abstract sahaja — muat naik PDF untuk analisis penuh)
 
 AKAUN & TETAPAN:

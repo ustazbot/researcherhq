@@ -257,3 +257,38 @@ def build_survey_docx(survey_title: str, sections: list) -> bytes:
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
+
+
+def build_apa_docx(title: str, apa_tables: list) -> bytes:
+    """Task 36C-1: render APA-style analysis tables to .docx, in-memory.
+    apa_tables = [{title, columns, rows, note}]."""
+    if not DOCX_AVAILABLE:
+        raise RuntimeError("python-docx tidak dipasang.")
+    doc = Document()
+    doc.add_heading(title, level=1)
+    for t in apa_tables:
+        # APA table titles are italic
+        p = doc.add_paragraph()
+        run = p.add_run(t.get("title", ""))
+        run.italic = True
+        run.bold = True
+        cols = t.get("columns", [])
+        rows = t.get("rows", [])
+        if cols:
+            table = doc.add_table(rows=1, cols=len(cols))
+            table.style = "Table Grid"
+            for i, c in enumerate(cols):
+                table.rows[0].cells[i].text = str(c)
+            for r in rows:
+                cells = table.add_row().cells
+                for i, v in enumerate(r):
+                    cells[i].text = "" if v is None else str(v)
+        note = t.get("note")
+        if note:
+            np_ = doc.add_paragraph()
+            nr = np_.add_run(f"Note. {note}")
+            nr.italic = True
+        doc.add_paragraph("")
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()

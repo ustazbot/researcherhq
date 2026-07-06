@@ -20,7 +20,7 @@ function Stepper({ view, onSelect }) {
   const steps = [
     { n: 1, label: 'Build', key: 'build', enabled: true },
     { n: 2, label: 'Collect', key: 'collect', enabled: true },
-    { n: 3, label: 'Analyse', key: 'analyse', enabled: false },
+    { n: 3, label: 'Analyse', key: 'analyse', enabled: true },
   ]
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -334,6 +334,231 @@ function QuestionRow({ q, index, total, onChange, onDelete, onMove }) {
   )
 }
 
+function ApaTable({ t }) {
+  return (
+    <div style={{ marginBottom: 16, overflowX: 'auto' }}>
+      <p style={{ fontFamily: 'var(--font-heading)', fontStyle: 'italic', fontWeight: 700, fontSize: 13, margin: '0 0 6px' }}>{t.title}</p>
+      <table style={{ borderCollapse: 'collapse', fontSize: 12, fontFamily: 'var(--font-body)', minWidth: 320 }}>
+        <thead>
+          <tr>{t.columns.map((c, i) => (
+            <th key={i} style={{ textAlign: 'left', borderTop: '1.5px solid var(--ink)', borderBottom: '1px solid var(--ink)', padding: '5px 12px', fontWeight: 600 }}>{c}</th>
+          ))}</tr>
+        </thead>
+        <tbody>
+          {t.rows.map((r, ri) => (
+            <tr key={ri}>{r.map((v, ci) => (
+              <td key={ci} style={{ padding: '4px 12px', borderBottom: ri === t.rows.length - 1 ? '1.5px solid var(--ink)' : 'none' }}>{v === null || v === undefined ? '' : String(v)}</td>
+            ))}</tr>
+          ))}
+        </tbody>
+      </table>
+      {t.note && <p style={{ fontStyle: 'italic', fontSize: 11, color: 'var(--ink-soft)', margin: '5px 0 0' }}>Note. {t.note}</p>}
+    </div>
+  )
+}
+
+const ANALYSIS_KINDS = [
+  { key: 'descriptive', label: 'Descriptive', desc: 'Mean, SD, frequencies' },
+  { key: 'reliability', label: 'Reliability', desc: "Cronbach's alpha" },
+  { key: 'normality', label: 'Normality', desc: 'Skewness, kurtosis, Shapiro-Wilk' },
+]
+
+function AnalyseView({ survey, refresh }) {
+  const [constructs, setConstructs] = useState([])
+  const [analyses, setAnalyses] = useState([])
+  const [counts, setCounts] = useState({ pilot: 0, actual: 0 })
+  const [detail, setDetail] = useState(null)
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  // new-construct form
+  const [showForm, setShowForm] = useState(false)
+  const [cName, setCName] = useState('')
+  const [cItems, setCItems] = useState([])
+
+  // run form
+  const [kind, setKind] = useState('descriptive')
+  const [source, setSource] = useState('actual')
+  const [selConstructs, setSelConstructs] = useState([])
+
+  const likertQuestions = survey.sections.flatMap(s => s.questions.filter(q => q.question_type === 'likert'))
+
+  const load = useCallback(async () => {
+    try {
+      const [cs, an, summ] = await Promise.all([
+        api.get(`/surveys/${survey.id}/constructs`),
+        api.get(`/surveys/${survey.id}/analyses`),
+        api.get(`/surveys/${survey.id}/responses?type=all`),
+      ])
+      setConstructs(cs.data)
+      setAnalyses(an.data)
+      setCounts(summ.data.counts)
+    } catch (e) { setErr(e?.response?.data?.detail || 'Failed to load.') }
+  }, [survey.id])
+
+  useEffect(() => { load() }, [load])
+
+  const saveConstruct = async () => {
+    if (!cName.trim() || cItems.length < 1) { setErr('Name and at least one Likert item required.'); return }
+    setBusy(true); setErr('')
+    try {
+      await api.post(`/surveys/${survey.id}/constructs`, { name: cName, question_ids: cItems })
+      setCName(''); setCItems([]); setShowForm(false); await load()
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not create construct.') } finally { setBusy(false) }
+  }
+
+  const deleteConstruct = async (id) => {
+    if (!window.confirm('Delete this construct?')) return
+    await api.delete(`/constructs/${id}`); await load()
+  }
+
+  const runAnalysis = async () => {
+    setBusy(true); setErr('')
+    try {
+      const body = { analysis_type: kind, data_source: source }
+      if (selConstructs.length) body.construct_ids = selConstructs
+      if (kind === 'descriptive' && !selConstructs.length) body.question_ids = likertQuestions.map(q => q.id)
+      const { data } = await api.post(`/surveys/${survey.id}/analyses`, body)
+      setDetail(data); await load()
+    } catch (e) { setErr(e?.response?.data?.detail || 'Analysis failed.') } finally { setBusy(false) }
+  }
+
+  const openAnalysis = async (id) => {
+    const { data } = await api.get(`/analyses/${id}`); setDetail(data)
+  }
+  const deleteAnalysis = async (id) => {
+    if (!window.confirm('Delete this analysis?')) return
+    await api.delete(`/analyses/${id}`); setDetail(null); await load()
+  }
+  const exportDocx = async (id) => {
+    const resp = await api.get(`/analyses/${id}/export/docx`, { responseType: 'blob' })
+    const url = URL.createObjectURL(resp.data)
+    const a = document.createElement('a'); a.href = url; a.download = `${survey.title || 'analysis'}.docx`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const box = { border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', background: 'var(--card)', padding: 18, marginBottom: 14 }
+  const toggle = (arr, v, set) => set(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v])
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', maxWidth: 900, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+      {err && <p style={{ color: '#EF4444', fontSize: 13 }}>{err}</p>}
+      <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 14px' }}>
+        Auto-generated results — review with your supervisor before using in your thesis.
+      </p>
+
+      {/* Constructs manager */}
+      <div style={box}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>Constructs</span>
+          <button onClick={() => setShowForm(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 7, fontSize: 12, cursor: 'pointer', color: 'var(--ink)' }}>
+            <IconPlus size={13} stroke={1.5} /> Construct
+          </button>
+        </div>
+        {constructs.length === 0 && !showForm && (
+          <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: 0, lineHeight: 1.6 }}>
+            A construct groups related Likert items into one variable (e.g. items B1–B5 = "Job Satisfaction"), so you can compute a composite score and reliability. Add one to begin.
+          </p>
+        )}
+        {showForm && (
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, marginTop: 6 }}>
+            <input value={cName} onChange={e => setCName(e.target.value)} placeholder="Construct name (e.g. Job Satisfaction)"
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 7, fontSize: 13, boxSizing: 'border-box', marginBottom: 8 }} />
+            <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px' }}>Select Likert items (same scale):</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+              {likertQuestions.map(q => (
+                <button key={q.id} onClick={() => toggle(cItems, q.id, setCItems)}
+                  style={{ padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                    border: cItems.includes(q.id) ? '1px solid var(--accent)' : '1px solid var(--line)',
+                    background: cItems.includes(q.id) ? 'var(--accent-soft)' : 'transparent', color: 'var(--ink)' }}>
+                  {q.question_text.slice(0, 28)}{q.is_reversed ? ' ↺' : ''}
+                </button>
+              ))}
+            </div>
+            <button onClick={saveConstruct} disabled={busy} style={{ padding: '7px 16px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Save construct</button>
+          </div>
+        )}
+        {constructs.map(c => (
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--line)', fontSize: 13 }}>
+            <span style={{ flex: 1 }}>{c.name} <span style={{ color: 'var(--ink-soft)', fontSize: 11 }}>· {c.question_ids.length} items</span></span>
+            <button onClick={() => deleteConstruct(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', padding: 2 }}><IconTrash size={14} stroke={1.5} /></button>
+          </div>
+        ))}
+      </div>
+
+      {/* Run analysis */}
+      <div style={box}>
+        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>Run analysis</span>
+        <div style={{ display: 'flex', gap: 8, margin: '10px 0', flexWrap: 'wrap' }}>
+          {ANALYSIS_KINDS.map(k => (
+            <button key={k.key} onClick={() => setKind(k.key)}
+              style={{ flex: '1 1 160px', textAlign: 'left', padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                border: kind === k.key ? '1px solid var(--accent)' : '1px solid var(--line)',
+                background: kind === k.key ? 'var(--accent-soft)' : 'transparent' }}>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>{k.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{k.desc}</div>
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 16, marginBottom: 10, flexWrap: 'wrap' }}>
+          {['actual', 'pilot'].map(src => (
+            <label key={src} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: counts[src] ? 'pointer' : 'not-allowed', opacity: counts[src] ? 1 : 0.5 }}>
+              <input type="radio" name="src" checked={source === src} disabled={!counts[src]} onChange={() => setSource(src)} />
+              {src === 'actual' ? 'Actual' : 'Pilot'} ({counts[src]} responses)
+            </label>
+          ))}
+        </div>
+        {constructs.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px' }}>
+              Constructs {kind === 'reliability' ? '(required)' : kind === 'descriptive' ? '(optional — composite)' : '(optional)'}:
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {constructs.map(c => (
+                <button key={c.id} onClick={() => toggle(selConstructs, c.id, setSelConstructs)}
+                  style={{ padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                    border: selConstructs.includes(c.id) ? '1px solid var(--accent)' : '1px solid var(--line)',
+                    background: selConstructs.includes(c.id) ? 'var(--accent-soft)' : 'transparent', color: 'var(--ink)' }}>
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <button onClick={runAnalysis} disabled={busy} style={{ padding: '9px 18px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+          {busy ? 'Running…' : 'Run analysis'}
+        </button>
+      </div>
+
+      {/* Saved analyses */}
+      {analyses.length > 0 && (
+        <div style={box}>
+          <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>Saved analyses</span>
+          {analyses.map(a => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--line)', fontSize: 13 }}>
+              <span style={{ flex: 1, textTransform: 'capitalize' }}>{a.analysis_type} <span style={{ color: 'var(--ink-soft)', fontSize: 11 }}>· {a.data_source} · {new Date(a.created_at).toLocaleString()}</span></span>
+              <button onClick={() => openAnalysis(a.id)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 5, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 7px' }}>View</button>
+              <button onClick={() => exportDocx(a.id)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 5, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 7px' }}>.docx</button>
+              <button onClick={() => deleteAnalysis(a.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', padding: 2 }}><IconTrash size={14} stroke={1.5} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Result render */}
+      {detail && (
+        <div style={box}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, textTransform: 'capitalize' }}>{detail.analysis_type} — {detail.data_source}</span>
+            <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 18 }}>×</button>
+          </div>
+          {(detail.apa_tables || []).map((t, i) => <ApaTable key={i} t={t} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SurveyBuilder() {
   const { id: projectId } = useParams()
   const nav = useNavigate()
@@ -542,7 +767,9 @@ export function SurveyBuilder() {
         <Stepper view={view} onSelect={setView} />
       </header>
 
-      {view === 'collect' ? (
+      {view === 'analyse' ? (
+        <AnalyseView survey={survey} refresh={refresh} />
+      ) : view === 'collect' ? (
         <CollectView survey={survey} setSurvey={setSurvey} refresh={refresh} />
       ) : (
       <>

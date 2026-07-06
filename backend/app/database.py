@@ -356,6 +356,39 @@ def _create_schema(conn: sqlite3.Connection):
         WHERE event_type IN ('topup_success', 'upgrade_success')
     """)
 
+    # Migration: Task 36C-1 — survey analysis (constructs + analyses)
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS survey_constructs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        survey_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        FOREIGN KEY (survey_id) REFERENCES surveys(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS survey_construct_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        construct_id INTEGER NOT NULL,
+        question_id INTEGER NOT NULL,
+        UNIQUE(construct_id, question_id),
+        FOREIGN KEY (construct_id) REFERENCES survey_constructs(id) ON DELETE CASCADE,
+        FOREIGN KEY (question_id) REFERENCES survey_questions(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_construct_items_construct ON survey_construct_items(construct_id);
+
+    CREATE TABLE IF NOT EXISTS survey_analyses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        survey_id INTEGER NOT NULL,
+        analysis_type TEXT NOT NULL,
+        data_source TEXT NOT NULL,
+        params_json TEXT NOT NULL,
+        result_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (survey_id) REFERENCES surveys(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_survey_analyses_survey ON survey_analyses(survey_id);
+    """)
+
     # Migration: Task 36A — survey module Fasa A (Bina)
     conn.executescript("""
     CREATE TABLE IF NOT EXISTS surveys (
