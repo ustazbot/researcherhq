@@ -48,3 +48,11 @@ body {
   border-right: none !important;
 }
 .mobile-tab-panel > div > button[title^="Collapse"] { display: none !important; }
+
+/* Mobile workspace shell: dvh so the bottom tab bar sits above real browser
+   chrome (100vh overshoots on mobile Safari/Chrome), and clamp sideways scroll */
+.mobile-shell {
+  height: 100vh;
+  height: 100dvh;
+  overflow-x: hidden;
+}

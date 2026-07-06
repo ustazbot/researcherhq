@@ -921,7 +921,7 @@ export function ProjectPage() {
   // ── MOBILE LAYOUT ──────────────────────────────────────────────
   if (isMobile) {
     return (
-      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
+      <div className="mobile-shell" style={{ display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
         {voiceProfileModal}
         {helpModal}
         {/* Header */}
@@ -965,17 +965,19 @@ export function ProjectPage() {
           {/* Right: credits + avatar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {credits && (
-              <CreditTank
-                remaining={credits.kredit_remaining}
-                total={credits.kredit_total}
-                resetDate={credits.reset_date}
-                onTopup={isPro ? async () => {
-                  try {
-                    const { data } = await api.post('/billing/topup/initiate')
-                    window.location.href = data.payment_url
-                  } catch { alert('Failed to initiate top-up. Please try again.') }
-                } : undefined}
-              />
+              /* ponytail: compact pill — the full CreditTank card (minWidth 240) blows past a 390px header */
+              <span
+                title={`Research Credits — resets ${credits.reset_date || ''}`}
+                style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
+                  padding: '4px 8px', borderRadius: 999,
+                  border: '1px solid var(--line)', background: 'var(--bg)',
+                  color: (credits.kredit_remaining / credits.kredit_total) < 0.2 ? '#EF4444' : 'var(--ink)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {credits.kredit_remaining}/{credits.kredit_total}
+              </span>
             )}
             <button
               onClick={() => setShowHelp(true)}
