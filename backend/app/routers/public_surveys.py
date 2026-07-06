@@ -94,12 +94,14 @@ async def submit_response(share_token: str, body: SubmitBody, request: Request):
     if len(raw) > MAX_PAYLOAD_BYTES:
         raise HTTPException(413, "Payload too large.")
 
+    # Layer 2 — per-IP app rate limit (defense behind nginx limit_req). Runs
+    # BEFORE Turnstile so a flooding IP is rejected cheaply, without spending a
+    # Cloudflare siteverify round-trip on every abusive request.
+    enforce_rate_limit(f"survey_submit:{ip_hash}", max_attempts=5, window_minutes=10)
+
     # Layer 1 — Turnstile (fails closed)
     if not await verify_turnstile_token(body.turnstile_token, remoteip=ip):
         raise HTTPException(403, "Verification failed. Please try again.")
-
-    # Layer 2 — app-level rate limiting (defense behind nginx limit_req)
-    enforce_rate_limit(f"survey_submit:{ip_hash}", max_attempts=5, window_minutes=10)
 
     with get_db() as db:
         survey = db.execute(
