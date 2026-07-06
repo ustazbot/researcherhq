@@ -58,6 +58,14 @@ SEARCH PANEL:
 • Free: boleh search + preview abstract
 • Pro: boleh [+ Tambah ke Sources] — artikel masuk terus ke workspace
 • 🔓 = Open Access (full text diproses automatik)
+
+SOAL SELIDIK (Survey Builder):
+• Lokasi: ikon [Survey] dalam icon rail panel Sources → buka pembina instrumen
+• [Jana dengan AI] = jana DRAF instrumen soal selidik dari dokumen projek (10 kredit; jana semula bahagian: 3 kredit)
+• Edit manual, tambah/susun bahagian & soalan, export ke .docx — percuma (0 kredit)
+• Jenis soalan: Likert (4/5/7 mata), MCQ, terbuka, demografi
+• PENTING: output adalah DRAF sahaja — perlukan semakan penyelia, expert review & pilot study. Sistem TIDAK mengesahkan kesahan instrumen.
+• Fungsi kumpul respons dan analisis statistik BELUM tersedia (akan datang)
 • 🔒 = Paywalled (abstract sahaja — muat naik PDF untuk analisis penuh)
 
 AKAUN & TETAPAN:

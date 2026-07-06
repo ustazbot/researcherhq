@@ -345,6 +345,39 @@ def _create_schema(conn: sqlite3.Connection):
             WHERE project_id = ? AND session_id IS NULL
         """, (default_session_id, pid))
 
+    # Migration: Task 36A — survey module Fasa A (Bina)
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS surveys (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        title TEXT NOT NULL DEFAULT 'Soal Selidik',
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS survey_sections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        survey_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        FOREIGN KEY (survey_id) REFERENCES surveys(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS survey_questions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        section_id INTEGER NOT NULL,
+        question_text TEXT NOT NULL,
+        question_type TEXT NOT NULL,
+        options_json TEXT,
+        likert_points INTEGER,
+        is_reversed INTEGER NOT NULL DEFAULT 0,
+        position INTEGER NOT NULL,
+        FOREIGN KEY (section_id) REFERENCES survey_sections(id) ON DELETE CASCADE
+    );
+    """)
+
     # Migration: Task 32A — documents extra columns
     doc_cols = {r[1] for r in conn.execute("PRAGMA table_info(documents)").fetchall()}
     if "source_type" not in doc_cols:

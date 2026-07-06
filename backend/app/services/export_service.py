@@ -223,3 +223,37 @@ def enqueue_thesis_compile(project_title: str, chapters: list, bibliography: lis
 
 def get_job(job_id: str) -> dict | None:
     return _jobs.get(job_id)
+
+
+def build_survey_docx(survey_title: str, sections: list) -> bytes:
+    """Task 36A: survey instrument → .docx, in-memory, zero disk write.
+    sections = [{title, questions: [{question_text, question_type, options(list|None), likert_points}]}]"""
+    if not DOCX_AVAILABLE:
+        raise RuntimeError("python-docx tidak dipasang.")
+    doc = Document()
+    doc.add_heading(survey_title, level=1)
+
+    for section in sections:
+        doc.add_heading(section["title"], level=2)
+        q_num = 0
+        for q in section["questions"]:
+            q_num += 1
+            doc.add_paragraph(f"{q_num}. {q['question_text']}")
+            qtype = q["question_type"]
+            options = q.get("options") or []
+            if qtype == "likert" and options:
+                table = doc.add_table(rows=2, cols=len(options))
+                table.style = "Table Grid"
+                for i, label in enumerate(options):
+                    table.rows[0].cells[i].text = str(label)
+                    table.rows[1].cells[i].text = str(i + 1)
+            elif qtype in ("mcq", "demographic") and options:
+                for opt in options:
+                    doc.add_paragraph(f"☐ {opt}", style="List Bullet")
+            else:  # open-ended: blank writing space
+                doc.add_paragraph("_" * 60)
+                doc.add_paragraph("_" * 60)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()

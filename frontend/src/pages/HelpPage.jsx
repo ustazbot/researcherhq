@@ -77,6 +77,18 @@ const HELP_SECTIONS = [
     ]
   },
   {
+    id: 'soal-selidik',
+    icon: '📋',
+    title: 'Soal Selidik (Pembina Instrumen)',
+    items: [
+      { q: 'Apa itu Pembina Instrumen?', a: 'Alat untuk bina draf instrumen soal selidik dari dokumen projek awak. Lokasi: ikon [Survey] dalam icon rail panel Sources.' },
+      { q: 'Cara jana draf dengan AI', a: 'Buka Soal Selidik → klik [Jana dengan AI]. AI akan baca dokumen projek awak (objektif, kerangka konsep, pemboleh ubah) dan jana draf bahagian + soalan. Kos: 10 kredit untuk jana penuh.' },
+      { q: 'Edit dan susun soalan', a: 'Semua soalan boleh diedit — teks, jenis (Likert/MCQ/terbuka/demografi), pilihan jawapan, dan susunan (butang naik/turun). Edit manual percuma, tiada kredit ditolak.' },
+      { q: 'Export ke .docx', a: 'Klik [Export .docx] — instrumen dimuat turun sebagai fail Word: bahagian sebagai heading, Likert sebagai jadual skala, MCQ sebagai senarai pilihan.' },
+      { q: 'Adakah instrumen ini sah (valid)?', a: 'TIDAK secara automatik. Output adalah DRAF sahaja — kesahan instrumen memerlukan semakan penyelia, expert review dan pilot study yang dilakukan di luar sistem.' },
+    ]
+  },
+  {
     id: 'faq',
     icon: '❓',
     title: 'Soalan Lazim',

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   IconFiles, IconSearch, IconBookmark, IconHelpCircle,
   IconChevronLeft, IconChevronRight,
   IconFileText, IconClipboard, IconNotes, IconPencil, IconChartBar, IconSchool,
   IconUpload, IconLock,
   IconClipboardCheck, IconCircleCheck, IconCircleX, IconClock,
+  IconClipboardList,
 } from '@tabler/icons-react'
 import api from '../api/client'
 import { SearchOverlay } from './SearchOverlay'
@@ -137,6 +139,7 @@ function SVFeedbackPanel({ projectId }) {
 }
 
 export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, onToggleCollapse, onDeleteDoc, projectId, onAcceptArticle, onShowHelp }) {
+  const nav = useNavigate()
   const [activePanel, setActivePanel] = useState('docs')
   const [activeCategory, setActiveCategory] = useState('artikel')
   const [previewDocId, setPreviewDocId] = useState(null)
@@ -258,6 +261,12 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
           title="SV Feedback"
           onClick={() => { onToggleCollapse(); setActivePanel('sv-feedback') }}
         />
+        <RailIcon
+          icon={<IconClipboardList size={16} stroke={1.5} />}
+          label="Survey"
+          title="Soal Selidik"
+          onClick={() => nav(`/project/${projectId}/soal-selidik`)}
+        />
         <div style={{ flex: 1 }} />
         <RailIcon icon={<IconHelpCircle size={16} stroke={1.5} />} label="Help" title="Help & documentation" onClick={onShowHelp} style={{ marginBottom: 10 }} />
       </div>
@@ -311,6 +320,12 @@ export function SourcePanel({ documents, onUpload, tier, uploading, collapsed, o
           active={activePanel === 'sv-feedback'}
           title="SV Feedback"
           onClick={() => setActivePanel('sv-feedback')}
+        />
+        <RailIcon
+          icon={<IconClipboardList size={16} stroke={1.5} />}
+          label="Survey"
+          title="Soal Selidik"
+          onClick={() => nav(`/project/${projectId}/soal-selidik`)}
         />
         <div style={{ flex: 1 }} />
         <RailIcon icon={<IconHelpCircle size={16} stroke={1.5} />} label="Help" title="Help & documentation" onClick={onShowHelp} style={{ marginBottom: 10 }} />
