@@ -283,6 +283,21 @@ export function SurveyBuilder() {
     </div>
   )
 
+  if (!survey) return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: 12, padding: 24, textAlign: 'center' }}>
+      <p style={{ color: 'var(--ink)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, margin: 0 }}>
+        Failed to load survey
+      </p>
+      <p style={{ color: 'var(--ink-soft)', fontSize: 13, margin: 0 }}>{error || 'Please try again.'}</p>
+      <button
+        onClick={() => nav(`/project/${projectId}`)}
+        style={{ padding: '8px 18px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+      >
+        Back to workspace
+      </button>
+    </div>
+  )
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
