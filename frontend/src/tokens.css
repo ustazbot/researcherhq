@@ -38,3 +38,13 @@ body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
+
+/* Task 36B: mobile full-screen panel tabs — SourcePanel/ThesisPanel keep their
+   desktop width:264 inline style, override so they fill the tab viewport */
+.mobile-tab-panel { height: 100%; overflow-y: auto; display: flex; background: var(--card); }
+.mobile-tab-panel > div {
+  width: 100% !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+.mobile-tab-panel > div > button[title^="Collapse"] { display: none !important; }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { IconUser, IconFile, IconLayout, IconArrowLeft, IconFiles, IconListTree, IconHelpCircle, IconPencil, IconMessageCircle, IconX, IconUpload } from '@tabler/icons-react'
+import { IconUser, IconFile, IconLayout, IconArrowLeft, IconFiles, IconListTree, IconHelpCircle, IconPencil, IconMessageCircle, IconUpload } from '@tabler/icons-react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { ProfileMenu } from '../components/ProfileMenu'
@@ -82,10 +82,7 @@ export function ProjectPage() {
 
   // Mobile state
   const isMobile = useMediaQuery('(max-width: 768px)')
-  const [mobileView, setMobileView] = useState('editor') // 'editor' | 'chat'
-  const [drawerOpen, setDrawerOpen] = useState(false) // source + navigator drawer
-  const [drawerTab, setDrawerTab] = useState('sumber') // 'sumber' | 'struktur'
-  const [drawerDefaultTab, setDrawerDefaultTab] = useState('sumber')
+  const [mobileView, setMobileView] = useState('editor') // 'sources' | 'chapters' | 'editor' | 'chat'
 
   const fileRef = useRef()
   const bottomRef = useRef()
@@ -636,7 +633,7 @@ export function ProjectPage() {
             </button>
             <button
               onClick={() => setShowVoiceProfile(false)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13, textDecoration: 'underline' }}
+              style={{ padding: '10px 20px', border: '1px solid var(--line)', borderRadius: 8, background: 'transparent', cursor: 'pointer', color: 'var(--ink)', fontSize: 14, display: 'block', width: '100%' }}
             >
               Skip for now
             </button>
@@ -855,11 +852,78 @@ export function ProjectPage() {
     </div>
   ) : null
 
+  const helpModal = showHelp ? (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300,
+      }}
+      onClick={() => setShowHelp(false)}
+    >
+      <div
+        style={{
+          background: 'var(--card)', borderRadius: 'var(--radius-md)',
+          padding: 28, width: '100%', maxWidth: 460,
+          border: '1px solid var(--line)', maxHeight: '85vh', overflowY: 'auto',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18, margin: 0 }}>
+            Platform Guide
+          </h2>
+          <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 20 }}>×</button>
+        </div>
+
+        {[
+          {
+            q: 'How do I change the project title?',
+            a: 'Go to Dashboard (← arrow in header) and click the ⋯ menu on your project card → Rename. Inline title editing on the project page is coming soon.'
+          },
+          {
+            q: 'How do I upload a document?',
+            a: 'Click the "Upload document" button in the Sources panel (left side). Supported formats: PDF, DOCX, XLSX, PPTX. Max 20MB per file.'
+          },
+          {
+            q: 'What are Research Credits?',
+            a: 'Credits are deducted each time the AI generates a response. Free tier: 50 credits/month. Pro tier: 500 credits/month + option to top up.'
+          },
+          {
+            q: 'How do I export a chapter?',
+            a: 'Open the Thesis Structure panel (right side) and click ".docx" next to the chapter you want to export.'
+          },
+          {
+            q: 'What is Style Profile?',
+            a: 'Style Profile (Pro only) lets you describe your writing style so the AI output sounds more like you. Access it from the menu bar: Style profile.'
+          },
+          {
+            q: 'How do I search for journal articles?',
+            a: 'Click the Search icon (magnifying glass) in the source panel rail to open the Search Articles panel. Enter keywords and filter by year.'
+          },
+          {
+            q: 'What is the Format Guide category?',
+            a: "Upload your faculty's thesis formatting guidelines here. Full AI integration for this category is coming in an upcoming update."
+          },
+        ].map((item, i) => (
+          <div key={i} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: i < 6 ? '1px solid var(--line)' : 'none' }}>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--ink)' }}>
+              {item.q}
+            </p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, margin: 0, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+              {item.a}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null
+
   // ── MOBILE LAYOUT ──────────────────────────────────────────────
   if (isMobile) {
     return (
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
         {voiceProfileModal}
+        {helpModal}
         {/* Header */}
         <header style={{
           borderBottom: '0.5px solid var(--line)',
@@ -913,47 +977,19 @@ export function ProjectPage() {
                 } : undefined}
               />
             )}
+            <button
+              onClick={() => setShowHelp(true)}
+              aria-label="Help"
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--ink-soft)', padding: 4, display: 'flex', alignItems: 'center',
+              }}
+            >
+              <IconHelpCircle size={20} stroke={1.5} />
+            </button>
             <ProfileMenu user={user} tier={credits?.tier} />
           </div>
         </header>
-
-        {/* Segmented toggle */}
-        <div style={{
-          display: 'flex', borderBottom: '1px solid var(--line)',
-          background: 'var(--bg)', flexShrink: 0, padding: '6px 12px', gap: 4,
-        }}>
-          {[
-            { key: 'editor', label: 'Editor', icon: <IconPencil size={14} stroke={1.5} /> },
-            { key: 'chat',   label: 'Chat AI', icon: <IconMessageCircle size={14} stroke={1.5} /> },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setMobileView(tab.key)}
-              style={{
-                flex: 1, padding: '6px 0',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                background: mobileView === tab.key ? 'var(--card)' : 'transparent',
-                color: mobileView === tab.key ? 'var(--ink)' : 'var(--ink-soft)',
-                border: 'none', borderRadius: 6,
-                boxShadow: mobileView === tab.key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                fontFamily: 'var(--font-body)', fontSize: 13,
-                fontWeight: mobileView === tab.key ? 600 : 400,
-                cursor: 'pointer', position: 'relative',
-                transition: 'background 0.15s',
-              }}
-            >
-              {tab.icon}
-              {tab.label}
-              {tab.key === 'editor' && pendingSuggestion && mobileView !== 'editor' && (
-                <span style={{
-                  position: 'absolute', top: 5, right: 'calc(50% - 28px)',
-                  width: 6, height: 6,
-                  background: 'var(--accent)', borderRadius: '50%',
-                }} />
-              )}
-            </button>
-          ))}
-        </div>
 
         {/* Mobile views */}
         <input type="file" ref={fileRef} onChange={handleFileSelect} accept=".pdf,.docx,.xlsx,.pptx" style={{ display: 'none' }} />
@@ -1035,11 +1071,7 @@ export function ProjectPage() {
                   Open the Chapters panel to select or create a chapter.
                 </p>
                 <button
-                  onClick={() => {
-                    setDrawerDefaultTab('struktur')
-                    setDrawerTab('struktur')
-                    setDrawerOpen(true)
-                  }}
+                  onClick={() => setMobileView('chapters')}
                   style={{
                     marginTop: 6,
                     display: 'flex', alignItems: 'center', gap: 6,
@@ -1055,6 +1087,44 @@ export function ProjectPage() {
                 </button>
               </div>
             )
+          )}
+          {mobileView === 'sources' && (
+            <div className="mobile-tab-panel">
+              <SourcePanel
+                documents={documents}
+                onUpload={() => { fileRef.current?.click() }}
+                tier={credits?.tier ?? user?.tier}
+                uploading={uploading}
+                collapsed={false}
+                onToggleCollapse={() => {}}
+                onDeleteDoc={handleDeleteDoc}
+                projectId={id}
+                onAcceptArticle={handleAcceptArticle}
+                onShowHelp={() => setShowHelp(true)}
+              />
+            </div>
+          )}
+          {mobileView === 'chapters' && (
+            <div className="mobile-tab-panel">
+              <ThesisPanel
+                chapters={sortedChapters}
+                onExport={handleExport}
+                exportingChapterId={exportingChapterId}
+                tier={credits?.tier ?? user?.tier}
+                projectId={id}
+                activeChapterId={activeChapterId}
+                onSetActive={ch => { handleSetActive(ch); setMobileView('editor') }}
+                onAddChapter={handleAddChapter}
+                onDeleteChapter={handleDeleteChapter}
+                onReorderChapter={handleReorderChapter}
+                onRenameChapter={handleRenameChapter}
+                onCompile={handleCompile}
+                compiling={compiling}
+                compileError={compileError}
+                compileWarning={compileWarning}
+                onDismissError={() => setCompileError(null)}
+              />
+            </div>
           )}
           {mobileView === 'chat' && (
             <ChatPanel
@@ -1092,128 +1162,42 @@ export function ProjectPage() {
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}>
           {[
-            { key: 'sumber',   label: 'Sources',  icon: <IconFiles size={22} stroke={1.5} /> },
-            { key: 'struktur', label: 'Chapters', icon: <IconListTree size={22} stroke={1.5} /> },
-            { key: 'help',     label: 'Help',     icon: <IconHelpCircle size={22} stroke={1.5} /> },
+            { key: 'sources',  label: 'Sources',  icon: <IconFiles size={22} stroke={1.5} /> },
+            { key: 'chapters', label: 'Chapters', icon: <IconListTree size={22} stroke={1.5} /> },
+            { key: 'editor',   label: 'Editor',   icon: <IconPencil size={22} stroke={1.5} /> },
+            { key: 'chat',     label: 'Chat',     icon: <IconMessageCircle size={22} stroke={1.5} /> },
           ].map(item => (
             <button
               key={item.key}
               aria-label={item.label}
-              onClick={() => {
-                if (item.key === 'help') {
-                  setShowHelp(true)
-                } else {
-                  setDrawerTab(item.key)
-                  setDrawerOpen(true)
-                }
-              }}
+              onClick={() => setMobileView(item.key)}
               style={{
                 flex: 1, height: '100%',
                 display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center',
                 gap: 3,
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: drawerOpen && drawerTab === item.key ? 'var(--ink)' : 'var(--ink-soft)',
-                borderTop: drawerOpen && drawerTab === item.key ? '2px solid var(--accent)' : '2px solid transparent',
+                background: mobileView === item.key ? 'var(--card)' : 'none',
+                border: 'none', cursor: 'pointer', position: 'relative',
+                color: mobileView === item.key ? 'var(--ink)' : 'var(--ink-soft)',
+                borderTop: mobileView === item.key ? '2px solid var(--accent)' : '2px solid transparent',
                 transition: 'color 0.1s, border-color 0.1s',
               }}
             >
               {item.icon}
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 500, letterSpacing: '0.02em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: mobileView === item.key ? 600 : 500, letterSpacing: '0.02em' }}>
                 {item.label}
               </span>
+              {item.key === 'editor' && pendingSuggestion && mobileView !== 'editor' && (
+                <span style={{
+                  position: 'absolute', top: 8, right: 'calc(50% - 18px)',
+                  width: 6, height: 6,
+                  background: 'var(--accent)', borderRadius: '50%',
+                }} />
+              )}
             </button>
           ))}
         </div>
 
-        {/* Drawer — Source + Navigator */}
-        {drawerOpen && (
-          <>
-            <div
-              onClick={() => setDrawerOpen(false)}
-              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 40 }}
-            />
-            <div style={{
-              position: 'fixed', top: 0, left: 0, bottom: 0, width: 280,
-              background: 'var(--card)', zIndex: 50, display: 'flex', flexDirection: 'column',
-              overflowY: 'auto',
-            }}>
-              {/* Drawer header */}
-              <div style={{
-                padding: '12px 14px',
-                borderBottom: '0.5px solid var(--line)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                flexShrink: 0,
-              }}>
-                <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>
-                  {drawerTab === 'sumber' ? 'Sources' : 'Chapters'}
-                </span>
-                <button
-                  onClick={() => setDrawerOpen(false)}
-                  aria-label="Close panel"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', display: 'flex', padding: 2, borderRadius: 4 }}
-                >
-                  <IconX size={18} stroke={1.5} />
-                </button>
-              </div>
-              {/* Drawer tabs */}
-              <div style={{ display: 'flex', padding: '5px 8px', gap: 4, borderBottom: '0.5px solid var(--line)', flexShrink: 0 }}>
-                {[
-                  { key: 'sumber', label: 'Sources' },
-                  { key: 'struktur', label: 'Chapters' },
-                ].map(t => (
-                  <button
-                    key={t.key}
-                    onClick={() => setDrawerTab(t.key)}
-                    style={{
-                      flex: 1, padding: '5px 0',
-                      background: drawerTab === t.key ? 'var(--accent-soft)' : 'none',
-                      border: drawerTab === t.key ? '1px solid var(--accent)' : '1px solid transparent',
-                      borderRadius: 5, cursor: 'pointer',
-                      fontFamily: 'var(--font-mono)', fontSize: 11,
-                      fontWeight: drawerTab === t.key ? 600 : 400,
-                      color: drawerTab === t.key ? 'var(--ink)' : 'var(--ink-soft)',
-                    }}
-                  >{t.label}</button>
-                ))}
-              </div>
-              {drawerTab === 'sumber' && (
-                <SourcePanel
-                  documents={documents}
-                  onUpload={() => { fileRef.current?.click(); setDrawerOpen(false) }}
-                  tier={credits?.tier ?? user?.tier}
-                  uploading={uploading}
-                  collapsed={false}
-                  onToggleCollapse={() => {}}
-                  onDeleteDoc={handleDeleteDoc}
-                  projectId={id}
-                  onAcceptArticle={handleAcceptArticle}
-                  onShowHelp={() => setShowHelp(true)}
-                />
-              )}
-              {drawerTab === 'struktur' && (
-                <ThesisPanel
-                  chapters={sortedChapters}
-                  onExport={handleExport}
-                  exportingChapterId={exportingChapterId}
-                  tier={credits?.tier ?? user?.tier}
-                  projectId={id}
-                  activeChapterId={activeChapterId}
-                  onSetActive={ch => { handleSetActive(ch); setDrawerOpen(false); setMobileView('editor') }}
-                  onAddChapter={handleAddChapter}
-                  onDeleteChapter={handleDeleteChapter}
-                  onReorderChapter={handleReorderChapter}
-                  onRenameChapter={handleRenameChapter}
-                  onCompile={handleCompile}
-                  compiling={compiling}
-                  compileError={compileError}
-                  compileWarning={compileWarning}
-                  onDismissError={() => setCompileError(null)}
-                />
-              )}
-            </div>
-          </>
-        )}
       </div>
     )
   }
@@ -1567,71 +1551,8 @@ export function ProjectPage() {
         </div>
       )}
 
-      {showHelp && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300,
-          }}
-          onClick={() => setShowHelp(false)}
-        >
-          <div
-            style={{
-              background: 'var(--card)', borderRadius: 'var(--radius-md)',
-              padding: 28, width: '100%', maxWidth: 460,
-              border: '1px solid var(--line)', maxHeight: '85vh', overflowY: 'auto',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18, margin: 0 }}>
-                Platform Guide
-              </h2>
-              <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 20 }}>×</button>
-            </div>
-
-            {[
-              {
-                q: 'How do I change the project title?',
-                a: 'Go to Dashboard (← arrow in header) and click the ⋯ menu on your project card → Rename. Inline title editing on the project page is coming soon.'
-              },
-              {
-                q: 'How do I upload a document?',
-                a: 'Click the "Upload document" button in the Sources panel (left side). Supported formats: PDF, DOCX, XLSX, PPTX. Max 20MB per file.'
-              },
-              {
-                q: 'What are Research Credits?',
-                a: 'Credits are deducted each time the AI generates a response. Free tier: 50 credits/month. Pro tier: 500 credits/month + option to top up.'
-              },
-              {
-                q: 'How do I export a chapter?',
-                a: 'Open the Thesis Structure panel (right side) and click ".docx" next to the chapter you want to export.'
-              },
-              {
-                q: 'What is Style Profile?',
-                a: 'Style Profile (Pro only) lets you describe your writing style so the AI output sounds more like you. Access it from the menu bar: Style profile.'
-              },
-              {
-                q: 'How do I search for journal articles?',
-                a: 'Click the Search icon (magnifying glass) in the source panel rail to open the Search Articles panel. Enter keywords and filter by year.'
-              },
-              {
-                q: 'What is the Format Guide category?',
-                a: "Upload your faculty's thesis formatting guidelines here. Full AI integration for this category is coming in an upcoming update."
-              },
-            ].map((item, i) => (
-              <div key={i} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: i < 6 ? '1px solid var(--line)' : 'none' }}>
-                <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--ink)' }}>
-                  {item.q}
-                </p>
-                <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, margin: 0, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
-                  {item.a}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {helpModal}
     </div>
   )
 }
+
