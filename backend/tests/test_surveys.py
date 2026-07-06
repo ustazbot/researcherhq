@@ -284,7 +284,7 @@ def test_generate_no_documents_400_no_deduction(client):
     sid = c.post(f"/projects/{pid}/surveys", json={}, headers=headers).json()["id"]
     r = c.post(f"/surveys/{sid}/generate", json={"scope": "full"}, headers=headers)
     assert r.status_code == 400
-    assert "Muat naik" in r.json()["detail"]
+    assert "Upload" in r.json()["detail"]
     assert _credits(db_path, uid)["kredit_remaining"] == 50
 
 

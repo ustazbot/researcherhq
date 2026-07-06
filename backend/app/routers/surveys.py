@@ -31,7 +31,7 @@ def _assert_editable(db, survey_id):
     """Structure edits are forbidden while collecting responses (409)."""
     row = db.execute("SELECT status FROM surveys WHERE id=?", (survey_id,)).fetchone()
     if row and row["status"] in COLLECTING_STATUSES:
-        raise HTTPException(409, "Struktur dikunci semasa kutipan respons aktif.")
+        raise HTTPException(409, "Structure is locked while collecting responses.")
 
 
 # ── Pydantic bodies ──────────────────────────────────────────────
@@ -84,7 +84,7 @@ def _own_project(db, project_id, user_id):
         (project_id, user_id),
     ).fetchone()
     if not row:
-        raise HTTPException(404, "Projek tidak dijumpai.")
+        raise HTTPException(404, "Project not found.")
     return row
 
 
@@ -96,7 +96,7 @@ def _own_survey(db, survey_id, user_id):
         (survey_id, user_id),
     ).fetchone()
     if not row:
-        raise HTTPException(404, "Soal selidik tidak dijumpai.")
+        raise HTTPException(404, "Survey not found.")
     return row
 
 
@@ -109,7 +109,7 @@ def _own_section(db, section_id, user_id):
         (section_id, user_id),
     ).fetchone()
     if not row:
-        raise HTTPException(404, "Bahagian tidak dijumpai.")
+        raise HTTPException(404, "Section not found.")
     return row
 
 
@@ -123,7 +123,7 @@ def _own_question(db, question_id, user_id):
         (question_id, user_id),
     ).fetchone()
     if not row:
-        raise HTTPException(404, "Soalan tidak dijumpai.")
+        raise HTTPException(404, "Question not found.")
     return row
 
 
@@ -211,7 +211,7 @@ def create_survey(project_id: str, body: SurveyCreate, user=Depends(get_current_
         # 36B §1 — Survey module is Pro-only (retroactive patch)
         tier_row = db.execute("SELECT tier FROM users WHERE id=?", (user["user_id"],)).fetchone()
         if not tier_row or tier_row["tier"] != "pro":
-            raise HTTPException(403, "Modul Soal Selidik hanya untuk pengguna Pro.")
+            raise HTTPException(403, "The Survey module is available on the Pro plan only.")
         now = datetime.utcnow().isoformat()
         cur = db.execute(
             "INSERT INTO surveys (project_id, title, status, created_at, updated_at) VALUES (?,?,'draft',?,?)",
@@ -261,7 +261,7 @@ def delete_survey(survey_id: int, user=Depends(get_current_user)):
 @router.post("/surveys/{survey_id}/generate")
 async def generate_survey(survey_id: int, body: GenerateBody, user=Depends(get_current_user)):
     if body.scope not in ("full", "section"):
-        raise HTTPException(400, "Scope tidak sah. Guna 'full' atau 'section'.")
+        raise HTTPException(400, "Invalid scope. Use 'full' or 'section'.")
     cost = GENERATE_COST_FULL if body.scope == "full" else GENERATE_COST_SECTION
 
     with get_db() as db:
@@ -276,14 +276,14 @@ async def generate_survey(survey_id: int, body: GenerateBody, user=Depends(get_c
         if doc_count == 0:
             raise HTTPException(
                 400,
-                "Tiada dokumen dalam projek ini. Muat naik kertas kerja atau proposal anda dahulu — instrumen dijana berdasarkan dokumen projek.",
+                "No documents in this project. Upload your working paper or proposal first — the instrument is generated from your project documents.",
             )
 
         kredit = db.execute(
             "SELECT kredit_remaining FROM users WHERE id=?", (user["user_id"],)
         ).fetchone()
         if not kredit or kredit["kredit_remaining"] < cost:
-            raise HTTPException(402, "Kredit Kajian tidak mencukupi.")
+            raise HTTPException(402, "Insufficient Research Credits.")
 
     # LLM call outside DB transaction — can take tens of seconds
     try:
@@ -295,7 +295,7 @@ async def generate_survey(survey_id: int, body: GenerateBody, user=Depends(get_c
         )
     except ValueError as e:
         # parse failed after retry — NO credit deduction
-        raise HTTPException(502, f"Penjanaan gagal: {e}. Kredit tidak ditolak — cuba semula.")
+        raise HTTPException(502, f"Generation failed: {e}. No credits were deducted — please try again.")
 
     with get_db() as db:
         survey = _own_survey(db, survey_id, user["user_id"])
@@ -318,7 +318,7 @@ async def generate_survey(survey_id: int, body: GenerateBody, user=Depends(get_c
         try:
             new_kredit = deduct_credits(db, user["user_id"], cost)
         except ValueError:
-            raise HTTPException(402, "Kredit Kajian tidak mencukupi.")
+            raise HTTPException(402, "Insufficient Research Credits.")
         _touch_survey(db, survey_id)
         result = _survey_full(db, _own_survey(db, survey_id, user["user_id"]))
 
@@ -380,7 +380,7 @@ def delete_section(section_id: int, user=Depends(get_current_user)):
 @router.post("/sections/{section_id}/questions", status_code=201)
 def create_question(section_id: int, body: QuestionCreate, user=Depends(get_current_user)):
     if body.question_type not in ("likert", "mcq", "open", "demographic"):
-        raise HTTPException(400, "Jenis soalan tidak sah.")
+        raise HTTPException(400, "Invalid question type.")
     with get_db() as db:
         sec = _own_section(db, section_id, user["user_id"])
         _assert_editable(db, sec["survey_id"])
@@ -414,7 +414,7 @@ def create_question(section_id: int, body: QuestionCreate, user=Depends(get_curr
 @router.patch("/questions/{question_id}")
 def update_question(question_id: int, body: QuestionUpdate, user=Depends(get_current_user)):
     if body.question_type is not None and body.question_type not in ("likert", "mcq", "open", "demographic"):
-        raise HTTPException(400, "Jenis soalan tidak sah.")
+        raise HTTPException(400, "Invalid question type.")
     with get_db() as db:
         q = _own_question(db, question_id, user["user_id"])
         sec_edit = _own_section(db, q["section_id"], user["user_id"])
@@ -495,11 +495,11 @@ def _clamp_cap(mode: str, requested: Optional[int]) -> int:
 @router.post("/surveys/{survey_id}/publish")
 def publish_survey(survey_id: int, body: PublishBody, user=Depends(get_current_user)):
     if body.mode not in ("pilot", "actual"):
-        raise HTTPException(400, "Mode tidak sah. Guna 'pilot' atau 'actual'.")
+        raise HTTPException(400, "Invalid mode. Use 'pilot' or 'actual'.")
     with get_db() as db:
         survey = _own_survey(db, survey_id, user["user_id"])
         if survey["status"] != "draft":
-            raise HTTPException(409, "Hanya survey draf boleh diterbitkan.")
+            raise HTTPException(409, "Only a draft survey can be published.")
 
         # Must have at least 1 section AND 1 question
         q_count = db.execute(
@@ -509,11 +509,11 @@ def publish_survey(survey_id: int, body: PublishBody, user=Depends(get_current_u
             (survey_id,),
         ).fetchone()["c"]
         if q_count == 0:
-            raise HTTPException(400, "Survey mesti ada sekurang-kurangnya satu bahagian dan satu soalan.")
+            raise HTTPException(400, "A survey must have at least one section and one question.")
 
         # Tier limit: max 5 active collecting per owner
         if _count_active_collecting(db, user["user_id"]) >= MAX_ACTIVE_COLLECTING:
-            raise HTTPException(403, f"Had {MAX_ACTIVE_COLLECTING} survey aktif serentak tercapai. Tutup satu dahulu.")
+            raise HTTPException(403, f"Limit of {MAX_ACTIVE_COLLECTING} active surveys reached. Close one first.")
 
         cap = _clamp_cap(body.mode, body.response_cap)
         new_status = "pilot" if body.mode == "pilot" else "published"
@@ -538,7 +538,7 @@ def close_survey(survey_id: int, user=Depends(get_current_user)):
         elif survey["status"] == "published":
             new_status = "closed"
         else:
-            raise HTTPException(409, "Survey tidak sedang mengumpul respons.")
+            raise HTTPException(409, "This survey is not collecting responses.")
         now = datetime.utcnow().isoformat()
         db.execute("UPDATE surveys SET status=?, closed_at=?, updated_at=? WHERE id=?",
                    (new_status, now, now, survey_id))
@@ -554,10 +554,10 @@ def reopen_survey(survey_id: int, user=Depends(get_current_user)):
         elif survey["status"] == "closed":
             new_status = "published"
         else:
-            raise HTTPException(409, "Hanya survey yang ditutup boleh dibuka semula.")
+            raise HTTPException(409, "Only a closed survey can be reopened.")
         # Tier limit applies when re-entering a collecting state
         if _count_active_collecting(db, user["user_id"], exclude_survey_id=survey_id) >= MAX_ACTIVE_COLLECTING:
-            raise HTTPException(403, f"Had {MAX_ACTIVE_COLLECTING} survey aktif serentak tercapai.")
+            raise HTTPException(403, f"Limit of {MAX_ACTIVE_COLLECTING} active surveys reached.")
         now = datetime.utcnow().isoformat()
         db.execute("UPDATE surveys SET status=?, closed_at=NULL, updated_at=? WHERE id=?",
                    (new_status, now, survey_id))
@@ -570,7 +570,7 @@ def unlock_survey(survey_id: int, user=Depends(get_current_user)):
     with get_db() as db:
         survey = _own_survey(db, survey_id, user["user_id"])
         if survey["status"] != "pilot_closed":
-            raise HTTPException(409, "Hanya survey pilot yang ditutup boleh dibuka untuk edit.")
+            raise HTTPException(409, "Only a closed pilot survey can be unlocked for editing.")
         now = datetime.utcnow().isoformat()
         db.execute("UPDATE surveys SET status='draft', mode=NULL, updated_at=? WHERE id=?",
                    (now, survey_id))
@@ -583,13 +583,13 @@ def unpublish_survey(survey_id: int, user=Depends(get_current_user)):
     with get_db() as db:
         survey = _own_survey(db, survey_id, user["user_id"])
         if survey["status"] != "published":
-            raise HTTPException(409, "Hanya survey actual yang aktif boleh di-unpublish.")
+            raise HTTPException(409, "Only an active actual survey can be unpublished.")
         actual_count = db.execute(
             "SELECT COUNT(*) AS c FROM survey_responses WHERE survey_id=? AND is_pilot=0",
             (survey_id,),
         ).fetchone()["c"]
         if actual_count > 0:
-            raise HTTPException(409, "Survey ada respons actual. Padam semua respons actual dahulu sebelum unpublish.")
+            raise HTTPException(409, "This survey has actual responses. Delete all actual responses before unpublishing.")
         now = datetime.utcnow().isoformat()
         db.execute("UPDATE surveys SET status='draft', mode=NULL, updated_at=? WHERE id=?",
                    (now, survey_id))
@@ -610,7 +610,7 @@ def _type_filter(rtype: str):
 def list_responses(survey_id: int, type: str = "all", page: int = 1, page_size: int = 50,
                    user=Depends(get_current_user)):
     if type not in ("pilot", "actual", "all"):
-        raise HTTPException(400, "type mesti pilot|actual|all.")
+        raise HTTPException(400, "type must be pilot|actual|all.")
     page = max(1, page)
     page_size = max(1, min(page_size, 200))
     with get_db() as db:
@@ -647,7 +647,7 @@ def get_response(survey_id: int, response_id: int, user=Depends(get_current_user
             (response_id, survey_id),
         ).fetchone()
         if not resp:
-            raise HTTPException(404, "Respons tidak dijumpai.")
+            raise HTTPException(404, "Response not found.")
         answers = db.execute(
             "SELECT question_id, answer_value FROM survey_answers WHERE response_id=?",
             (response_id,),
@@ -669,14 +669,14 @@ def delete_response(survey_id: int, response_id: int, user=Depends(get_current_u
             (response_id, survey_id),
         ).fetchone()
         if not resp:
-            raise HTTPException(404, "Respons tidak dijumpai.")
+            raise HTTPException(404, "Response not found.")
         db.execute("DELETE FROM survey_responses WHERE id=?", (response_id,))
 
 
 @router.delete("/surveys/{survey_id}/responses", status_code=204)
 def delete_responses_bulk(survey_id: int, type: str, user=Depends(get_current_user)):
     if type not in ("pilot", "actual"):
-        raise HTTPException(400, "type mesti pilot|actual untuk padam pukal.")
+        raise HTTPException(400, "type must be pilot|actual for bulk delete.")
     with get_db() as db:
         _own_survey(db, survey_id, user["user_id"])
         is_pilot = 1 if type == "pilot" else 0
@@ -686,7 +686,7 @@ def delete_responses_bulk(survey_id: int, type: str, user=Depends(get_current_us
 @router.get("/surveys/{survey_id}/export/csv")
 def export_responses_csv(survey_id: int, type: str = "all", user=Depends(get_current_user)):
     if type not in ("pilot", "actual", "all"):
-        raise HTTPException(400, "type mesti pilot|actual|all.")
+        raise HTTPException(400, "type must be pilot|actual|all.")
     with get_db() as db:
         survey = _own_survey(db, survey_id, user["user_id"])
         # ordered questions with a display header
