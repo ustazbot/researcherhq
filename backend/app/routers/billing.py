@@ -4,7 +4,8 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from app.database import get_db
 from app.config import settings
 from app.routers.auth import get_current_user
-from app.services.billing_security import verify_toyyibpay_callback
+from app.services.billing_security import verify_toyyibpay_callback, verify_toyyibpay_payment
+import sqlite3
 import httpx
 
 router = APIRouter()
@@ -113,6 +114,7 @@ async def toyyibpay_webhook(request: Request):
     status = form.get("status", "")
     order_id = form.get("order_id", "")
     received_hash = form.get("hash", "")
+    billcode = form.get("billcode", "")
 
     if not verify_toyyibpay_callback(status, order_id, refno, received_hash):
         raise HTTPException(403, "Invalid callback signature")
@@ -128,15 +130,13 @@ async def toyyibpay_webhook(request: Request):
     success_event = "topup_success" if bill_type == "TOPUP" else "upgrade_success"
     initiated_event = "topup_initiated" if bill_type == "TOPUP" else "upgrade_initiated"
 
-    with get_db() as db:
-        # Idempotency
-        already = db.execute(
-            "SELECT id FROM billing_events WHERE reference_no = ? AND event_type = ?",
-            (order_id, success_event)
-        ).fetchone()
-        if already:
-            return {"status": "already_processed"}
+    # F1 defense-in-depth: confirm the bill is truly paid with ToyyibPay
+    # server-to-server. A forged/replayed callback (even with a leaked secret)
+    # is rejected here because ToyyibPay reports the real payment state.
+    if not await verify_toyyibpay_payment(billcode):
+        return {"status": "payment_unverified"}
 
+    with get_db() as db:
         # Defense in depth — only process if we initiated this order
         initiated = db.execute(
             "SELECT user_id FROM billing_events WHERE reference_no = ? AND event_type = ?",
@@ -151,6 +151,23 @@ async def toyyibpay_webhook(request: Request):
         if not user:
             return {"status": "user_not_found"}
 
+        # F2 atomic idempotency: insert the success marker FIRST. The partial
+        # unique index on (reference_no, event_type) makes a duplicate raise
+        # IntegrityError, so two concurrent callbacks cannot both grant — the
+        # second rolls back before touching credits.
+        try:
+            db.execute(
+                "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    str(uuid.uuid4()), user["id"], success_event,
+                    TOPUP_AMOUNT if bill_type == "TOPUP" else UPGRADE_AMOUNT,
+                    TOPUP_KREDIT if bill_type == "TOPUP" else UPGRADE_KREDIT,
+                    order_id, datetime.utcnow().isoformat(),
+                )
+            )
+        except sqlite3.IntegrityError:
+            return {"status": "already_processed"}
+
         if bill_type == "TOPUP":
             db.execute(
                 """UPDATE users
@@ -158,10 +175,6 @@ async def toyyibpay_webhook(request: Request):
                        kredit_remaining = kredit_subscription + kredit_topup + ?
                    WHERE id = ?""",
                 (TOPUP_KREDIT, TOPUP_KREDIT, user["id"])
-            )
-            db.execute(
-                "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, 'topup_success', ?, ?, ?, ?)",
-                (str(uuid.uuid4()), user["id"], TOPUP_AMOUNT, TOPUP_KREDIT, order_id, datetime.utcnow().isoformat())
             )
         else:  # UPGRADE
             now_date = date.today().isoformat()
@@ -174,10 +187,6 @@ async def toyyibpay_webhook(request: Request):
                        subscription_start_date = COALESCE(subscription_start_date, ?)
                    WHERE id = ?""",
                 (UPGRADE_KREDIT, UPGRADE_KREDIT, UPGRADE_KREDIT, now_date, user["id"])
-            )
-            db.execute(
-                "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, 'upgrade_success', ?, ?, ?, ?)",
-                (str(uuid.uuid4()), user["id"], UPGRADE_AMOUNT, UPGRADE_KREDIT, order_id, datetime.utcnow().isoformat())
             )
 
     return {"status": "ok"}

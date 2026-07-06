@@ -302,6 +302,21 @@ def test_generate_invalid_json_twice_error_no_deduction(client):
     assert c.get(f"/surveys/{sid}", headers=headers).json()["sections"] == []
 
 
+def test_generate_credits_drained_midflight_returns_402_not_500(client):
+    # F3: credits pass the pre-check but are gone by the time we deduct
+    # (TOCTOU). Must surface as 402 and roll back the inserted sections,
+    # not crash with 500.
+    c, db_path, uid, pid, headers = _setup(client, kredit_subscription=50)
+    sid = c.post(f"/projects/{pid}/surveys", json={}, headers=headers).json()["id"]
+    with patch("app.services.survey_generator.get_project_context", new_callable=AsyncMock, return_value="konteks"), \
+         patch("app.services.survey_generator.call_deepseek_raw", new_callable=AsyncMock, return_value=VALID_LLM_JSON), \
+         patch("app.routers.surveys.deduct_credits", side_effect=ValueError("Insufficient credits")):
+        r = c.post(f"/surveys/{sid}/generate", json={"scope": "full"}, headers=headers)
+    assert r.status_code == 402
+    # rollback: no sections persisted
+    assert c.get(f"/surveys/{sid}", headers=headers).json()["sections"] == []
+
+
 def test_generate_insufficient_credits_402(client):
     c, db_path, uid, pid, headers = _setup(client, kredit_subscription=4, kredit_topup=0)
     sid = c.post(f"/projects/{pid}/surveys", json={}, headers=headers).json()["id"]

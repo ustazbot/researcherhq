@@ -285,8 +285,13 @@ async def generate_survey(survey_id: int, body: GenerateBody, user=Depends(get_c
             ).fetchone()["m"]
             _insert_generated(db, survey_id, generated["sections"], position_offset=max_pos + 1)
 
-        # kredit ditolak HANYA selepas generation berjaya
-        new_kredit = deduct_credits(db, user["user_id"], cost)
+        # kredit ditolak HANYA selepas generation berjaya. F3: kredit boleh
+        # habis antara pre-check dan sini (TOCTOU) — pulangkan 402, bukan 500,
+        # dan biar transaksi rollback supaya sections yang di-insert dibuang.
+        try:
+            new_kredit = deduct_credits(db, user["user_id"], cost)
+        except ValueError:
+            raise HTTPException(402, "Kredit Kajian tidak mencukupi.")
         _touch_survey(db, survey_id)
         result = _survey_full(db, _own_survey(db, survey_id, user["user_id"]))
 

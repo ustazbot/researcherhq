@@ -4,10 +4,19 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import hashlib
 import uuid
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 from fastapi.testclient import TestClient
 from app.services.auth_service import create_jwt
 from app.config import settings
+
+
+@pytest.fixture(autouse=True)
+def mock_payment_verified():
+    """F1: webhook now confirms payment server-to-server with ToyyibPay.
+    Default all billing tests to a verified payment; the F1 test overrides
+    this to simulate an unpaid/forged callback."""
+    with patch("app.routers.billing.verify_toyyibpay_payment", new_callable=AsyncMock, return_value=True):
+        yield
 
 
 def make_headers(user_id="user-bill", email="bill@test.com"):
@@ -314,6 +323,51 @@ def test_reset_expired_credits_resets_to_tier_allocation(tmp_path):
         conn2.close()
 
     assert row[0] == 500
+
+
+# --- Security audit F1: forged/unpaid callback rejected by server-to-server check ---
+def test_webhook_rejected_when_payment_unverified(client_with_initiated):
+    c, order_ref = client_with_initiated
+    refno = "REFF1"
+    status = "1"
+    good_hash = _valid_hash(status, order_ref, refno)
+
+    kredit_before = c.get("/credits", headers=make_headers()).json()["kredit_remaining"]
+    # Override the autouse fixture: ToyyibPay says this bill is NOT paid.
+    with patch("app.routers.billing.verify_toyyibpay_payment", new_callable=AsyncMock, return_value=False):
+        resp = c.post("/billing/webhook", data={
+            "status": status, "order_id": order_ref, "refno": refno,
+            "hash": good_hash, "billcode": "FAKEBILL",
+        })
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "payment_unverified"
+    # No credits granted despite a valid hash + matching initiation.
+    kredit_after = c.get("/credits", headers=make_headers()).json()["kredit_remaining"]
+    assert kredit_before == kredit_after
+
+
+# --- Security audit F2: duplicate success event cannot double-grant (atomic) ---
+def test_webhook_duplicate_success_blocked_by_unique_index(client_with_initiated):
+    c, order_ref = client_with_initiated
+    # First callback grants.
+    good_hash = _valid_hash("1", order_ref, "REFF2A")
+    r1 = c.post("/billing/webhook", data={
+        "status": "1", "order_id": order_ref, "refno": "REFF2A",
+        "hash": good_hash, "billcode": "BILL1",
+    })
+    assert r1.json()["status"] == "ok"
+    kredit_after_first = c.get("/credits", headers=make_headers()).json()["kredit_remaining"]
+
+    # Second callback (different refno, same order_id) must not grant again —
+    # the partial unique index makes the success insert raise IntegrityError.
+    good_hash2 = _valid_hash("1", order_ref, "REFF2B")
+    r2 = c.post("/billing/webhook", data={
+        "status": "1", "order_id": order_ref, "refno": "REFF2B",
+        "hash": good_hash2, "billcode": "BILL1",
+    })
+    assert r2.json()["status"] == "already_processed"
+    kredit_after_second = c.get("/credits", headers=make_headers()).json()["kredit_remaining"]
+    assert kredit_after_first == kredit_after_second
 
 
 def test_reset_does_not_affect_unexpired_users(tmp_path):

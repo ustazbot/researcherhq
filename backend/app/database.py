@@ -345,6 +345,17 @@ def _create_schema(conn: sqlite3.Connection):
             WHERE project_id = ? AND session_id IS NULL
         """, (default_session_id, pid))
 
+    # Migration: Security audit F2 — atomic webhook idempotency.
+    # Partial unique index only on the credit-granting success events, so
+    # two concurrent identical callbacks cannot both grant. Scoped to
+    # success events so repeated admin 'manual_adjustment' rows (which reuse
+    # reference_no 'ADMIN-<email>') and 'initiated' rows are unaffected.
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_success_unique
+        ON billing_events(reference_no, event_type)
+        WHERE event_type IN ('topup_success', 'upgrade_success')
+    """)
+
     # Migration: Task 36A — survey module Fasa A (Bina)
     conn.executescript("""
     CREATE TABLE IF NOT EXISTS surveys (

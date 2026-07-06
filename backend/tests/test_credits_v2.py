@@ -11,6 +11,14 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from app.services.auth_service import create_jwt
 from app.config import settings
+from unittest.mock import AsyncMock
+
+
+@pytest.fixture(autouse=True)
+def mock_payment_verified():
+    """F1: webhook confirms payment server-to-server; default to verified."""
+    with patch("app.routers.billing.verify_toyyibpay_payment", new_callable=AsyncMock, return_value=True):
+        yield
 
 
 def _headers(user_id="user-v2", email="v2@test.com"):
