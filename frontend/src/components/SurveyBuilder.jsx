@@ -16,35 +16,223 @@ const QUESTION_TYPES = [
 
 const GENERATE_COST = 10
 
-function Stepper() {
+function Stepper({ view, onSelect }) {
   const steps = [
-    { n: 1, label: 'Build', active: true },
-    { n: 2, label: 'Collect', active: false },
-    { n: 3, label: 'Analyse', active: false },
+    { n: 1, label: 'Build', key: 'build', enabled: true },
+    { n: 2, label: 'Collect', key: 'collect', enabled: true },
+    { n: 3, label: 'Analyse', key: 'analyse', enabled: false },
   ]
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      {steps.map((s, i) => (
-        <div key={s.n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div
-            title={s.active ? undefined : 'Coming soon'}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '5px 12px', borderRadius: 999,
-              background: s.active ? 'var(--accent-soft)' : 'transparent',
-              border: s.active ? '1px solid var(--accent)' : '1px solid var(--line)',
-              color: s.active ? 'var(--ink)' : 'var(--ink-soft)',
-              opacity: s.active ? 1 : 0.55,
-              fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: s.active ? 600 : 400,
-              cursor: 'default', userSelect: 'none',
-            }}
-          >
-            {s.n}. {s.label}
-            {!s.active && <span style={{ fontSize: 9 }}>· Coming soon</span>}
+      {steps.map((s, i) => {
+        const isActive = view === s.key
+        return (
+          <div key={s.n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => s.enabled && onSelect(s.key)}
+              disabled={!s.enabled}
+              title={s.enabled ? undefined : 'Coming soon'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 12px', borderRadius: 999,
+                background: isActive ? 'var(--accent-soft)' : 'transparent',
+                border: isActive ? '1px solid var(--accent)' : '1px solid var(--line)',
+                color: isActive ? 'var(--ink)' : 'var(--ink-soft)',
+                opacity: s.enabled ? 1 : 0.5,
+                fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: isActive ? 600 : 400,
+                cursor: s.enabled ? 'pointer' : 'not-allowed', userSelect: 'none',
+              }}
+            >
+              {s.n}. {s.label}
+              {!s.enabled && <span style={{ fontSize: 9 }}>· Coming soon</span>}
+            </button>
+            {i < steps.length - 1 && <IconChevronRight size={13} stroke={1.5} color="var(--ink-soft)" />}
           </div>
-          {i < steps.length - 1 && <IconChevronRight size={13} stroke={1.5} color="var(--ink-soft)" />}
+        )
+      })}
+    </div>
+  )
+}
+
+const STATUS_BADGE = {
+  draft: { label: 'Draft', bg: 'var(--line)', fg: 'var(--ink-soft)' },
+  pilot: { label: 'Pilot — collecting', bg: 'var(--accent-soft)', fg: 'var(--ink)' },
+  pilot_closed: { label: 'Pilot closed', bg: 'var(--line)', fg: 'var(--ink-soft)' },
+  published: { label: 'Published — collecting', bg: 'var(--accent-soft)', fg: 'var(--ink)' },
+  closed: { label: 'Closed', bg: 'var(--line)', fg: 'var(--ink-soft)' },
+}
+
+function CollectView({ survey, setSurvey, refresh }) {
+  const [mode, setMode] = useState('pilot')
+  const [summary, setSummary] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const status = survey.status
+  const collecting = status === 'pilot' || status === 'published'
+  const shareUrl = survey.share_token ? `${window.location.origin}/app/s/${survey.share_token}` : ''
+
+  const loadSummary = useCallback(async () => {
+    if (!survey.share_token && status === 'draft') { setSummary(null); return }
+    try {
+      const { data } = await api.get(`/surveys/${survey.id}/responses?type=all`)
+      setSummary(data)
+    } catch { /* ignore */ }
+  }, [survey.id, survey.share_token, status])
+
+  useEffect(() => { loadSummary() }, [loadSummary])
+
+  const act = async (path, body, confirmMsg) => {
+    if (confirmMsg && !window.confirm(confirmMsg)) return
+    setBusy(true); setErr('')
+    try {
+      const { data } = await api.post(`/surveys/${survey.id}/${path}`, body || {})
+      setSurvey(data)
+      await refresh()
+      await loadSummary()
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Action failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const publish = () => act('publish', { mode },
+    'The structure will be locked while collecting responses. Continue?')
+  const close = () => act('close')
+  const reopen = () => act('reopen')
+  const unlock = () => act('unlock',
+    null, 'Editing or deleting questions will also delete their pilot answers. Continue?')
+  const unpublish = () => act('unpublish', null, 'Return this survey to draft? Only allowed with zero actual responses.')
+
+  const exportCsv = async (type) => {
+    try {
+      const resp = await api.get(`/surveys/${survey.id}/export/csv?type=${type}`, { responseType: 'blob' })
+      const url = URL.createObjectURL(resp.data)
+      const a = document.createElement('a')
+      a.href = url; a.download = `${survey.title || 'survey'}-${type}.csv`; a.click()
+      URL.revokeObjectURL(url)
+    } catch { setErr('Export failed.') }
+  }
+
+  const deleteAll = async (type) => {
+    if (!window.confirm(`Delete ALL ${type} responses? This cannot be undone.`)) return
+    setBusy(true)
+    try { await api.delete(`/surveys/${survey.id}/responses?type=${type}`); await loadSummary() }
+    catch { setErr('Delete failed.') } finally { setBusy(false) }
+  }
+
+  const deleteOne = async (rid) => {
+    if (!window.confirm('Delete this response?')) return
+    try { await api.delete(`/surveys/${survey.id}/responses/${rid}`); setDetail(null); await loadSummary() }
+    catch { setErr('Delete failed.') }
+  }
+
+  const viewDetail = async (rid) => {
+    try { const { data } = await api.get(`/surveys/${survey.id}/responses/${rid}`); setDetail(data) }
+    catch { /* ignore */ }
+  }
+
+  const badge = STATUS_BADGE[status] || STATUS_BADGE.draft
+  const box = { border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', background: 'var(--card)', padding: 18, marginBottom: 14 }
+  const btn = (bg, fg) => ({ padding: '8px 14px', background: bg, color: fg, border: bg === 'transparent' ? '1px solid var(--line)' : 'none', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 })
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', maxWidth: 860, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+      {err && <p style={{ color: '#EF4444', fontSize: 13 }}>{err}</p>}
+
+      {/* Status + actions */}
+      <div style={box}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999, background: badge.bg, color: badge.fg }}>
+            {badge.label}
+          </span>
+          {collecting && summary && (
+            <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+              {(status === 'pilot' ? summary.counts.pilot : summary.counts.actual)} / {survey.response_cap} responses
+              {summary.last_7_days > 0 && ` · ${summary.last_7_days} in last 7 days`}
+            </span>
+          )}
         </div>
-      ))}
+
+        {status === 'draft' && (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 10px' }}>Publish to get a shareable public link. Respondents don't need an account.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, cursor: 'pointer' }}>
+                <input type="radio" name="mode" checked={mode === 'pilot'} onChange={() => setMode('pilot')} />
+                <span><b>Pilot</b> — trial run (max 50). Can be reopened for edits after your pilot study; pilot responses are kept for reliability analysis.</span>
+              </label>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, cursor: 'pointer' }}>
+                <input type="radio" name="mode" checked={mode === 'actual'} onChange={() => setMode('actual')} />
+                <span><b>Actual</b> — real data collection (up to 1,000 responses).</span>
+              </label>
+            </div>
+            <button onClick={publish} disabled={busy} style={btn('var(--ink)', 'var(--bg)')}>Publish</button>
+          </>
+        )}
+
+        {collecting && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input readOnly value={shareUrl} style={{ flex: 1, minWidth: 220, padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-mono)', fontSize: 12 }} />
+            <button onClick={() => navigator.clipboard?.writeText(shareUrl)} style={btn('transparent', 'var(--ink)')}>Copy link</button>
+            <button onClick={close} disabled={busy} style={btn('transparent', 'var(--ink)')}>Close</button>
+            {status === 'published' && <button onClick={unpublish} disabled={busy} style={btn('transparent', 'var(--ink)')}>Unpublish</button>}
+          </div>
+        )}
+
+        {(status === 'pilot_closed' || status === 'closed') && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={reopen} disabled={busy} style={btn('var(--ink)', 'var(--bg)')}>Reopen</button>
+            {status === 'pilot_closed' && <button onClick={unlock} disabled={busy} style={btn('transparent', 'var(--ink)')}>Unlock &amp; edit</button>}
+          </div>
+        )}
+      </div>
+
+      {/* Responses */}
+      {summary && (summary.counts.all > 0) && (
+        <div style={box}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>
+              Responses — {summary.counts.pilot} pilot · {summary.counts.actual} actual
+            </span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {summary.counts.pilot > 0 && <button onClick={() => exportCsv('pilot')} style={btn('transparent', 'var(--ink)')}>CSV (pilot)</button>}
+              {summary.counts.actual > 0 && <button onClick={() => exportCsv('actual')} style={btn('transparent', 'var(--ink)')}>CSV (actual)</button>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {summary.responses.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--line)', fontSize: 13 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 6px', borderRadius: 4, background: r.is_pilot ? 'var(--accent-soft)' : 'var(--line)', color: 'var(--ink-soft)' }}>
+                  {r.is_pilot ? 'pilot' : 'actual'}
+                </span>
+                <span style={{ flex: 1, color: 'var(--ink-soft)' }}>{new Date(r.submitted_at).toLocaleString()}</span>
+                <button onClick={() => viewDetail(r.id)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 5, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 7px' }}>View</button>
+                <button onClick={() => deleteOne(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', padding: 2, display: 'flex' }}><IconTrash size={14} stroke={1.5} /></button>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            {summary.counts.pilot > 0 && <button onClick={() => deleteAll('pilot')} style={{ ...btn('transparent', 'var(--ink-soft)'), fontSize: 12 }}>Delete all pilot</button>}
+            {summary.counts.actual > 0 && <button onClick={() => deleteAll('actual')} style={{ ...btn('transparent', 'var(--ink-soft)'), fontSize: 12 }}>Delete all actual</button>}
+          </div>
+        </div>
+      )}
+
+      {detail && (
+        <div style={box}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>Response #{detail.id}</span>
+            <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 18 }}>×</button>
+          </div>
+          {detail.answers.map((a, i) => (
+            <p key={i} style={{ fontSize: 13, margin: '4px 0', color: 'var(--ink)' }}>
+              <span style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>Q{a.question_id}:</span> {a.answer_value}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -154,6 +342,8 @@ export function SurveyBuilder() {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
   const [collapsed, setCollapsed] = useState({}) // sectionId -> bool
+  const [view, setView] = useState('build') // 'build' | 'collect'
+  const [locked, setLocked] = useState(false) // Free tier
 
   const loadSurvey = useCallback(async () => {
     try {
@@ -166,7 +356,8 @@ export function SurveyBuilder() {
       const { data: full } = await api.get(`/surveys/${sid}`)
       setSurvey(full)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to load survey.')
+      if (err?.response?.status === 403) { setLocked(true) }
+      else { setError(err?.response?.data?.detail || 'Failed to load survey.') }
     } finally {
       setLoading(false)
     }
@@ -283,6 +474,24 @@ export function SurveyBuilder() {
     </div>
   )
 
+  if (locked) return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: 14, padding: 24, textAlign: 'center' }}>
+      <div style={{ fontSize: 40 }}>🔒</div>
+      <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20, margin: 0 }}>Survey Builder is a Pro feature</h2>
+      <p style={{ color: 'var(--ink-soft)', fontSize: 14, margin: 0, maxWidth: 420, lineHeight: 1.6 }}>
+        Generate survey instruments from your project documents, collect responses via a public link, and export data — available on the Pro plan.
+      </p>
+      <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+        <button onClick={() => nav('/account')} style={{ padding: '10px 22px', background: 'var(--accent)', color: 'var(--ink)', border: 'none', borderRadius: 8, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+          Upgrade to Pro — RM39/month
+        </button>
+        <button onClick={() => nav(`/project/${projectId}`)} style={{ padding: '10px 22px', background: 'transparent', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 14, cursor: 'pointer' }}>
+          Back to workspace
+        </button>
+      </div>
+    </div>
+  )
+
   if (!survey) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: 12, padding: 24, textAlign: 'center' }}>
       <p style={{ color: 'var(--ink)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, margin: 0 }}>
@@ -297,6 +506,8 @@ export function SurveyBuilder() {
       </button>
     </div>
   )
+
+  const collecting = survey.status === 'pilot' || survey.status === 'published'
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
@@ -328,9 +539,18 @@ export function SurveyBuilder() {
             {survey?.title}
           </button>
         </div>
-        <Stepper />
+        <Stepper view={view} onSelect={setView} />
       </header>
 
+      {view === 'collect' ? (
+        <CollectView survey={survey} setSurvey={setSurvey} refresh={refresh} />
+      ) : (
+      <>
+      {collecting && (
+        <div style={{ padding: '10px 20px', background: 'var(--accent-soft)', borderBottom: '1px solid var(--line)', fontSize: 12, color: 'var(--ink)', flexShrink: 0 }}>
+          Structure locked while collecting responses. Go to <b>Collect</b> to close the survey before editing.
+        </div>
+      )}
       {/* Toolbar */}
       <div style={{
         display: 'flex', gap: 8, padding: '12px 20px', flexWrap: 'wrap',
@@ -338,12 +558,13 @@ export function SurveyBuilder() {
       }}>
         <button
           onClick={handleGenerate}
-          disabled={generating}
+          disabled={generating || collecting}
+          title={collecting ? 'Structure locked while collecting responses' : undefined}
           style={{
             display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
             background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 8,
             fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-            cursor: generating ? 'not-allowed' : 'pointer', opacity: generating ? 0.6 : 1,
+            cursor: (generating || collecting) ? 'not-allowed' : 'pointer', opacity: (generating || collecting) ? 0.5 : 1,
           }}
         >
           <IconSparkles size={15} stroke={1.5} />
@@ -351,7 +572,9 @@ export function SurveyBuilder() {
         </button>
         <button
           onClick={addSection}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 13, cursor: 'pointer', color: 'var(--ink)' }}
+          disabled={collecting}
+          title={collecting ? 'Structure locked while collecting responses' : undefined}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 13, cursor: collecting ? 'not-allowed' : 'pointer', color: 'var(--ink)', opacity: collecting ? 0.5 : 1 }}
         >
           <IconPlus size={14} stroke={1.5} /> Section
         </button>
@@ -453,6 +676,8 @@ export function SurveyBuilder() {
           ))
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }

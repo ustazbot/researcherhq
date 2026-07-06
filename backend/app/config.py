@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     admin_email: str = ""
     perplexity_api_key: str = ""
     perplexity_model: str = "sonar"
+    app_salt: str = "researcherhq-dev-salt-change-in-prod"  # SHA256 pepper for respondent ip_hash
 
     class Config:
         env_file = ".env"

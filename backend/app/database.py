@@ -389,6 +389,42 @@ def _create_schema(conn: sqlite3.Connection):
     );
     """)
 
+    # Migration: Task 36B — survey publish lifecycle + response collection
+    survey_cols = {r[1] for r in conn.execute("PRAGMA table_info(surveys)").fetchall()}
+    if "share_token" not in survey_cols:
+        conn.execute("ALTER TABLE surveys ADD COLUMN share_token TEXT")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_surveys_share_token ON surveys(share_token)")
+    if "mode" not in survey_cols:
+        conn.execute("ALTER TABLE surveys ADD COLUMN mode TEXT")
+    if "published_at" not in survey_cols:
+        conn.execute("ALTER TABLE surveys ADD COLUMN published_at TEXT")
+    if "closed_at" not in survey_cols:
+        conn.execute("ALTER TABLE surveys ADD COLUMN closed_at TEXT")
+    if "response_cap" not in survey_cols:
+        conn.execute("ALTER TABLE surveys ADD COLUMN response_cap INTEGER NOT NULL DEFAULT 100")
+
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS survey_responses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        survey_id INTEGER NOT NULL,
+        is_pilot INTEGER NOT NULL DEFAULT 0,
+        submitted_at TEXT NOT NULL,
+        ip_hash TEXT NOT NULL,
+        FOREIGN KEY (survey_id) REFERENCES surveys(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_survey_responses_survey ON survey_responses(survey_id);
+
+    CREATE TABLE IF NOT EXISTS survey_answers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        response_id INTEGER NOT NULL,
+        question_id INTEGER NOT NULL,
+        answer_value TEXT,
+        FOREIGN KEY (response_id) REFERENCES survey_responses(id) ON DELETE CASCADE,
+        FOREIGN KEY (question_id) REFERENCES survey_questions(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_survey_answers_response ON survey_answers(response_id);
+    """)
+
     # Migration: Task 32A — documents extra columns
     doc_cols = {r[1] for r in conn.execute("PRAGMA table_info(documents)").fetchall()}
     if "source_type" not in doc_cols:

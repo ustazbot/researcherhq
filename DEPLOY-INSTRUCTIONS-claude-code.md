@@ -118,3 +118,27 @@ Kalau mana-mana langkah gagal, script berhenti dengan mesej jelas — bukan depl
 - [ ] Login account Pro → berjaya, tier tunjuk "Pro"
 - [ ] Login account Free → berjaya, tier tunjuk "Free"
 - [ ] Network tab: request pergi ke `researcherhq.com/api/...` (BUKAN localhost)
+
+---
+
+## 36B — Nginx rate limit untuk survey public (WAJIB reload selepas deploy config)
+
+Task 36B tambah `limit_req_zone` + `location /api/public/` dalam
+`deploy/nginx-researcherhq.conf`. Config repo perlu disalin ke VPS dan nginx
+reload SEKALI (deploy.sh rsync app sahaja, tak sentuh nginx):
+
+```bash
+# di VPS (SSH -i ~/.ssh/1page_deploy root@161.97.108.141):
+# 1. salin config repo → live (backup dulu ke /root/nginx-backups/, BUKAN sites-enabled/)
+cp /etc/nginx/sites-enabled/researcherhq /root/nginx-backups/researcherhq.$(date +%s).bak
+# 2. edit /etc/nginx/sites-enabled/researcherhq — tambah blok limit_req_zone (http context,
+#    atas server block) + location /api/public/ (atas location /api/), ikut repo conf
+# 3. uji + reload
+nginx -t && nginx -s reload
+```
+
+Verify: `curl -s -o /dev/null -w "%{http_code}\n" https://researcherhq.com/api/public/surveys/BADTOKEN`
+patut 404 (bukan 502). Spam >10/min dari IP sama patut mula dapat 429.
+
+Nota: `limit_req` di edge = lapisan pertama; app-level `rate_limiter.py` lapisan
+kedua. TIADA kebergantungan Cloudflare rate limiting.

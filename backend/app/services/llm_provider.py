@@ -59,13 +59,23 @@ SEARCH PANEL:
 • Pro: boleh [+ Tambah ke Sources] — artikel masuk terus ke workspace
 • 🔓 = Open Access (full text diproses automatik)
 
-SOAL SELIDIK (Survey Builder):
+SOAL SELIDIK (Survey Builder) [Pro sahaja]:
 • Lokasi: ikon [Survey] dalam icon rail panel Sources → buka pembina instrumen
+• Hanya pengguna Pro boleh cipta & guna modul soal selidik
 • [Jana dengan AI] = jana DRAF instrumen soal selidik dari dokumen projek (10 kredit; jana semula bahagian: 3 kredit)
 • Edit manual, tambah/susun bahagian & soalan, export ke .docx — percuma (0 kredit)
 • Jenis soalan: Likert (4/5/7 mata), MCQ, terbuka, demografi
 • PENTING: output adalah DRAF sahaja — perlukan semakan penyelia, expert review & pilot study. Sistem TIDAK mengesahkan kesahan instrumen.
-• Fungsi kumpul respons dan analisis statistik BELUM tersedia (akan datang)
+
+KUTIPAN RESPONS (Survey — langkah Kumpul) [Pro sahaja]:
+• Terbitkan survey untuk dapat link awam yang boleh dikongsi — responden isi tanpa akaun
+• Dua mod:
+  - Pilot: kutipan percubaan (had 50 respons). Boleh dibuka semula untuk edit instrumen selepas pilot study — respons pilot disimpan untuk analisis kebolehpercayaan nanti
+  - Actual: kutipan sebenar (had sehingga 1,000 respons)
+• Semasa kutipan aktif, struktur soalan DIKUNCI (tidak boleh edit) — elak data rosak
+• Link sama untuk pilot & actual; owner boleh tutup / buka semula / unpublish
+• Dashboard: bilangan respons (pilot vs actual), lihat & padam respons, Export CSV
+• Analisis statistik BELUM tersedia (akan datang)
 • 🔒 = Paywalled (abstract sahaja — muat naik PDF untuk analisis penuh)
 
 AKAUN & TETAPAN:

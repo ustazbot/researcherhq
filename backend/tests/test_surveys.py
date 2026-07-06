@@ -59,15 +59,15 @@ def _reset_date():
     return date(today.year, today.month + 1, 1).isoformat()
 
 
-def _seed_user(db_path, user_id, email, kredit_subscription=50, kredit_topup=0):
+def _seed_user(db_path, user_id, email, kredit_subscription=50, kredit_topup=0, tier="pro"):
     conn = sqlite3.connect(db_path)
     total = kredit_subscription + kredit_topup
     conn.execute(
         """INSERT OR IGNORE INTO users
            (id, email, tier, kredit_remaining, kredit_total, kredit_subscription, kredit_topup,
             tokens_used_internal, reset_date, created_at)
-           VALUES (?, ?, 'free', ?, ?, ?, ?, 0, ?, ?)""",
-        (user_id, email, total, total, kredit_subscription, kredit_topup,
+           VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)""",
+        (user_id, email, tier, total, total, kredit_subscription, kredit_topup,
          _reset_date(), datetime.utcnow().isoformat()),
     )
     conn.commit()
@@ -96,10 +96,10 @@ def _seed_document(db_path, project_id):
     conn.close()
 
 
-def _setup(client_fixture, kredit_subscription=50, kredit_topup=0, with_doc=True):
+def _setup(client_fixture, kredit_subscription=50, kredit_topup=0, with_doc=True, tier="pro"):
     c, db_path = client_fixture
     token, uid, email = make_token()
-    _seed_user(db_path, uid, email, kredit_subscription, kredit_topup)
+    _seed_user(db_path, uid, email, kredit_subscription, kredit_topup, tier=tier)
     pid = str(uuid.uuid4())
     _seed_project(db_path, pid, uid)
     if with_doc:

@@ -7,6 +7,7 @@ import { SupportPage } from './pages/SupportPage'
 import { AccountSettingsPage } from './pages/AccountSettingsPage'
 import HelpPage from './pages/HelpPage'
 import { SurveyBuilder } from './components/SurveyBuilder'
+import { PublicSurveyForm } from './components/PublicSurveyForm'
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('rhq_token')
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         <Route path="/project/:id" element={<PrivateRoute><ProjectPage /></PrivateRoute>} />
         <Route path="/project/:id/soal-selidik" element={<PrivateRoute><SurveyBuilder /></PrivateRoute>} />
+        <Route path="/s/:token" element={<PublicSurveyForm />} />
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
         <Route path="/support" element={<PrivateRoute><SupportPage /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><AccountSettingsPage /></PrivateRoute>} />
