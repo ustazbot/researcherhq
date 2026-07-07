@@ -5,7 +5,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
@@ -13,7 +13,9 @@ from app.database import get_db
 from app.routers.auth import get_current_user
 from app.routers.rag import deduct_credits
 from app.services.export_service import build_survey_docx
+from app.services.rate_limiter import enforce_rate_limit
 from app.services.survey_generator import generate_survey_content
+from app.services import survey_import
 
 router = APIRouter()
 
@@ -32,6 +34,14 @@ def _assert_editable(db, survey_id):
     row = db.execute("SELECT status FROM surveys WHERE id=?", (survey_id,)).fetchone()
     if row and row["status"] in COLLECTING_STATUSES:
         raise HTTPException(409, "Structure is locked while collecting responses.")
+    if row and row["status"] == "imported":
+        raise HTTPException(409, "Imported surveys are read-only — the structure comes from the uploaded file.")
+
+
+def _reject_imported(survey_row):
+    """36C-4: publish lifecycle never applies to imported surveys."""
+    if survey_row["status"] == "imported":
+        raise HTTPException(403, "Not applicable to imported surveys.")
 
 
 # ── Pydantic bodies ──────────────────────────────────────────────
@@ -175,6 +185,9 @@ def _survey_full(db, survey_row) -> dict:
         "closed_at": survey_row["closed_at"] if "closed_at" in keys else None,
         "created_at": survey_row["created_at"],
         "updated_at": survey_row["updated_at"],
+        "import_filename": survey_row["import_filename"] if "import_filename" in keys else None,
+        "imported_at": survey_row["imported_at"] if "imported_at" in keys else None,
+        "imported_row_count": survey_row["imported_row_count"] if "imported_row_count" in keys else None,
         "sections": out_sections,
     }
 
@@ -254,6 +267,58 @@ def delete_survey(survey_id: int, user=Depends(get_current_user)):
         _own_survey(db, survey_id, user["user_id"])
         db.execute("DELETE FROM surveys WHERE id=?", (survey_id,))
         # sections & questions cascade via FK
+
+
+# ── External data import (36C-4) ─────────────────────────────────
+
+class ImportColumnMapping(BaseModel):
+    column_name: str
+    action: str  # 'skip' | 'question'
+    question_type: Optional[str] = None
+    likert_points: Optional[int] = None
+    is_reversed: Optional[bool] = False
+    override_pii_warning: Optional[bool] = False
+
+
+class ImportConfirmBody(BaseModel):
+    preview_token: str
+    survey_title: Optional[str] = None
+    is_pilot: bool = False
+    column_mappings: list[ImportColumnMapping]
+
+
+def _require_pro(db, user_id):
+    tier_row = db.execute("SELECT tier FROM users WHERE id=?", (user_id,)).fetchone()
+    if not tier_row or tier_row["tier"] != "pro":
+        raise HTTPException(403, "The Survey module is available on the Pro plan only.")
+
+
+@router.post("/projects/{project_id}/surveys/import/preview")
+async def import_preview(project_id: str, file: UploadFile = File(...), user=Depends(get_current_user)):
+    with get_db() as db:
+        _own_project(db, project_id, user["user_id"])
+        _require_pro(db, user["user_id"])
+    # VPS protection: parsing is the expensive step — 10 imports/day per owner
+    enforce_rate_limit(f"survey_import:{user['user_id']}", max_attempts=10, window_minutes=1440)
+    data = await file.read()
+    df = survey_import.parse_upload(file.filename or "", data)
+    token = survey_import.cache_preview(file.filename or "upload", df)
+    return survey_import.build_preview_response(token, file.filename or "upload", df)
+
+
+@router.post("/projects/{project_id}/surveys/import/confirm", status_code=201)
+def import_confirm(project_id: str, body: ImportConfirmBody, user=Depends(get_current_user)):
+    with get_db() as db:
+        _own_project(db, project_id, user["user_id"])
+        _require_pro(db, user["user_id"])
+        filename, df = survey_import.get_preview(body.preview_token)
+        questions = survey_import.validate_mappings(
+            df, [m.dict() for m in body.column_mappings])
+        summary = survey_import.create_imported_survey(
+            db, project_id, body.survey_title or filename, body.is_pilot,
+            filename, df, questions)
+    survey_import.drop_preview(body.preview_token)
+    return summary
 
 
 # ── AI Generation ────────────────────────────────────────────────
@@ -498,6 +563,7 @@ def publish_survey(survey_id: int, body: PublishBody, user=Depends(get_current_u
         raise HTTPException(400, "Invalid mode. Use 'pilot' or 'actual'.")
     with get_db() as db:
         survey = _own_survey(db, survey_id, user["user_id"])
+        _reject_imported(survey)
         if survey["status"] != "draft":
             raise HTTPException(409, "Only a draft survey can be published.")
 
@@ -533,6 +599,7 @@ def publish_survey(survey_id: int, body: PublishBody, user=Depends(get_current_u
 def close_survey(survey_id: int, user=Depends(get_current_user)):
     with get_db() as db:
         survey = _own_survey(db, survey_id, user["user_id"])
+        _reject_imported(survey)
         if survey["status"] == "pilot":
             new_status = "pilot_closed"
         elif survey["status"] == "published":
@@ -549,6 +616,7 @@ def close_survey(survey_id: int, user=Depends(get_current_user)):
 def reopen_survey(survey_id: int, user=Depends(get_current_user)):
     with get_db() as db:
         survey = _own_survey(db, survey_id, user["user_id"])
+        _reject_imported(survey)
         if survey["status"] == "pilot_closed":
             new_status = "pilot"
         elif survey["status"] == "closed":
@@ -569,6 +637,7 @@ def unlock_survey(survey_id: int, user=Depends(get_current_user)):
     """pilot_closed → draft. Pilot responses are kept (is_pilot=1) for Fasa C."""
     with get_db() as db:
         survey = _own_survey(db, survey_id, user["user_id"])
+        _reject_imported(survey)
         if survey["status"] != "pilot_closed":
             raise HTTPException(409, "Only a closed pilot survey can be unlocked for editing.")
         now = datetime.utcnow().isoformat()
@@ -582,6 +651,7 @@ def unpublish_survey(survey_id: int, user=Depends(get_current_user)):
     """published → draft, only if 0 actual responses."""
     with get_db() as db:
         survey = _own_survey(db, survey_id, user["user_id"])
+        _reject_imported(survey)
         if survey["status"] != "published":
             raise HTTPException(409, "Only an active actual survey can be unpublished.")
         actual_count = db.execute(

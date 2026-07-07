@@ -76,6 +76,14 @@ KUTIPAN RESPONS (Survey — langkah Kumpul) [Pro sahaja]:
 • Link sama untuk pilot & actual; owner boleh tutup / buka semula / unpublish
 • Dashboard: bilangan respons (pilot vs actual), lihat & padam respons, Export CSV
 
+IMPORT DATA LUARAN (Survey — Import from file) [Pro sahaja, 0 kredit]:
+• Upload CSV/XLSX data respons yang dikutip di luar platform (cth: Google Forms export) → map setiap kolum ke jenis soalan (Likert 4/5/7 mata + reversed, MCQ, terbuka, demografi, atau Skip) → sistem cipta survey berstatus 'imported' + semua respons, terus boleh Analisis
+• Had: fail 5MB, 1,000 baris, 60 kolum; maksimum 10 import sehari
+• Pilih SEKALI semasa import sama ada data dianggap pilot atau actual — kekal untuk semua baris
+• Survey imported KEKAL berkunci: tiada edit struktur, tiada publish/close/unlock (data dari fail, bukan instrumen platform)
+• Amaran PII: kolum bernama Email/Nama/No K/P/Telefon/Alamat ditanda automatik — mesti Skip atau sahkan override secara eksplisit. NOTA: semakan pada NAMA kolum sahaja, bukan kandungan — pengguna wajib semak sendiri kandungan sebelum import
+• Kalau silap import: padam survey tersebut dan import semula
+
 ANALISIS SOAL SELIDIK (Survey — langkah Analisis) [Pro sahaja, 0 kredit]:
 • Analisis respons yang dikutip (pilot atau actual) — semua pengiraan oleh sistem, bukan AI
 • Construct mapping: kumpulkan beberapa soalan Likert jadi satu konstruk (cth item B1–B5 = "Kepuasan Kerja")

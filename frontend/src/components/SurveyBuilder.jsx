@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   IconArrowLeft, IconPlus, IconTrash, IconChevronUp, IconChevronDown,
-  IconSparkles, IconDownload, IconChevronRight, IconClipboardList,
+  IconSparkles, IconDownload, IconChevronRight, IconClipboardList, IconUpload,
 } from '@tabler/icons-react'
 import api from '../api/client'
 import { Logo } from './Logo'
@@ -60,9 +60,38 @@ const STATUS_BADGE = {
   pilot_closed: { label: 'Pilot closed', bg: 'var(--line)', fg: 'var(--ink-soft)' },
   published: { label: 'Published — collecting', bg: 'var(--accent-soft)', fg: 'var(--ink)' },
   closed: { label: 'Closed', bg: 'var(--line)', fg: 'var(--ink-soft)' },
+  imported: { label: 'Imported — read-only', bg: 'var(--line)', fg: 'var(--ink-soft)' },
 }
 
 function CollectView({ survey, setSurvey, refresh }) {
+  if (survey.status === 'imported') return <ImportedCollectInfo survey={survey} />
+  return <CollectViewInner survey={survey} setSurvey={setSurvey} refresh={refresh} />
+}
+
+function ImportedCollectInfo({ survey }) {
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', maxWidth: 900, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+      <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', background: 'var(--card)', padding: 18 }}>
+        <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, marginTop: 0 }}>
+          Data imported from file — collection flow not applicable
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.7, margin: '0 0 12px' }}>
+          This survey's responses were imported from an external file, so publishing, closing and
+          unlocking do not apply. The structure is permanently locked. Head to the Analyse step.
+        </p>
+        <table style={{ fontSize: 13, borderCollapse: 'collapse' }}>
+          <tbody>
+            <tr><td style={{ padding: '3px 14px 3px 0', color: 'var(--ink-soft)' }}>Source file</td><td>{survey.import_filename}</td></tr>
+            <tr><td style={{ padding: '3px 14px 3px 0', color: 'var(--ink-soft)' }}>Imported on</td><td>{survey.imported_at ? new Date(survey.imported_at).toLocaleString() : '—'}</td></tr>
+            <tr><td style={{ padding: '3px 14px 3px 0', color: 'var(--ink-soft)' }}>Rows in file</td><td>{survey.imported_row_count}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function CollectViewInner({ survey, setSurvey, refresh }) {
   const [mode, setMode] = useState('pilot')
   const [summary, setSummary] = useState(null)
   const [detail, setDetail] = useState(null)
@@ -959,6 +988,193 @@ function AnalyseView({ survey, refresh, projectId }) {
   )
 }
 
+// ── 36C-4: Import external data (CSV/XLSX) — 3-step flow ────────
+
+const IMPORT_TYPES = [
+  { value: 'skip', label: 'Skip' },
+  { value: 'likert', label: 'Likert' },
+  { value: 'mcq', label: 'MCQ' },
+  { value: 'open', label: 'Open text' },
+  { value: 'demographic', label: 'Demographic' },
+]
+
+function ImportFlow({ projectId, onDone, onCancel }) {
+  const [step, setStep] = useState(1)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [preview, setPreview] = useState(null)
+  const [mappings, setMappings] = useState({}) // column name -> {action/type/points/reversed/piiOk}
+  const [title, setTitle] = useState('')
+  const [isPilot, setIsPilot] = useState(false)
+
+  const upload = async (file) => {
+    if (!file) return
+    setBusy(true); setErr('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const { data } = await api.post(`/projects/${projectId}/surveys/import/preview`, fd,
+        { headers: { 'Content-Type': 'multipart/form-data' } })
+      setPreview(data)
+      setTitle(data.filename.replace(/\.(csv|xlsx)$/i, ''))
+      const init = {}
+      data.columns.forEach(col => {
+        init[col.name] = { type: col.pii_suspected ? 'skip' : 'open', points: 5, reversed: false, piiOk: false }
+      })
+      setMappings(init)
+      setStep(2)
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Upload failed. Use a .csv or .xlsx file (max 5MB, 1,000 rows).')
+    } finally { setBusy(false) }
+  }
+
+  const setCol = (name, patch) => setMappings(m => ({ ...m, [name]: { ...m[name], ...patch } }))
+
+  const questionCols = preview ? preview.columns.filter(c => mappings[c.name]?.type !== 'skip') : []
+  const piiMissingConfirm = preview ? preview.columns.filter(c =>
+    c.pii_suspected && mappings[c.name]?.type !== 'skip' && !mappings[c.name]?.piiOk) : []
+
+  const doImport = async () => {
+    setBusy(true); setErr('')
+    try {
+      const column_mappings = preview.columns.map(c => {
+        const m = mappings[c.name]
+        if (m.type === 'skip') return { column_name: c.name, action: 'skip' }
+        const entry = { column_name: c.name, action: 'question', question_type: m.type }
+        if (m.type === 'likert') { entry.likert_points = Number(m.points); entry.is_reversed = m.reversed }
+        if (c.pii_suspected) entry.override_pii_warning = m.piiOk
+        return entry
+      })
+      const { data } = await api.post(`/projects/${projectId}/surveys/import/confirm`, {
+        preview_token: preview.preview_token, survey_title: title || preview.filename,
+        is_pilot: isPilot, column_mappings,
+      })
+      onDone(data)
+    } catch (e) {
+      const status = e?.response?.status
+      setErr(e?.response?.data?.detail || 'Import failed. Please try again.')
+      if (status === 410) setStep(1) // token expired -> re-upload
+    } finally { setBusy(false) }
+  }
+
+  const box = { border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', background: 'var(--card)', padding: 18, marginBottom: 14 }
+  const sel = { padding: '5px 8px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12, background: 'var(--bg)', color: 'var(--ink)' }
+  const btn = (primary, disabled = false) => ({ padding: '9px 18px', background: primary ? 'var(--ink)' : 'transparent', color: primary ? 'var(--bg)' : 'var(--ink)', border: primary ? 'none' : '1px solid var(--line)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: disabled || busy ? 'not-allowed' : 'pointer', opacity: disabled || busy ? 0.5 : 1 })
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', maxWidth: 900, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 17, margin: 0 }}>
+          Import data from file — step {step} of 3
+        </h2>
+        <button onClick={onCancel} style={btn(false)}>Cancel</button>
+      </div>
+      {err && <p style={{ color: '#EF4444', fontSize: 13 }}>{err}</p>}
+
+      {step === 1 && (
+        <div style={box}>
+          <p style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--ink-soft)', marginTop: 0 }}>
+            Upload responses collected outside ResearcherHQ (e.g. Google Forms export). CSV or XLSX,
+            max 5MB, 1,000 rows, 60 columns. The import creates a locked survey that goes straight to Analyse.
+          </p>
+          <input type="file" accept=".csv,.xlsx" disabled={busy}
+            onChange={e => upload(e.target.files?.[0])} style={{ fontSize: 13 }} />
+          {busy && <p style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Parsing…</p>}
+        </div>
+      )}
+
+      {step === 2 && preview && (
+        <>
+          <div style={{ ...box, overflowX: 'auto' }}>
+            <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 8px' }}>
+              {preview.row_count} rows · first 5 shown. ⚠ badges are based on column names only —
+              please also verify the content yourself before importing.
+            </p>
+            <table style={{ borderCollapse: 'collapse', fontSize: 12, minWidth: 480 }}>
+              <thead><tr>
+                {preview.columns.map(c => (
+                  <th key={c.name} style={{ textAlign: 'left', padding: '4px 10px', borderBottom: '1px solid var(--ink)' }}>
+                    {c.name}{c.pii_suspected && <span title="May contain personal data" style={{ marginLeft: 4, color: '#B45309' }}>⚠</span>}
+                  </th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {preview.sample_rows.map((row, ri) => (
+                  <tr key={ri}>{row.map((v, ci) => <td key={ci} style={{ padding: '3px 10px', borderBottom: '1px solid var(--line)', color: 'var(--ink-soft)' }}>{v}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={box}>
+            <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, marginTop: 0 }}>Map columns to question types</p>
+            {preview.columns.map(c => {
+              const m = mappings[c.name] || {}
+              return (
+                <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
+                  <span style={{ flex: '1 1 140px', fontSize: 13, minWidth: 120 }}>
+                    {c.name} {c.pii_suspected && <span style={{ fontSize: 11, color: '#B45309' }}>⚠ May contain personal data</span>}
+                  </span>
+                  <select value={m.type} onChange={e => setCol(c.name, { type: e.target.value })} style={sel}>
+                    {IMPORT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  {m.type === 'likert' && (
+                    <>
+                      <select value={m.points} onChange={e => setCol(c.name, { points: e.target.value })} style={sel}>
+                        {[4, 5, 7].map(p => <option key={p} value={p}>{p}-point</option>)}
+                      </select>
+                      <label style={{ fontSize: 12, display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={m.reversed} onChange={e => setCol(c.name, { reversed: e.target.checked })} /> reversed
+                      </label>
+                    </>
+                  )}
+                  {c.pii_suspected && m.type !== 'skip' && (
+                    <label style={{ fontSize: 11, display: 'flex', gap: 4, alignItems: 'center', color: '#B45309', cursor: 'pointer', flexBasis: '100%' }}>
+                      <input type="checkbox" checked={m.piiOk} onChange={e => setCol(c.name, { piiOk: e.target.checked })} />
+                      I confirm this column does not contain identifying information
+                    </label>
+                  )}
+                </div>
+              )
+            })}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button onClick={() => setStep(3)} disabled={busy || questionCols.length === 0 || piiMissingConfirm.length > 0}
+                style={btn(true, questionCols.length === 0 || piiMissingConfirm.length > 0)}>
+                Continue
+              </button>
+              <button onClick={() => setStep(1)} style={btn(false)}>Back</button>
+            </div>
+            {piiMissingConfirm.length > 0 && (
+              <p style={{ fontSize: 11, color: '#B45309', margin: '8px 0 0' }}>
+                Confirm or skip the flagged columns: {piiMissingConfirm.map(c => c.name).join(', ')}
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {step === 3 && preview && (
+        <div style={box}>
+          <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px' }}>Survey title:</p>
+          <input value={title} onChange={e => setTitle(e.target.value)}
+            style={{ width: '100%', maxWidth: 380, padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 7, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginBottom: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={isPilot} onChange={e => setIsPilot(e.target.checked)} />
+            Treat as pilot data (applies to every imported row — cannot be changed later)
+          </label>
+          <p style={{ fontSize: 13, margin: '0 0 12px' }}>
+            <strong>{questionCols.length}</strong> questions · <strong>{preview.row_count}</strong> responses will be imported.
+            The survey structure will be permanently locked (data comes from the file).
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={doImport} disabled={busy} style={btn(true)}>{busy ? 'Importing…' : 'Import'}</button>
+            <button onClick={() => setStep(2)} style={btn(false)}>Back</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SurveyBuilder() {
   const { id: projectId } = useParams()
   const nav = useNavigate()
@@ -967,13 +1183,16 @@ export function SurveyBuilder() {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
   const [collapsed, setCollapsed] = useState({}) // sectionId -> bool
-  const [view, setView] = useState('build') // 'build' | 'collect'
+  const [view, setView] = useState('build') // 'build' | 'collect' | 'analyse'
   const [locked, setLocked] = useState(false) // Free tier
+  const [surveyList, setSurveyList] = useState([])
+  const [importOpen, setImportOpen] = useState(false)
 
-  const loadSurvey = useCallback(async () => {
+  const loadSurvey = useCallback(async (preferId = null) => {
     try {
       const { data: list } = await api.get(`/projects/${projectId}/surveys`)
-      let sid = list[0]?.id
+      setSurveyList(list)
+      let sid = preferId || list[0]?.id
       if (!sid) {
         const { data: created } = await api.post(`/projects/${projectId}/surveys`, {})
         sid = created.id
@@ -1163,11 +1382,32 @@ export function SurveyBuilder() {
           >
             {survey?.title}
           </button>
+          {surveyList.length > 1 && (
+            <select value={survey.id}
+              onChange={e => { setLoading(true); loadSurvey(Number(e.target.value)) }}
+              title="Switch survey"
+              style={{ padding: '4px 6px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 11, background: 'var(--bg)', color: 'var(--ink-soft)', maxWidth: 150 }}>
+              {surveyList.map(sv => <option key={sv.id} value={sv.id}>{sv.title}{sv.status === 'imported' ? ' (imported)' : ''}</option>)}
+            </select>
+          )}
+          <button onClick={() => setImportOpen(true)} title="Import responses collected outside ResearcherHQ (CSV/XLSX)"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 7, fontSize: 11, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+            <IconUpload size={12} stroke={1.5} /> Import from file
+          </button>
         </div>
         <Stepper view={view} onSelect={setView} />
       </header>
 
-      {view === 'analyse' ? (
+      {importOpen ? (
+        <ImportFlow projectId={projectId}
+          onCancel={() => setImportOpen(false)}
+          onDone={async (summary) => {
+            setImportOpen(false)
+            setLoading(true)
+            await loadSurvey(summary.survey_id)
+            setView('analyse')
+          }} />
+      ) : view === 'analyse' ? (
         <AnalyseView survey={survey} refresh={refresh} projectId={projectId} />
       ) : view === 'collect' ? (
         <CollectView survey={survey} setSurvey={setSurvey} refresh={refresh} />
@@ -1176,6 +1416,11 @@ export function SurveyBuilder() {
       {collecting && (
         <div style={{ padding: '10px 20px', background: 'var(--accent-soft)', borderBottom: '1px solid var(--line)', fontSize: 12, color: 'var(--ink)', flexShrink: 0 }}>
           Structure locked while collecting responses. Go to <b>Collect</b> to close the survey before editing.
+        </div>
+      )}
+      {survey.status === 'imported' && (
+        <div style={{ padding: '10px 20px', background: 'var(--line)', borderBottom: '1px solid var(--line)', fontSize: 12, color: 'var(--ink-soft)', flexShrink: 0 }}>
+          Imported survey — the structure comes from the uploaded file and is permanently read-only. Use the <b>Analyse</b> step.
         </div>
       )}
       {/* Toolbar */}

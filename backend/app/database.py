@@ -441,6 +441,14 @@ def _create_schema(conn: sqlite3.Connection):
     if "response_cap" not in survey_cols:
         conn.execute("ALTER TABLE surveys ADD COLUMN response_cap INTEGER NOT NULL DEFAULT 100")
 
+    # Migration: Task 36C-4 — external data import metadata (NULL for non-imported surveys)
+    if "import_filename" not in survey_cols:
+        conn.execute("ALTER TABLE surveys ADD COLUMN import_filename TEXT")
+    if "imported_at" not in survey_cols:
+        conn.execute("ALTER TABLE surveys ADD COLUMN imported_at TEXT")
+    if "imported_row_count" not in survey_cols:
+        conn.execute("ALTER TABLE surveys ADD COLUMN imported_row_count INTEGER")
+
     conn.executescript("""
     CREATE TABLE IF NOT EXISTS survey_responses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
