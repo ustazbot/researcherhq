@@ -243,6 +243,10 @@ def _create_schema(conn: sqlite3.Connection):
     if "section_type" not in chap_cols:
         conn.execute("ALTER TABLE chapters ADD COLUMN section_type TEXT DEFAULT 'chapter'")
 
+    # Migration: §6J — optional per-chapter word count target (nullable)
+    if "word_count_target" not in chap_cols:
+        conn.execute("ALTER TABLE chapters ADD COLUMN word_count_target INTEGER")
+
     # Migration: Task 12B — voice profile per project
     try:
         conn.execute("""

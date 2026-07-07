@@ -16,6 +16,7 @@ router = APIRouter()
 class ChapterCreate(BaseModel):
     title: str
     chapter_order: int
+    word_count_target: Optional[int] = None
 
 
 class ChapterContentUpdate(BaseModel):
@@ -25,6 +26,13 @@ class ChapterContentUpdate(BaseModel):
 class ChapterUpdate(BaseModel):
     title: Optional[str] = None
     chapter_order: Optional[int] = None
+    word_count_target: Optional[int] = None  # None = unchanged; 0 = clear (stored NULL)
+
+
+def _validate_word_count_target(value: Optional[int]):
+    """§6J: target must be positive; 0 is the explicit 'clear target' sentinel."""
+    if value is not None and value < 0:
+        raise HTTPException(422, "word_count_target must be a positive number (or 0 to clear it).")
 
 
 @router.post("/projects/{project_id}/chapters", status_code=201)
@@ -37,17 +45,20 @@ def create_chapter(project_id: str, body: ChapterCreate, user=Depends(get_curren
         if not proj:
             raise HTTPException(404, "Projek tidak dijumpai.")
 
+        _validate_word_count_target(body.word_count_target)
+        target = body.word_count_target or None  # 0/None -> NULL
         chap_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
         db.execute(
-            "INSERT INTO chapters (id,project_id,title,chapter_order,status,created_at) VALUES (?,?,?,?,'draft',?)",
-            (chap_id, project_id, body.title, body.chapter_order, now)
+            "INSERT INTO chapters (id,project_id,title,chapter_order,status,word_count_target,created_at) VALUES (?,?,?,?,'draft',?,?)",
+            (chap_id, project_id, body.title, body.chapter_order, target, now)
         )
         db.execute(
             "INSERT INTO chapter_content (id,chapter_id,content,summary,source_citations,updated_at) VALUES (?,?,'','','[]',?)",
             (str(uuid.uuid4()), chap_id, now)
         )
-    return {"id": chap_id, "title": body.title, "chapter_order": body.chapter_order, "status": "draft"}
+    return {"id": chap_id, "title": body.title, "chapter_order": body.chapter_order,
+            "status": "draft", "word_count_target": target}
 
 
 @router.get("/projects/{project_id}/chapters")
@@ -61,7 +72,8 @@ def list_chapters(project_id: str, user=Depends(get_current_user)):
             raise HTTPException(404, "Projek tidak dijumpai.")
         rows = db.execute(
             """SELECT ch.*,
-               CASE WHEN LENGTH(COALESCE(cc.content, '')) > 10 THEN 1 ELSE 0 END AS has_content
+               CASE WHEN LENGTH(COALESCE(cc.content, '')) > 10 THEN 1 ELSE 0 END AS has_content,
+               cc.content AS content
                FROM chapters ch
                LEFT JOIN chapter_content cc ON cc.chapter_id = ch.id
                WHERE ch.project_id=? ORDER BY ch.chapter_order""",
@@ -80,7 +92,7 @@ def get_chapter(project_id: str, chapter_id: str, user=Depends(get_current_user)
         if not proj:
             raise HTTPException(404, "Projek tidak dijumpai.")
         row = db.execute(
-            """SELECT ch.id, ch.title, ch.chapter_order, ch.status, cc.content
+            """SELECT ch.id, ch.title, ch.chapter_order, ch.status, ch.word_count_target, cc.content
                FROM chapters ch
                LEFT JOIN chapter_content cc ON cc.chapter_id = ch.id
                WHERE ch.id=? AND ch.project_id=?""",
@@ -116,6 +128,9 @@ def update_chapter(
     body: ChapterUpdate,
     user=Depends(get_current_user)
 ):
+    """Partial update. For word_count_target (§6J): omit/None keeps the current
+    value, a positive integer sets it, and the sentinel 0 clears the target
+    (stored as NULL). Negative values are rejected with 422."""
     with get_db() as db:
         proj = db.execute(
             "SELECT id FROM projects WHERE id=? AND user_id=?",
@@ -124,18 +139,27 @@ def update_chapter(
         if not proj:
             raise HTTPException(404, "Projek tidak dijumpai.")
         chap = db.execute(
-            "SELECT id, title, chapter_order FROM chapters WHERE id=? AND project_id=?",
+            "SELECT id, title, chapter_order, word_count_target FROM chapters WHERE id=? AND project_id=?",
             (chapter_id, project_id)
         ).fetchone()
         if not chap:
             raise HTTPException(404, "Bab tidak dijumpai.")
+        _validate_word_count_target(body.word_count_target)
         new_title = body.title if body.title is not None else chap["title"]
         new_order = body.chapter_order if body.chapter_order is not None else chap["chapter_order"]
+        # §6J: None = unchanged (same pattern as title/order); 0 = clear -> NULL
+        if body.word_count_target is None:
+            new_target = chap["word_count_target"]
+        elif body.word_count_target == 0:
+            new_target = None
+        else:
+            new_target = body.word_count_target
         db.execute(
-            "UPDATE chapters SET title=?, chapter_order=? WHERE id=?",
-            (new_title, new_order, chapter_id)
+            "UPDATE chapters SET title=?, chapter_order=?, word_count_target=? WHERE id=?",
+            (new_title, new_order, new_target, chapter_id)
         )
-    return {"id": chapter_id, "title": new_title, "chapter_order": new_order}
+    return {"id": chapter_id, "title": new_title, "chapter_order": new_order,
+            "word_count_target": new_target}
 
 
 @router.patch("/projects/{project_id}/chapters/{chapter_id}/content")

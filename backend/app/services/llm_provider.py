@@ -26,6 +26,7 @@ PANEL KANAN — STRUKTUR THESIS
 • [Export Bab] → muat turun bab sebagai fail .docx
 • [Semak SV Alignment] → semak sama ada bab selari maklum balas penyelia
 • Tambah bab baharu: klik [+ Bab] dalam panel struktur
+• Target patah perkataan (optional, per bab): hover bab → [+ Set target], atau klik label count untuk edit (0 = buang target). Progress bar "2,340 / 5,000 words" dipapar dalam panel struktur, update live semasa menaip. Kiraan dibuat dalam browser — 0 kredit
 
 OUTPUT MODES (kredit):
 • Soal-Jawab biasa: 1 kredit

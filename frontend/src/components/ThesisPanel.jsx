@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import api from '../api/client'
+import { stripHtmlAndCount } from '../utils/wordCount'
 
 const STATUS_LABEL = { draft: 'Draft', dalam_proses: 'In Progress', siap: 'Done' }
 const STATUS_COLOR = { draft: 'var(--line)', dalam_proses: 'var(--accent-soft)', siap: 'var(--success-soft)' }
 
-export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse, onCompile, compiling, compileError, compileWarning, onDismissError }) {
+export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, projectId, activeChapterId, onSetActive, onAddChapter, onDeleteChapter, onReorderChapter, onRenameChapter, collapsed, onToggleCollapse, onCompile, compiling, compileError, compileWarning, onDismissError, onSetWordTarget, activeContentOverride }) {
   const [upgrading, setUpgrading] = useState(false)
   const [addMode, setAddMode] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [editingChapterId, setEditingChapterId] = useState(null)
   const [editingTitle, setEditingTitle] = useState('')
   const [hoveredChapterId, setHoveredChapterId] = useState(null)
+  const [editingTargetId, setEditingTargetId] = useState(null)
+  const [editingTarget, setEditingTarget] = useState('')
 
   const done = (chapters || []).filter(c => c.status === 'siap').length
   const total = (chapters || []).length
@@ -68,6 +71,18 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
     setEditingTitle('')
     if (!trimmed || trimmed === currentTitle) return
     await onRenameChapter(chapterId, trimmed)
+  }
+
+  // §6J — click-to-edit word target (same interaction as rename above).
+  // Empty input cancels; 0 clears the target (backend sentinel).
+  async function handleSaveTarget(chapterId, currentTarget) {
+    const raw = editingTarget.trim()
+    setEditingTargetId(null)
+    setEditingTarget('')
+    if (raw === '') return
+    const n = Number(raw)
+    if (!Number.isInteger(n) || n < 0 || n === currentTarget) return
+    await onSetWordTarget(chapterId, n)
   }
 
   return (
@@ -201,6 +216,59 @@ export function ThesisPanel({ chapters, onExport, exportingChapterId, tier, proj
                   {STATUS_LABEL[chap.status] || chap.status}
                 </span>
               </div>
+
+              {/* §6J — word count progress (client-side count, live via override for the active chapter) */}
+              {(() => {
+                const html = (isActive && activeContentOverride != null) ? activeContentOverride : chap.content
+                const count = stripHtmlAndCount(html)
+                const target = chap.word_count_target
+                if (editingTargetId === chap.id) {
+                  return (
+                    <div style={{ marginTop: 5 }} onClick={e => e.stopPropagation()}>
+                      <input
+                        autoFocus type="number" min="0"
+                        value={editingTarget}
+                        onChange={e => setEditingTarget(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleSaveTarget(chap.id, target)
+                          if (e.key === 'Escape') { setEditingTargetId(null); setEditingTarget('') }
+                        }}
+                        onBlur={() => handleSaveTarget(chap.id, target)}
+                        placeholder="Word target (0 clears)"
+                        style={{ width: 130, padding: '2px 4px', border: '1px solid var(--accent)', borderRadius: 3, fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--bg)', outline: 'none' }}
+                      />
+                    </div>
+                  )
+                }
+                if (target) {
+                  const pct = Math.min(count / target, 1)
+                  return (
+                    <div style={{ marginTop: 5 }} onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => { setEditingTargetId(chap.id); setEditingTarget(String(target)) }}
+                        title="Click to edit word target (0 clears)"
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)' }}
+                      >
+                        {count.toLocaleString('en-US')} / {target.toLocaleString('en-US')} words
+                      </button>
+                      <div style={{ height: 4, background: 'var(--line)', borderRadius: 2, marginTop: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct * 100}%`, borderRadius: 2, background: pct >= 0.9 ? 'var(--success)' : 'var(--accent)', transition: 'width 0.3s' }} />
+                      </div>
+                    </div>
+                  )
+                }
+                if (hoveredChapterId === chap.id) {
+                  return (
+                    <button
+                      onClick={e => { e.stopPropagation(); setEditingTargetId(chap.id); setEditingTarget('') }}
+                      style={{ marginTop: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-soft)', display: 'block' }}
+                    >
+                      + Set target
+                    </button>
+                  )
+                }
+                return null
+              })()}
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }} onClick={e => e.stopPropagation()}>
                 {/* Rename */}

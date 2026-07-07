@@ -55,12 +55,13 @@ function ToolbarButton({ onClick, active, children, title }) {
   )
 }
 
-export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, onReject, onSave, saving, projectId, chapterId }) {
+export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, onReject, onSave, onContentChange, saving, projectId, chapterId }) {
   const [tooltipDismissed, setTooltipDismissed] = useState(false)
   const [alignmentLoading, setAlignmentLoading] = useState(false)
   const [alignmentIssues, setAlignmentIssues] = useState(null) // null = not run yet
   const [alignmentError, setAlignmentError] = useState(null)
   const saveTimer = useRef(null)
+  const liveTimer = useRef(null)
   const lastSavedContent = useRef(content || '')
 
   const editor = useEditor({
@@ -69,6 +70,11 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
     editable: !pendingSuggestion,
     onUpdate: ({ editor }) => {
       if (pendingSuggestion) return
+      // §6J: short-debounced live HTML for the word-count progress bar
+      if (onContentChange) {
+        clearTimeout(liveTimer.current)
+        liveTimer.current = setTimeout(() => onContentChange(editor.getHTML()), 400)
+      }
       clearTimeout(saveTimer.current)
       saveTimer.current = setTimeout(() => {
         const html = editor.getHTML()
@@ -95,9 +101,9 @@ export function ChapterEditor({ chapter, content, pendingSuggestion, onAccept, o
     editor.setEditable(!pendingSuggestion)
   }, [pendingSuggestion, editor])
 
-  // Cleanup saveTimer on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
-    return () => clearTimeout(saveTimer.current)
+    return () => { clearTimeout(saveTimer.current); clearTimeout(liveTimer.current) }
   }, [])
 
   if (!chapter) {

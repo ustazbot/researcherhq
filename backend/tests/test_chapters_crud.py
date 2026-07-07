@@ -283,3 +283,96 @@ def test_bibliography_empty_project(client_with_chapter):
     assert r.status_code == 200
     data = r.json()
     assert data["sources"] == []
+
+# --- §6J: word_count_target ---
+
+def _get_target_in_db(client, project_id, chapter_id, h):
+    """Read the persisted target via the list endpoint (ch.* includes it)."""
+    rows = client.get(f"/projects/{project_id}/chapters", headers=h).json()
+    return next(r for r in rows if r["id"] == chapter_id)["word_count_target"]
+
+def test_create_chapter_with_word_target(client_with_chapter):
+    client, project_id, _, h = client_with_chapter
+    r = client.post(f"/projects/{project_id}/chapters",
+                    json={"title": "Bab 2", "chapter_order": 2, "word_count_target": 5000}, headers=h)
+    assert r.status_code == 201
+    assert r.json()["word_count_target"] == 5000
+    assert _get_target_in_db(client, project_id, r.json()["id"], h) == 5000
+
+def test_create_chapter_without_word_target_null(client_with_chapter):
+    client, project_id, chapter_id, h = client_with_chapter
+    # fixture chapter was created without a target
+    assert _get_target_in_db(client, project_id, chapter_id, h) is None
+
+def test_update_set_target_from_null(client_with_chapter):
+    client, project_id, chapter_id, h = client_with_chapter
+    r = client.patch(f"/projects/{project_id}/chapters/{chapter_id}",
+                     json={"word_count_target": 3000}, headers=h)
+    assert r.status_code == 200
+    assert r.json()["word_count_target"] == 3000
+    assert _get_target_in_db(client, project_id, chapter_id, h) == 3000
+
+def test_update_change_existing_target(client_with_chapter):
+    client, project_id, chapter_id, h = client_with_chapter
+    client.patch(f"/projects/{project_id}/chapters/{chapter_id}",
+                 json={"word_count_target": 3000}, headers=h)
+    r = client.patch(f"/projects/{project_id}/chapters/{chapter_id}",
+                     json={"word_count_target": 8000}, headers=h)
+    assert r.json()["word_count_target"] == 8000
+    assert _get_target_in_db(client, project_id, chapter_id, h) == 8000
+
+def test_update_none_keeps_existing_target(client_with_chapter):
+    client, project_id, chapter_id, h = client_with_chapter
+    client.patch(f"/projects/{project_id}/chapters/{chapter_id}",
+                 json={"word_count_target": 4000}, headers=h)
+    # a PATCH that only renames must not touch the target (None = unchanged)
+    r = client.patch(f"/projects/{project_id}/chapters/{chapter_id}",
+                     json={"title": "Bab 1 (edited)"}, headers=h)
+    assert r.status_code == 200
+    assert r.json()["word_count_target"] == 4000
+    assert _get_target_in_db(client, project_id, chapter_id, h) == 4000
+
+def test_update_zero_sentinel_clears_target(client_with_chapter):
+    client, project_id, chapter_id, h = client_with_chapter
+    client.patch(f"/projects/{project_id}/chapters/{chapter_id}",
+                 json={"word_count_target": 4000}, headers=h)
+    r = client.patch(f"/projects/{project_id}/chapters/{chapter_id}",
+                     json={"word_count_target": 0}, headers=h)
+    assert r.status_code == 200
+    assert r.json()["word_count_target"] is None
+    assert _get_target_in_db(client, project_id, chapter_id, h) is None
+
+def test_negative_target_422(client_with_chapter):
+    client, project_id, chapter_id, h = client_with_chapter
+    r = client.patch(f"/projects/{project_id}/chapters/{chapter_id}",
+                     json={"word_count_target": -100}, headers=h)
+    assert r.status_code == 422
+    r2 = client.post(f"/projects/{project_id}/chapters",
+                     json={"title": "Bab X", "chapter_order": 9, "word_count_target": -1}, headers=h)
+    assert r2.status_code == 422
+
+def test_list_chapters_includes_target_and_nulls(client_with_chapter):
+    client, project_id, chapter_id, h = client_with_chapter
+    client.post(f"/projects/{project_id}/chapters",
+                json={"title": "Bab 2", "chapter_order": 2, "word_count_target": 6000}, headers=h)
+    rows = client.get(f"/projects/{project_id}/chapters", headers=h).json()
+    by_title = {r["title"]: r for r in rows}
+    assert by_title["Bab 1: Pengenalan"]["word_count_target"] is None
+    assert by_title["Bab 2"]["word_count_target"] == 6000
+    # §6J: list also carries content so the client can count words locally
+    assert all("content" in r for r in rows)
+
+def test_get_single_chapter_includes_target(client_with_chapter):
+    client, project_id, chapter_id, h = client_with_chapter
+    client.patch(f"/projects/{project_id}/chapters/{chapter_id}",
+                 json={"word_count_target": 2500}, headers=h)
+    r = client.get(f"/projects/{project_id}/chapters/{chapter_id}", headers=h)
+    assert r.status_code == 200
+    assert r.json()["word_count_target"] == 2500
+
+def test_target_ownership_other_user_404(client_with_chapter):
+    client, project_id, chapter_id, _ = client_with_chapter
+    other = make_headers(user_id="user-2", email="u2@test.com")
+    r = client.patch(f"/projects/{project_id}/chapters/{chapter_id}",
+                     json={"word_count_target": 1000}, headers=other)
+    assert r.status_code == 404

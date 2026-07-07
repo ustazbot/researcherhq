@@ -41,6 +41,7 @@ export function ProjectPage() {
   const [activeChapterContent, setActiveChapterContent] = useState('')
   const [contentLoading, setContentLoading] = useState(false)
   const [pendingSuggestion, setPendingSuggestion] = useState(null) // { text: string, stageLabel?: string } | null
+  const [liveContent, setLiveContent] = useState(null) // §6J: unsaved editor HTML for live word count
   const [showProposalUpload, setShowProposalUpload] = useState(initMode === 'proposal_upload')
   const [proposalUploading, setProposalUploading] = useState(false)
   // Two-stage proposal: stores Bab 3 text pending after user Terima Bab 1
@@ -150,6 +151,7 @@ export function ProjectPage() {
       return
     }
     setContentLoading(true)
+    setLiveContent(null) // §6J: stale override must not leak into the next chapter
     api.get(`/projects/${id}/chapters/${activeChapterId}`)
       .then(r => setActiveChapterContent(r.data.content || ''))
       .catch(() => setActiveChapterContent(''))
@@ -486,12 +488,24 @@ export function ProjectPage() {
       await api.patch(`/projects/${id}/chapters/${activeChapterId}/content`, { content: text })
       setActiveChapterContent(text)
       setChapters(prev => prev.map(c =>
-        c.id === activeChapterId ? { ...c, status: 'dalam_proses' } : c
+        c.id === activeChapterId ? { ...c, status: 'dalam_proses', content: text } : c
       ))
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to save content. Please try again.')
     }
     setSaving(false)
+  }
+
+  // §6J — set/clear a chapter's word count target (0 = clear, backend sentinel)
+  async function handleSetWordTarget(chapterId, target) {
+    try {
+      const { data } = await api.patch(`/projects/${id}/chapters/${chapterId}`, { word_count_target: target })
+      setChapters(prev => prev.map(c =>
+        c.id === chapterId ? { ...c, word_count_target: data.word_count_target } : c
+      ))
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to save the word target.')
+    }
   }
 
   async function handleExport(chapterId) {
@@ -1063,6 +1077,7 @@ export function ProjectPage() {
                 onAccept={handleAcceptSuggestion}
                 onReject={handleRejectSuggestion}
                 onSave={handleSaveContent}
+                onContentChange={setLiveContent}
                 saving={saving}
                 projectId={id}
                 chapterId={activeChapterId}
@@ -1135,6 +1150,8 @@ export function ProjectPage() {
                 onDeleteChapter={handleDeleteChapter}
                 onReorderChapter={handleReorderChapter}
                 onRenameChapter={handleRenameChapter}
+                onSetWordTarget={handleSetWordTarget}
+                activeContentOverride={liveContent}
                 onCompile={handleCompile}
                 compiling={compiling}
                 compileError={compileError}
@@ -1445,6 +1462,7 @@ export function ProjectPage() {
           onAccept={handleAcceptSuggestion}
           onReject={handleRejectSuggestion}
           onSave={handleSaveContent}
+          onContentChange={setLiveContent}
           saving={saving}
           projectId={id}
           chapterId={activeChapterId}
@@ -1488,6 +1506,8 @@ export function ProjectPage() {
           onDeleteChapter={handleDeleteChapter}
           onReorderChapter={handleReorderChapter}
           onRenameChapter={handleRenameChapter}
+          onSetWordTarget={handleSetWordTarget}
+          activeContentOverride={liveContent}
           collapsed={thesisCollapsed}
           onToggleCollapse={() => setThesisCollapsed(c => !c)}
           onCompile={handleCompile}
