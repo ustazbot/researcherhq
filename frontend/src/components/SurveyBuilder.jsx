@@ -361,7 +361,87 @@ const ANALYSIS_KINDS = [
   { key: 'descriptive', label: 'Descriptive', desc: 'Mean, SD, frequencies' },
   { key: 'reliability', label: 'Reliability', desc: "Cronbach's alpha" },
   { key: 'normality', label: 'Normality', desc: 'Skewness, kurtosis, Shapiro-Wilk' },
+  { key: 'ttest_independent', label: 'Independent t-test', desc: 'Compare 2 groups (parametric)' },
+  { key: 'ttest_paired', label: 'Paired t-test', desc: 'Compare 2 variables, same respondents' },
+  { key: 'anova_oneway', label: 'One-way ANOVA', desc: '3+ groups, with Tukey post-hoc' },
+  { key: 'mann_whitney', label: 'Mann-Whitney U', desc: '2 groups, non-parametric' },
+  { key: 'kruskal_wallis', label: 'Kruskal-Wallis', desc: '3+ groups, non-parametric' },
+  { key: 'wilcoxon', label: 'Wilcoxon signed-rank', desc: 'Paired, non-parametric' },
+  { key: 'correlation', label: 'Correlation', desc: 'Pearson + Spearman matrix' },
+  { key: 'chi_square', label: 'Chi-square', desc: 'Association of 2 categorical questions' },
 ]
+
+const GROUP_KINDS = ['ttest_independent', 'anova_oneway', 'mann_whitney', 'kruskal_wallis']
+const PAIRED_KINDS = ['ttest_paired', 'wilcoxon']
+
+const TEST_LABELS = {
+  ttest_independent: 'Independent t-test', ttest_paired: 'Paired t-test',
+  anova_oneway: 'One-way ANOVA', mann_whitney: 'Mann-Whitney U',
+  kruskal_wallis: 'Kruskal-Wallis', wilcoxon: 'Wilcoxon signed-rank',
+  correlation: 'Correlation', chi_square: 'Chi-square',
+}
+
+function specFrom(v) {
+  return v.startsWith('c:') ? { construct_id: Number(v.slice(2)) } : { question_id: Number(v.slice(2)) }
+}
+
+function ApaSentence({ text }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: 'var(--accent-soft)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
+      <p style={{ flex: 1, margin: 0, fontSize: 13, fontStyle: 'italic', lineHeight: 1.6 }}>{text}</p>
+      <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+        style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 5, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 7px', whiteSpace: 'nowrap' }}>
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+  )
+}
+
+function AssumptionChecks({ checks }) {
+  if (!checks) return null
+  const norm = checks.normality_per_group || (checks.normality_of_differences ? { Differences: checks.normality_of_differences } : null)
+  return (
+    <details style={{ marginBottom: 12, fontSize: 12 }}>
+      <summary style={{ cursor: 'pointer', color: 'var(--ink-soft)', fontWeight: 600 }}>Assumption checks</summary>
+      <div style={{ padding: '8px 0 0 14px', color: 'var(--ink)' }}>
+        {checks.levene && (
+          <p style={{ margin: '0 0 6px' }}>
+            Levene&apos;s test (equal variances): W = {checks.levene.statistic}, p = {checks.levene.p}
+            {checks.levene.p !== null && checks.levene.p < 0.05 ? ' — variances differ' : ''}
+          </p>
+        )}
+        {norm && Object.entries(norm).map(([g, v]) => (
+          <p key={g} style={{ margin: '0 0 4px' }}>
+            Normality — {g}: {v.looks_normal === null ? 'too few values to test'
+              : `skew ${v.skewness}, kurtosis ${v.kurtosis}, Shapiro-Wilk p ${v.shapiro_p} → ${v.looks_normal ? 'looks normal' : 'may not be normal'}`}
+          </p>
+        ))}
+      </div>
+    </details>
+  )
+}
+
+function InferentialExtras({ result }) {
+  return (
+    <div>
+      {result.apa_sentence && <ApaSentence text={result.apa_sentence} />}
+      {result.effect_size && (
+        <p style={{ fontSize: 12, margin: '0 0 10px' }}>
+          Effect size: <strong>{result.effect_size.name} = {result.effect_size.value}</strong>
+          <span style={{ marginLeft: 6, padding: '1px 8px', borderRadius: 10, background: 'var(--accent-soft)', fontSize: 11 }}>{result.effect_size.band}</span>
+        </p>
+      )}
+      {result.warning && <p style={{ fontSize: 12, color: '#B45309', margin: '0 0 10px' }}>⚠ {result.warning}</p>}
+      {result.excluded_groups?.length > 0 && (
+        <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 10px' }}>
+          Excluded groups (fewer than 2 responses): {result.excluded_groups.map(g => `${g.group} (n=${g.n})`).join(', ')}
+        </p>
+      )}
+      <AssumptionChecks checks={result.assumption_checks} />
+    </div>
+  )
+}
 
 function AnalyseView({ survey, refresh }) {
   const [constructs, setConstructs] = useState([])
@@ -381,7 +461,28 @@ function AnalyseView({ survey, refresh }) {
   const [source, setSource] = useState('actual')
   const [selConstructs, setSelConstructs] = useState([])
 
+  // inferential form (36C-2)
+  const [outcomeA, setOutcomeA] = useState('')
+  const [outcomeB, setOutcomeB] = useState('')
+  const [groupingQ, setGroupingQ] = useState('')
+  const [corrVars, setCorrVars] = useState([])
+  const [chiA, setChiA] = useState('')
+  const [chiB, setChiB] = useState('')
+
+  // wizard (36C-2) — deterministic backend decision tree, not AI
+  const [wizOpen, setWizOpen] = useState(false)
+  const [wizGoal, setWizGoal] = useState('')
+  const [wizOutcome, setWizOutcome] = useState('')
+  const [wizGrouping, setWizGrouping] = useState('')
+  const [wizPaired, setWizPaired] = useState(false)
+  const [wizResult, setWizResult] = useState(null)
+
   const likertQuestions = survey.sections.flatMap(s => s.questions.filter(q => q.question_type === 'likert'))
+  const categoricalQuestions = survey.sections.flatMap(s => s.questions.filter(q => ['mcq', 'demographic'].includes(q.question_type)))
+  const outcomeOptions = [
+    ...constructs.map(c => ({ value: `c:${c.id}`, label: `${c.name} (construct)` })),
+    ...likertQuestions.map(q => ({ value: `q:${q.id}`, label: q.question_text.slice(0, 48) })),
+  ]
 
   const load = useCallback(async () => {
     try {
@@ -412,15 +513,68 @@ function AnalyseView({ survey, refresh }) {
     await api.delete(`/constructs/${id}`); await load()
   }
 
-  const runAnalysis = async () => {
-    setBusy(true); setErr('')
-    try {
-      const body = { analysis_type: kind, data_source: source }
+  const buildRunBody = () => {
+    const body = { analysis_type: kind, data_source: source }
+    if (GROUP_KINDS.includes(kind)) {
+      if (!outcomeA || !groupingQ) { setErr('Select an outcome and a grouping question.'); return null }
+      body.outcome = specFrom(outcomeA)
+      body.grouping_question_id = Number(groupingQ)
+    } else if (PAIRED_KINDS.includes(kind)) {
+      if (!outcomeA || !outcomeB) { setErr('Select two variables to compare.'); return null }
+      body.outcome = specFrom(outcomeA)
+      body.outcome2 = specFrom(outcomeB)
+    } else if (kind === 'correlation') {
+      if (corrVars.length < 2) { setErr('Select at least 2 variables for correlation.'); return null }
+      body.variables = corrVars.map(specFrom)
+    } else if (kind === 'chi_square') {
+      if (!chiA || !chiB || chiA === chiB) { setErr('Select two different categorical questions.'); return null }
+      body.question_ids = [Number(chiA), Number(chiB)]
+    } else {
       if (selConstructs.length) body.construct_ids = selConstructs
       if (kind === 'descriptive' && !selConstructs.length) body.question_ids = likertQuestions.map(q => q.id)
+    }
+    return body
+  }
+
+  const runAnalysis = async (explicitBody = null) => {
+    const body = explicitBody || buildRunBody()
+    if (!body) return
+    setBusy(true); setErr('')
+    try {
       const { data } = await api.post(`/surveys/${survey.id}/analyses`, body)
       setDetail(data); await load()
     } catch (e) { setErr(e?.response?.data?.detail || 'Analysis failed.') } finally { setBusy(false) }
+  }
+
+  const runWizard = async () => {
+    if (!wizGoal || !wizOutcome) { setErr('Choose a goal and a variable first.'); return }
+    if (wizGoal !== 'relationship' && !wizPaired && !wizGrouping) { setErr('Choose a grouping question.'); return }
+    setBusy(true); setErr(''); setWizResult(null)
+    try {
+      const body = { goal: wizGoal, outcome: specFrom(wizOutcome), paired: wizPaired, data_source: source }
+      if (wizGrouping) body.grouping_question_id = Number(wizGrouping)
+      const { data } = await api.post(`/surveys/${survey.id}/wizard`, body)
+      setWizResult(data)
+    } catch (e) { setErr(e?.response?.data?.detail || 'The wizard could not evaluate your data.') } finally { setBusy(false) }
+  }
+
+  const runSuggested = async (test) => {
+    const body = { analysis_type: test, data_source: source }
+    if (test === 'chi_square') {
+      body.question_ids = [Number(wizOutcome.slice(2)), Number(wizGrouping)]
+    } else if (test === 'correlation') {
+      setKind('correlation'); setCorrVars([wizOutcome]); setWizOpen(false)
+      setErr('Pick a second variable for the correlation, then run it.'); return
+    } else if (PAIRED_KINDS.includes(test)) {
+      setKind(test); setOutcomeA(wizOutcome); setWizOpen(false)
+      setErr('Pick the second paired variable, then run the test.'); return
+    } else {
+      body.outcome = specFrom(wizOutcome)
+      body.grouping_question_id = Number(wizGrouping)
+    }
+    setKind(test)
+    await runAnalysis(body)
+    setWizOpen(false)
   }
 
   const openAnalysis = async (id) => {
@@ -439,6 +593,8 @@ function AnalyseView({ survey, refresh }) {
 
   const box = { border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', background: 'var(--card)', padding: 18, marginBottom: 14 }
   const toggle = (arr, v, set) => set(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v])
+  const selStyle = { width: '100%', maxWidth: 380, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 7, fontSize: 13, background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font-body)' }
+  const fieldLabel = { fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px' }
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', maxWidth: 900, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
@@ -486,6 +642,79 @@ function AnalyseView({ survey, refresh }) {
         ))}
       </div>
 
+      {/* Analysis Wizard */}
+      <div style={box}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>Not sure which test?</span>
+          <button onClick={() => { setWizOpen(v => !v); setWizResult(null) }}
+            style={{ padding: '7px 14px', background: wizOpen ? 'transparent' : 'var(--accent)', color: wizOpen ? 'var(--ink)' : '#fff', border: wizOpen ? '1px solid var(--line)' : 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            {wizOpen ? 'Close wizard' : 'Help me choose'}
+          </button>
+        </div>
+        {wizOpen && (
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 10 }}>
+            <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px' }}>1. What do you want to find out?</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+              {[['compare_groups', 'Compare groups'], ['relationship', 'Relationship between variables'], ['association_categorical', 'Association of categories']].map(([v, l]) => (
+                <button key={v} onClick={() => { setWizGoal(v); setWizResult(null) }}
+                  style={{ padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: wizGoal === v ? '1px solid var(--accent)' : '1px solid var(--line)', background: wizGoal === v ? 'var(--accent-soft)' : 'transparent', color: 'var(--ink)' }}>{l}</button>
+              ))}
+            </div>
+            {wizGoal && (
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px' }}>
+                  2. {wizGoal === 'association_categorical' ? 'First categorical question' : 'Outcome variable'}
+                </p>
+                <select value={wizOutcome} onChange={e => { setWizOutcome(e.target.value); setWizResult(null) }} style={selStyle}>
+                  <option value="">— select —</option>
+                  {(wizGoal === 'association_categorical'
+                    ? categoricalQuestions.map(q => ({ value: `q:${q.id}`, label: q.question_text.slice(0, 48) }))
+                    : outcomeOptions
+                  ).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            )}
+            {wizGoal === 'compare_groups' && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, marginBottom: 12, cursor: 'pointer' }}>
+                <input type="checkbox" checked={wizPaired} onChange={e => { setWizPaired(e.target.checked); setWizResult(null) }} />
+                Paired measurements (same respondents, two variables)
+              </label>
+            )}
+            {wizGoal && wizGoal !== 'relationship' && !wizPaired && (
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px' }}>
+                  3. {wizGoal === 'association_categorical' ? 'Second categorical question' : 'Grouping question (MCQ / demographic)'}
+                </p>
+                <select value={wizGrouping} onChange={e => { setWizGrouping(e.target.value); setWizResult(null) }} style={selStyle}>
+                  <option value="">— select —</option>
+                  {categoricalQuestions.map(q => <option key={q.id} value={q.id}>{q.question_text.slice(0, 48)}</option>)}
+                </select>
+              </div>
+            )}
+            <button onClick={runWizard} disabled={busy} style={{ padding: '7px 16px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              {busy ? 'Checking…' : 'Suggest a test'}
+            </button>
+            {wizResult && (
+              <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--accent-soft)', borderRadius: 8 }}>
+                <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700 }}>
+                  Suggested: {TEST_LABELS[wizResult.suggested_test] || wizResult.suggested_test}
+                </p>
+                <p style={{ margin: '0 0 8px', fontSize: 12, lineHeight: 1.6 }}>{wizResult.justification}</p>
+                {wizResult.alternative_test && (
+                  <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--ink-soft)' }}>
+                    Alternative: {TEST_LABELS[wizResult.alternative_test]}
+                  </p>
+                )}
+                <button onClick={() => runSuggested(wizResult.suggested_test)} disabled={busy}
+                  style={{ padding: '7px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  Run suggested test
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Run analysis */}
       <div style={box}>
         <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>Run analysis</span>
@@ -508,9 +737,9 @@ function AnalyseView({ survey, refresh }) {
             </label>
           ))}
         </div>
-        {constructs.length > 0 && (
+        {['descriptive', 'reliability', 'normality'].includes(kind) && constructs.length > 0 && (
           <div style={{ marginBottom: 10 }}>
-            <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 6px' }}>
+            <p style={fieldLabel}>
               Constructs {kind === 'reliability' ? '(required)' : kind === 'descriptive' ? '(optional — composite)' : '(optional)'}:
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -525,7 +754,76 @@ function AnalyseView({ survey, refresh }) {
             </div>
           </div>
         )}
-        <button onClick={runAnalysis} disabled={busy} style={{ padding: '9px 18px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+        {GROUP_KINDS.includes(kind) && (
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 10 }}>
+            <div>
+              <p style={fieldLabel}>Outcome (construct or Likert item):</p>
+              <select value={outcomeA} onChange={e => setOutcomeA(e.target.value)} style={selStyle}>
+                <option value="">— select —</option>
+                {outcomeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <p style={fieldLabel}>Grouping question (MCQ / demographic):</p>
+              <select value={groupingQ} onChange={e => setGroupingQ(e.target.value)} style={selStyle}>
+                <option value="">— select —</option>
+                {categoricalQuestions.map(q => <option key={q.id} value={q.id}>{q.question_text.slice(0, 48)}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+        {PAIRED_KINDS.includes(kind) && (
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 10 }}>
+            <div>
+              <p style={fieldLabel}>Variable 1:</p>
+              <select value={outcomeA} onChange={e => setOutcomeA(e.target.value)} style={selStyle}>
+                <option value="">— select —</option>
+                {outcomeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <p style={fieldLabel}>Variable 2:</p>
+              <select value={outcomeB} onChange={e => setOutcomeB(e.target.value)} style={selStyle}>
+                <option value="">— select —</option>
+                {outcomeOptions.filter(o => o.value !== outcomeA).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+        {kind === 'correlation' && (
+          <div style={{ marginBottom: 10 }}>
+            <p style={fieldLabel}>Variables (select 2 or more):</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {outcomeOptions.map(o => (
+                <button key={o.value} onClick={() => toggle(corrVars, o.value, setCorrVars)}
+                  style={{ padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                    border: corrVars.includes(o.value) ? '1px solid var(--accent)' : '1px solid var(--line)',
+                    background: corrVars.includes(o.value) ? 'var(--accent-soft)' : 'transparent', color: 'var(--ink)' }}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {kind === 'chi_square' && (
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 10 }}>
+            <div>
+              <p style={fieldLabel}>First categorical question:</p>
+              <select value={chiA} onChange={e => setChiA(e.target.value)} style={selStyle}>
+                <option value="">— select —</option>
+                {categoricalQuestions.map(q => <option key={q.id} value={q.id}>{q.question_text.slice(0, 48)}</option>)}
+              </select>
+            </div>
+            <div>
+              <p style={fieldLabel}>Second categorical question:</p>
+              <select value={chiB} onChange={e => setChiB(e.target.value)} style={selStyle}>
+                <option value="">— select —</option>
+                {categoricalQuestions.filter(q => String(q.id) !== chiA).map(q => <option key={q.id} value={q.id}>{q.question_text.slice(0, 48)}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+        <button onClick={() => runAnalysis()} disabled={busy} style={{ padding: '9px 18px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}>
           {busy ? 'Running…' : 'Run analysis'}
         </button>
       </div>
@@ -552,6 +850,9 @@ function AnalyseView({ survey, refresh }) {
             <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, textTransform: 'capitalize' }}>{detail.analysis_type} — {detail.data_source}</span>
             <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 18 }}>×</button>
           </div>
+          {(detail.results || []).filter(r => r.apa_sentence || r.effect_size || r.assumption_checks).map((r, i) => (
+            <InferentialExtras key={i} result={r} />
+          ))}
           {(detail.apa_tables || []).map((t, i) => <ApaTable key={i} t={t} />)}
         </div>
       )}

@@ -21,7 +21,15 @@ from app.services.export_service import build_apa_docx
 
 router = APIRouter()
 
-ANALYSIS_TYPES = ("descriptive", "reliability", "normality")
+ANALYSIS_TYPES = (
+    "descriptive", "reliability", "normality",
+    # 36C-2 inferential
+    "ttest_independent", "ttest_paired", "anova_oneway",
+    "mann_whitney", "kruskal_wallis", "wilcoxon",
+    "correlation", "chi_square",
+)
+GROUP_TESTS = ("ttest_independent", "anova_oneway", "mann_whitney", "kruskal_wallis")
+PAIRED_TESTS = ("ttest_paired", "wilcoxon")
 
 
 # ── bodies ───────────────────────────────────────────────────────
@@ -42,6 +50,19 @@ class AnalysisRun(BaseModel):
     data_source: str  # 'pilot' | 'actual'
     construct_ids: Optional[List[int]] = None
     question_ids: Optional[List[int]] = None
+    # 36C-2 inferential params
+    outcome: Optional[dict] = None            # {"construct_id": X} | {"question_id": Y}
+    outcome2: Optional[dict] = None           # second variable for paired tests
+    grouping_question_id: Optional[int] = None
+    variables: Optional[List[dict]] = None    # correlation: list of outcome specs
+
+
+class WizardBody(BaseModel):
+    goal: str  # 'compare_groups' | 'relationship' | 'association_categorical'
+    outcome: dict
+    grouping_question_id: Optional[int] = None
+    paired: bool = False
+    data_source: str = "actual"
 
 
 # ── ownership + Pro gating ───────────────────────────────────────
@@ -179,10 +200,42 @@ def _resolve_constructs(db, construct_ids):
     return out
 
 
+def _resolve_outcome(db, survey_id, df, meta, spec):
+    """Resolve an outcome spec into (label, numeric pandas Series).
+
+    {"construct_id": X} -> composite mean of the construct's items (listwise rows)
+    {"question_id": Y}  -> the Likert item column
+    """
+    if not spec or not isinstance(spec, dict):
+        raise HTTPException(422, "Outcome must specify a construct_id or a question_id.")
+    if spec.get("construct_id") is not None:
+        cid = spec["construct_id"]
+        row = db.execute("SELECT * FROM survey_constructs WHERE id=? AND survey_id=?",
+                         (cid, survey_id)).fetchone()
+        if not row:
+            raise HTTPException(404, "Construct not found.")
+        items = [r["question_id"] for r in db.execute(
+            "SELECT question_id FROM survey_construct_items WHERE construct_id=? ORDER BY id", (cid,)).fetchall()]
+        if not items:
+            raise HTTPException(422, "Construct has no items.")
+        sub = df[items].dropna()
+        return row["name"], sub.mean(axis=1)
+    if spec.get("question_id") is not None:
+        qid = spec["question_id"]
+        qm = meta.get(qid)
+        if not qm:
+            raise HTTPException(422, "Outcome question does not belong to this survey.")
+        if qm["type"] != "likert":
+            raise HTTPException(422, "Outcome must be a construct or a Likert question.")
+        import pandas as pd
+        return f"Q{qid}", pd.to_numeric(df[qid], errors="coerce")
+    raise HTTPException(422, "Outcome must specify a construct_id or a question_id.")
+
+
 @router.post("/surveys/{survey_id}/analyses")
 def run_analysis(survey_id: int, body: AnalysisRun, user=Depends(get_current_user)):
     if body.analysis_type not in ANALYSIS_TYPES:
-        raise HTTPException(400, "analysis_type must be descriptive|reliability|normality.")
+        raise HTTPException(400, f"analysis_type must be one of: {', '.join(ANALYSIS_TYPES)}.")
     with get_db() as db:
         _own_survey_pro(db, survey_id, user["user_id"])
         df = build_dataframe(db, survey_id, body.data_source)
@@ -205,7 +258,7 @@ def run_analysis(survey_id: int, body: AnalysisRun, user=Depends(get_current_use
                 results.append(res)
                 apa_tables.append(res["apa_table"])
 
-        else:  # normality
+        elif body.analysis_type == "normality":
             targets = 0
             for c in constructs:
                 res = survey_stats.run_normality(df, meta, construct=c)
@@ -218,6 +271,48 @@ def run_analysis(survey_id: int, body: AnalysisRun, user=Depends(get_current_use
             if targets == 0:
                 raise HTTPException(422, "Normality analysis requires a construct or a Likert item.")
 
+        elif body.analysis_type in GROUP_TESTS:
+            if body.grouping_question_id is None:
+                raise HTTPException(422, "This test requires a grouping_question_id.")
+            label, series = _resolve_outcome(db, survey_id, df, meta, body.outcome)
+            glabel = f"Q{body.grouping_question_id}"
+            fn = {
+                "ttest_independent": survey_stats.run_ttest_independent,
+                "anova_oneway": survey_stats.run_anova_oneway,
+                "mann_whitney": survey_stats.run_mann_whitney,
+                "kruskal_wallis": survey_stats.run_kruskal_wallis,
+            }[body.analysis_type]
+            res = fn(df, meta, label, series, body.grouping_question_id, glabel)
+            results.append(res)
+            apa_tables.append(res["apa_table"])
+            if res.get("posthoc_apa_table"):
+                apa_tables.append(res["posthoc_apa_table"])
+
+        elif body.analysis_type in PAIRED_TESTS:
+            la, sa = _resolve_outcome(db, survey_id, df, meta, body.outcome)
+            lb, sb = _resolve_outcome(db, survey_id, df, meta, body.outcome2)
+            res = survey_stats.run_paired_test(body.analysis_type, la, sa, lb, sb)
+            results.append(res)
+            apa_tables.append(res["apa_table"])
+
+        elif body.analysis_type == "correlation":
+            specs = body.variables or []
+            if len(specs) < 2:
+                raise HTTPException(422, "Correlation analysis requires at least 2 variables.")
+            variables = [_resolve_outcome(db, survey_id, df, meta, s) for s in specs]
+            res = survey_stats.run_correlation(variables)
+            results.append(res)
+            apa_tables.append(res["apa_table"])
+            apa_tables.append(res["spearman_apa_table"])
+
+        else:  # chi_square
+            qids = body.question_ids or []
+            if len(qids) != 2:
+                raise HTTPException(422, "Chi-square requires exactly 2 categorical question_ids.")
+            res = survey_stats.run_chi_square(df, meta, qids[0], qids[1])
+            results.append(res)
+            apa_tables.append(res["apa_table"])
+
         result_json = {
             "analysis_type": body.analysis_type,
             "data_source": body.data_source,
@@ -227,6 +322,10 @@ def run_analysis(survey_id: int, body: AnalysisRun, user=Depends(get_current_use
         params_json = {
             "construct_ids": body.construct_ids or [],
             "question_ids": body.question_ids or [],
+            "outcome": body.outcome,
+            "outcome2": body.outcome2,
+            "grouping_question_id": body.grouping_question_id,
+            "variables": body.variables,
         }
         now = datetime.utcnow().isoformat()
         cur = db.execute(
@@ -237,6 +336,90 @@ def run_analysis(survey_id: int, body: AnalysisRun, user=Depends(get_current_use
         )
         aid = cur.lastrowid
     return {"id": aid, "analysis_type": body.analysis_type, "data_source": body.data_source, **result_json}
+
+
+# ── Analysis Wizard (36C-2) ──────────────────────────────────────
+# Deterministic Python decision tree — no LLM, no credits, nothing saved.
+
+WIZARD_JUSTIFICATIONS = {
+    "ttest_independent": ("Two groups with approximately normal distribution → independent samples t-test. "
+                          "If normality is a concern, Mann-Whitney U is the non-parametric alternative."),
+    "mann_whitney": ("Two groups with non-normal distribution → Mann-Whitney U test. "
+                     "The independent samples t-test is the parametric alternative for larger samples."),
+    "anova_oneway": ("Three or more groups with approximately normal distribution → one-way ANOVA "
+                     "with Tukey HSD post-hoc. Kruskal-Wallis is the non-parametric alternative."),
+    "kruskal_wallis": ("Three or more groups with non-normal distribution → Kruskal-Wallis test. "
+                       "One-way ANOVA is the parametric alternative for larger samples."),
+    "ttest_paired": ("Paired measurements with approximately normal distribution → paired samples t-test. "
+                     "Wilcoxon signed-rank is the non-parametric alternative."),
+    "wilcoxon": ("Paired measurements with non-normal distribution → Wilcoxon signed-rank test. "
+                 "The paired samples t-test is the parametric alternative for larger samples."),
+    "correlation": ("Numeric variables → correlation analysis. Pearson and Spearman coefficients are "
+                    "both reported; prefer Spearman when distributions are skewed."),
+    "chi_square": "Two categorical questions → chi-square test of independence with Cramér's V effect size.",
+}
+WIZARD_ALTERNATIVES = {
+    "ttest_independent": "mann_whitney", "mann_whitney": "ttest_independent",
+    "anova_oneway": "kruskal_wallis", "kruskal_wallis": "anova_oneway",
+    "ttest_paired": "wilcoxon", "wilcoxon": "ttest_paired",
+    "correlation": None, "chi_square": None,
+}
+
+
+@router.post("/surveys/{survey_id}/wizard")
+def analysis_wizard(survey_id: int, body: WizardBody, user=Depends(get_current_user)):
+    if body.goal not in ("compare_groups", "relationship", "association_categorical"):
+        raise HTTPException(422, "goal must be compare_groups|relationship|association_categorical.")
+    with get_db() as db:
+        _own_survey_pro(db, survey_id, user["user_id"])
+        df = build_dataframe(db, survey_id, body.data_source)
+        meta = get_question_meta(db, survey_id)
+
+        group_summary, normality_summary = None, None
+
+        if body.goal == "association_categorical":
+            qid = (body.outcome or {}).get("question_id")
+            if qid is None or meta.get(qid, {}).get("type") not in ("mcq", "demographic"):
+                raise HTTPException(422, "Categorical association requires a categorical (MCQ or demographic) outcome question.")
+            if body.grouping_question_id is None or \
+               meta.get(body.grouping_question_id, {}).get("type") not in ("mcq", "demographic"):
+                raise HTTPException(422, "Categorical association requires a categorical grouping_question_id.")
+            suggested = "chi_square"
+
+        elif body.goal == "relationship":
+            _label, series = _resolve_outcome(db, survey_id, df, meta, body.outcome)
+            normality_summary = survey_stats._norm_check(series.dropna().to_numpy())
+            suggested = "correlation"
+
+        else:  # compare_groups
+            label, series = _resolve_outcome(db, survey_id, df, meta, body.outcome)
+            if body.paired:
+                normality_summary = survey_stats._norm_check(series.dropna().to_numpy())
+                normal = normality_summary.get("looks_normal") is not False
+                suggested = "ttest_paired" if normal else "wilcoxon"
+            else:
+                if body.grouping_question_id is None:
+                    raise HTTPException(422, "compare_groups requires a grouping_question_id.")
+                kept, excluded, group_summary = survey_stats.build_groups(
+                    df, meta, series, body.grouping_question_id)
+                normality_summary = {lbl: survey_stats._norm_check(vals) for lbl, vals in kept}
+                # a group counts as non-normal only when it was actually testable (n >= 3)
+                normal = all(v.get("looks_normal") is not False for v in normality_summary.values())
+                if len(kept) == 2:
+                    suggested = "ttest_independent" if normal else "mann_whitney"
+                else:
+                    suggested = "anova_oneway" if normal else "kruskal_wallis"
+                if excluded:
+                    group_summary = group_summary + [{"group": e["group"], "n": e["n"], "excluded": True}
+                                                     for e in excluded]
+
+    return {
+        "suggested_test": suggested,
+        "justification": WIZARD_JUSTIFICATIONS[suggested],
+        "alternative_test": WIZARD_ALTERNATIVES[suggested],
+        "group_summary": group_summary,
+        "normality_summary": normality_summary,
+    }
 
 
 @router.get("/surveys/{survey_id}/analyses")

@@ -89,7 +89,9 @@ const HELP_SECTIONS = [
       { q: 'Export data respons', a: 'Dalam dashboard Kumpul, klik Export CSV (pilih pilot atau actual) — satu baris per respons, satu kolum per soalan, termasuk kolum is_pilot.' },
       { q: 'Adakah instrumen ini sah (valid)?', a: 'TIDAK secara automatik. Output adalah DRAF — kesahan instrumen memerlukan semakan penyelia, expert review dan pilot study di luar sistem.' },
       { q: 'Analisis respons (langkah Analisis)', a: 'Selepas kutip respons, buka langkah Analisis (Pro, 0 kredit). Kumpulkan soalan Likert jadi konstruk, kemudian jana Descriptive (min/SD/kekerapan), Reliability (Cronbach alpha), atau Normality (skewness/kurtosis/Shapiro-Wilk). Semua dikira oleh sistem (bukan AI), output jadual APA + export .docx.' },
-      { q: 'Adakah hasil analisis muktamad?', a: 'TIDAK. Hasil dijana automatik sebagai alat bantu — wajib semak dengan penyelia sebelum guna dalam tesis. Ujian inferential (t-test/ANOVA) dan interpretasi AI naratif akan datang.' },
+      { q: 'Ujian inferential', a: 'Tersedia (Pro, 0 kredit): Independent & Paired t-test, One-way ANOVA (+ Tukey post-hoc), Mann-Whitney U, Kruskal-Wallis, Wilcoxon, Correlation (Pearson + Spearman), Chi-square (+ Cramér\'s V). Setiap ujian lapor effect size (small/medium/large), semakan andaian automatik (Levene → auto Welch, normality per kumpulan), jadual APA + ayat APA sedia-copy.' },
+      { q: 'Analysis Wizard — pilih ujian yang betul', a: 'Klik [Help me choose] dalam langkah Analisis. Jawab 3 soalan berpandu (matlamat → pemboleh ubah → kumpulan/pasangan) → sistem cadangkan ujian sesuai berserta justifikasi dan ujian alternatif. Cadangan dari decision tree statistik (bukan AI), percuma, dan tidak disimpan.' },
+      { q: 'Adakah hasil analisis muktamad?', a: 'TIDAK. Hasil dijana automatik sebagai alat bantu — wajib semak dengan penyelia sebelum guna dalam tesis. Interpretasi AI naratif, hantar ke Editor Bab 4, dan upload CSV luaran akan datang.' },
     ]
   },
   {

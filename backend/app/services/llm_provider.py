@@ -79,11 +79,16 @@ KUTIPAN RESPONS (Survey — langkah Kumpul) [Pro sahaja]:
 ANALISIS SOAL SELIDIK (Survey — langkah Analisis) [Pro sahaja, 0 kredit]:
 • Analisis respons yang dikutip (pilot atau actual) — semua pengiraan oleh sistem, bukan AI
 • Construct mapping: kumpulkan beberapa soalan Likert jadi satu konstruk (cth item B1–B5 = "Kepuasan Kerja")
-• Tiga jenis analisis: Descriptive (min, SD, kekerapan), Reliability (Cronbach's alpha + alpha-if-deleted), Normality (skewness, kurtosis, Shapiro-Wilk)
+• Analisis asas: Descriptive (min, SD, kekerapan), Reliability (Cronbach's alpha + alpha-if-deleted), Normality (skewness, kurtosis, Shapiro-Wilk)
+• Ujian inferential: Independent t-test, Paired t-test, One-way ANOVA (+ Tukey post-hoc), Mann-Whitney U, Kruskal-Wallis, Wilcoxon signed-rank, Correlation (Pearson + Spearman), Chi-square (+ Cramér's V)
+• Analysis Wizard [Help me choose]: jawab 3 soalan berpandu → sistem cadang ujian sesuai (decision tree, bukan AI) + justifikasi + ujian alternatif
+• Semakan andaian automatik dilaporkan bersama hasil: Levene (auto guna Welch jika varians tak sama), normality per kumpulan, amaran expected count chi-square
+• Effect size dilaporkan setiap ujian: Cohen's d, eta-squared, r, Cramér's V — dengan label small/medium/large
+• Grouping: soalan MCQ/demografi jadi kumpulan; kumpulan dengan <2 respons dikecualikan & dilaporkan
 • Reverse-coded item dikira automatik
-• Output jadual APA 7 + export .docx
+• Output jadual APA 7 + ayat APA sedia-copy + export .docx
 • PENTING: hasil dijana automatik — WAJIB semak dengan penyelia sebelum guna dalam tesis. Sistem alat bantu, bukan pengesah
-• Ujian inferential (t-test/ANOVA/korelasi) dan interpretasi AI naratif BELUM tersedia (akan datang)
+• Interpretasi AI naratif, hantar ke Editor Bab 4, dan upload CSV luaran BELUM tersedia (akan datang)
 • 🔒 = Paywalled (abstract sahaja — muat naik PDF untuk analisis penuh)
 
 AKAUN & TETAPAN:
