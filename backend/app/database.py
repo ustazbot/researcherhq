@@ -389,6 +389,11 @@ def _create_schema(conn: sqlite3.Connection):
     CREATE INDEX IF NOT EXISTS idx_survey_analyses_survey ON survey_analyses(survey_id);
     """)
 
+    # Migration: Task 36C-3 — AI interpretation snapshot on analyses
+    analysis_cols = [row["name"] for row in conn.execute("PRAGMA table_info(survey_analyses)").fetchall()]
+    if "interpretation_json" not in analysis_cols:
+        conn.execute("ALTER TABLE survey_analyses ADD COLUMN interpretation_json TEXT")
+
     # Migration: Task 36A — survey module Fasa A (Bina)
     conn.executescript("""
     CREATE TABLE IF NOT EXISTS surveys (

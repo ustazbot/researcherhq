@@ -443,7 +443,105 @@ function InferentialExtras({ result }) {
   )
 }
 
-function AnalyseView({ survey, refresh }) {
+const INTERPRET_DISCLAIMERS = [
+  'This interpretation was generated automatically. Verify with your supervisor before use.',
+  'Interpretasi ini dijana secara automatik. Sahkan dengan penyelia anda sebelum digunakan.',
+]
+
+function InterpretationBlock({ detail, setDetail, projectId }) {
+  const nav = useNavigate()
+  const [busy, setBusy] = useState(false)
+  const [lang, setLang] = useState('')
+  const [err, setErr] = useState('')
+  const [chapters, setChapters] = useState(null) // null = picker closed
+  const [chapterId, setChapterId] = useState('')
+
+  const interp = detail.interpretation
+
+  const interpret = async () => {
+    if (!window.confirm('Generate an AI interpretation for 3 credits?')) return
+    setBusy(true); setErr('')
+    try {
+      const body = lang ? { language: lang } : {}
+      const { data } = await api.post(`/analyses/${detail.id}/interpret`, body)
+      setDetail({ ...detail, interpretation: { language: data.language, narrative: data.narrative, generated_at: data.generated_at } })
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Interpretation failed — please try again.')
+    } finally { setBusy(false) }
+  }
+
+  const openPicker = async () => {
+    setErr('')
+    try {
+      const { data } = await api.get(`/projects/${projectId}/chapters`)
+      if (!data.length) { setErr('Create a chapter in the Editor first.'); return }
+      const bab4 = data.find(ch => (ch.title || '').includes('4'))
+      setChapterId(bab4 ? bab4.id : data[0].id)
+      setChapters(data)
+    } catch { setErr('Could not load chapters.') }
+  }
+
+  const sendToEditor = () => {
+    let text = interp ? interp.narrative : ''
+    INTERPRET_DISCLAIMERS.forEach(d => { text = text.replace(d, '') })
+    text = text.trim()
+    const apa = (detail.results || []).map(r => r.apa_sentence).filter(Boolean).join(' ')
+    const parts = [text, apa, '(See the accompanying APA table.)'].filter(Boolean)
+    sessionStorage.setItem('rhq_pending_suggestion', JSON.stringify({
+      chapterId, text: parts.join('\n\n'), stageLabel: 'Survey Analysis',
+    }))
+    nav(`/project/${projectId}`)
+  }
+
+  const btn = (primary) => ({ padding: '7px 14px', background: primary ? 'var(--ink)' : 'transparent', color: primary ? 'var(--bg)' : 'var(--ink)', border: primary ? 'none' : '1px solid var(--line)', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 })
+
+  return (
+    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 4 }}>
+      {err && <p style={{ color: '#EF4444', fontSize: 12, margin: '0 0 8px' }}>{err}</p>}
+      {interp ? (
+        <div>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, padding: '12px 14px', marginBottom: 10 }}>
+            <p style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.7, margin: 0 }}>{interp.narrative}</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button onClick={() => navigator.clipboard.writeText(interp.narrative)} style={btn(false)}>Copy</button>
+            <button onClick={interpret} disabled={busy} style={btn(false)}>{busy ? 'Generating…' : 'Regenerate (3 credits)'}</button>
+            {chapters === null ? (
+              <button onClick={openPicker} style={btn(true)}>→ Send to Editor</button>
+            ) : (
+              <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <select value={chapterId} onChange={e => setChapterId(e.target.value)}
+                  style={{ padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12, background: 'var(--bg)', color: 'var(--ink)' }}>
+                  {chapters.map(ch => <option key={ch.id} value={ch.id}>{ch.title}</option>)}
+                </select>
+                <button onClick={sendToEditor} style={btn(true)}>Send</button>
+                <button onClick={() => setChapters(null)} style={btn(false)}>Cancel</button>
+              </span>
+            )}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '8px 0 0' }}>
+            Export the APA table via .docx and paste it into your thesis document — tables are not sent to the Editor.
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button onClick={interpret} disabled={busy} style={btn(true)}>
+            {busy ? 'Generating…' : 'Interpret (3 credits)'}
+          </button>
+          <select value={lang} onChange={e => setLang(e.target.value)}
+            style={{ padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12, background: 'var(--bg)', color: 'var(--ink)' }}>
+            <option value="">Language: project default</option>
+            <option value="ms">Bahasa Melayu</option>
+            <option value="en">English</option>
+          </select>
+          <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>All numbers come from your computed results — the AI writes the wording only.</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AnalyseView({ survey, refresh, projectId }) {
   const [constructs, setConstructs] = useState([])
   const [analyses, setAnalyses] = useState([])
   const [counts, setCounts] = useState({ pilot: 0, actual: 0 })
@@ -854,6 +952,7 @@ function AnalyseView({ survey, refresh }) {
             <InferentialExtras key={i} result={r} />
           ))}
           {(detail.apa_tables || []).map((t, i) => <ApaTable key={i} t={t} />)}
+          <InterpretationBlock detail={detail} setDetail={setDetail} projectId={projectId} />
         </div>
       )}
     </div>
@@ -1069,7 +1168,7 @@ export function SurveyBuilder() {
       </header>
 
       {view === 'analyse' ? (
-        <AnalyseView survey={survey} refresh={refresh} />
+        <AnalyseView survey={survey} refresh={refresh} projectId={projectId} />
       ) : view === 'collect' ? (
         <CollectView survey={survey} setSurvey={setSurvey} refresh={refresh} />
       ) : (

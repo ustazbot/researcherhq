@@ -118,6 +118,21 @@ export function ProjectPage() {
     }).catch(() => nav('/'))
   }, [id])
 
+  // Incoming suggestion from the Survey module (36C-3 Send to Editor) —
+  // rides the same pendingSuggestion Accept/Reject flow as chat answers.
+  useEffect(() => {
+    const raw = sessionStorage.getItem('rhq_pending_suggestion')
+    if (!raw) return
+    sessionStorage.removeItem('rhq_pending_suggestion')
+    try {
+      const { chapterId, text, stageLabel } = JSON.parse(raw)
+      if (!text) return
+      if (chapterId) setActiveChapterId(chapterId)
+      setPendingSuggestion({ text, stageLabel })
+      if (isMobile) setMobileView('editor')
+    } catch { /* malformed payload — ignore */ }
+  }, [id])
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])

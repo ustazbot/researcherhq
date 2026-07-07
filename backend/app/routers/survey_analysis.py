@@ -15,8 +15,9 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.routers.auth import get_current_user
+from app.routers.rag import deduct_credits
 from app.services.survey_dataset import build_dataframe, get_question_meta
-from app.services import survey_stats
+from app.services import survey_stats, interpretation_guard
 from app.services.export_service import build_apa_docx
 
 router = APIRouter()
@@ -446,13 +447,78 @@ def get_analysis(analysis_id: int, user=Depends(get_current_user)):
         if not row:
             raise HTTPException(404, "Analysis not found.")
         # returned straight from result_json — never recomputed
-        return {
+        out = {
             "id": row["id"],
             "analysis_type": row["analysis_type"],
             "data_source": row["data_source"],
             "created_at": row["created_at"],
             **json.loads(row["result_json"]),
         }
+        if row["interpretation_json"]:
+            out["interpretation"] = json.loads(row["interpretation_json"])
+        return out
+
+
+# ── AI interpretation (36C-3): 3 credits, guard-checked, snapshot ─
+
+class InterpretBody(BaseModel):
+    language: Optional[str] = None  # 'ms' | 'en'; default from project output_language
+
+
+@router.post("/analyses/{analysis_id}/interpret")
+async def interpret_analysis(analysis_id: int, body: InterpretBody, user=Depends(get_current_user)):
+    with get_db() as db:
+        row = db.execute(
+            """SELECT a.*, u.tier, u.kredit_remaining, p.output_language
+               FROM survey_analyses a
+               JOIN surveys s ON s.id = a.survey_id
+               JOIN projects p ON p.id = s.project_id
+               JOIN users u ON u.id = p.user_id
+               WHERE a.id=? AND p.user_id=?""",
+            (analysis_id, user["user_id"]),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "Analysis not found.")
+        if row["tier"] != "pro":
+            raise HTTPException(403, "The Survey module is available on the Pro plan only.")
+        if row["kredit_remaining"] < interpretation_guard.INTERPRET_COST:
+            raise HTTPException(402, "Insufficient Research Credits.")
+        if body.language is not None and body.language not in ("ms", "en"):
+            raise HTTPException(422, "language must be 'ms' or 'en'.")
+        language = body.language or ("ms" if row["output_language"] == "bm" else "en")
+        result_json = json.loads(row["result_json"])
+        analysis_type = row["analysis_type"]
+
+    # LLM call outside the DB context; credits are deducted ONLY after the
+    # narrative passes the anti-hallucination post-check (36A pattern).
+    try:
+        narrative = await interpretation_guard.generate_interpretation(
+            result_json, analysis_type, language)
+    except interpretation_guard.InterpretationRejected:
+        raise HTTPException(
+            502, "Interpretation failed validation: the AI produced numbers not present in "
+                 "your results. No credits were deducted — please try again.")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            502, "Interpretation generation failed. No credits were deducted — please try again.")
+
+    generated_at = datetime.utcnow().isoformat()
+    interpretation = {"language": language, "narrative": narrative, "generated_at": generated_at}
+    with get_db() as db:
+        try:
+            new_kredit = deduct_credits(db, user["user_id"], interpretation_guard.INTERPRET_COST)
+        except ValueError:
+            raise HTTPException(402, "Insufficient Research Credits.")
+        db.execute("UPDATE survey_analyses SET interpretation_json=? WHERE id=?",
+                   (json.dumps(interpretation), analysis_id))
+    return {
+        "analysis_id": analysis_id,
+        **interpretation,
+        "kredit_used": interpretation_guard.INTERPRET_COST,
+        "kredit_remaining": new_kredit,
+    }
 
 
 @router.delete("/analyses/{analysis_id}", status_code=204)

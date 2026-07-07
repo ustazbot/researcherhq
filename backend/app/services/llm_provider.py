@@ -87,8 +87,11 @@ ANALISIS SOAL SELIDIK (Survey — langkah Analisis) [Pro sahaja, 0 kredit]:
 • Grouping: soalan MCQ/demografi jadi kumpulan; kumpulan dengan <2 respons dikecualikan & dilaporkan
 • Reverse-coded item dikira automatik
 • Output jadual APA 7 + ayat APA sedia-copy + export .docx
+• Interpretasi AI [Interpret]: naratif akademik 2-5 ayat (BM/EN, default bahasa projek) — 3 kredit, regenerate 3 kredit
+  - JAMINAN: semua angka dalam naratif datang dari pengiraan sebenar — sistem semak setiap nombor output AI terhadap hasil analisis; jika AI reka angka, naratif ditolak & kredit TIDAK ditolak
+  - Naratif sentiasa disertakan disclaimer semakan penyelia
+• [Send to Editor]: hantar naratif + ayat APA ke bab pilihan (default Bab 4) sebagai cadangan Accept/Reject — 0 kredit. Jadual APA tidak dihantar; export .docx dan tampal dalam dokumen tesis
 • PENTING: hasil dijana automatik — WAJIB semak dengan penyelia sebelum guna dalam tesis. Sistem alat bantu, bukan pengesah
-• Interpretasi AI naratif, hantar ke Editor Bab 4, dan upload CSV luaran BELUM tersedia (akan datang)
 • 🔒 = Paywalled (abstract sahaja — muat naik PDF untuk analisis penuh)
 
 AKAUN & TETAPAN:
