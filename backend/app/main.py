@@ -8,6 +8,7 @@ from app.routers import auth, projects, documents, rag, credits, account, suppor
 from app.services.embedding_pool import embedding_pool
 from app.services.export_service import start_export_worker
 from app.services.credit_reset import reset_expired_credits
+from app.services.survey_import import cleanup_expired_import_previews
 
 app = FastAPI(title="ResearcherHQ API", version="1.0.0")
 
@@ -20,6 +21,7 @@ async def startup():
     await embedding_pool.start()
     asyncio.create_task(start_export_worker())
     _scheduler.add_job(reset_expired_credits, "cron", hour=2, minute=0)
+    _scheduler.add_job(cleanup_expired_import_previews, "interval", hours=1)
     _scheduler.start()
 
 

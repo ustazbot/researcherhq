@@ -350,17 +350,25 @@ def test_import_rate_limit_daily(client):
 # ── 15. Preview token TTL / invalid ──────────────────────────────
 
 def test_preview_token_expired_or_missing_410(client):
+    from datetime import timedelta
     c, db_path = client
     s = _seed(db_path)
     r = _confirm(c, s, "nonexistent-token")
     assert r.status_code == 410
-    # expired token purged
-    from app.services import survey_import as si
-    from datetime import timedelta
+    # expire the DB-backed token (shared across worker processes in prod)
     tok = _preview(c, s).json()["preview_token"]
-    si._PREVIEW_CACHE[tok]["expires"] = datetime.utcnow() - timedelta(minutes=1)
+    conn = _conn(db_path)
+    conn.execute("UPDATE survey_import_previews SET expires_at=? WHERE token=?",
+                 ((datetime.utcnow() - timedelta(minutes=1)).isoformat(), tok))
+    conn.commit(); conn.close()
     r2 = _confirm(c, s, tok)
     assert r2.status_code == 410
+    # a valid token belongs to its uploader only
+    tok2 = _preview(c, s).json()["preview_token"]
+    conn = _conn(db_path)
+    row = conn.execute("SELECT user_id FROM survey_import_previews WHERE token=?", (tok2,)).fetchone()
+    conn.close()
+    assert row["user_id"] == s["uid"]
 
 
 # ── 16. Pro-gating + ownership ───────────────────────────────────

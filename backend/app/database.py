@@ -441,6 +441,17 @@ def _create_schema(conn: sqlite3.Connection):
     if "response_cap" not in survey_cols:
         conn.execute("ALTER TABLE surveys ADD COLUMN response_cap INTEGER NOT NULL DEFAULT 100")
 
+    # Migration: Task 36C-4-fix — import preview cache shared across worker
+    # processes (in-memory dict fails with --workers 2; SQLite is the shared store)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS survey_import_previews (
+            token TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            expires_at TEXT NOT NULL
+        )
+    """)
+
     # Migration: Task 36C-4 — external data import metadata (NULL for non-imported surveys)
     if "import_filename" not in survey_cols:
         conn.execute("ALTER TABLE surveys ADD COLUMN import_filename TEXT")

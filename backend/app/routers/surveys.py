@@ -302,7 +302,7 @@ async def import_preview(project_id: str, file: UploadFile = File(...), user=Dep
     enforce_rate_limit(f"survey_import:{user['user_id']}", max_attempts=10, window_minutes=1440)
     data = await file.read()
     df = survey_import.parse_upload(file.filename or "", data)
-    token = survey_import.cache_preview(file.filename or "upload", df)
+    token = survey_import.cache_preview(user["user_id"], file.filename or "upload", df)
     return survey_import.build_preview_response(token, file.filename or "upload", df)
 
 
@@ -311,7 +311,7 @@ def import_confirm(project_id: str, body: ImportConfirmBody, user=Depends(get_cu
     with get_db() as db:
         _own_project(db, project_id, user["user_id"])
         _require_pro(db, user["user_id"])
-        filename, df = survey_import.get_preview(body.preview_token)
+        filename, df = survey_import.get_preview(body.preview_token, user["user_id"])
         questions = survey_import.validate_mappings(
             df, [m.dict() for m in body.column_mappings])
         summary = survey_import.create_imported_survey(

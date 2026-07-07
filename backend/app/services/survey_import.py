@@ -17,12 +17,13 @@ import json
 import re
 import secrets
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import pandas as pd
 from fastapi import HTTPException
 
 from app.config import settings
+from app.database import get_db
 
 MAX_FILE_BYTES = 5 * 1024 * 1024   # 5MB
 MAX_ROWS = 1000                    # aligned with the 36B 'actual' cap
@@ -38,9 +39,11 @@ PII_HEADER_PATTERNS = [
 ]
 _PII_RE = re.compile("|".join(PII_HEADER_PATTERNS), re.IGNORECASE)
 
-# preview_token -> {expires, filename, df}. In-memory (single-process API);
-# a lost token just means re-uploading the file.
-_PREVIEW_CACHE: Dict[str, dict] = {}
+# Preview state lives in the survey_import_previews table (36C-4-fix): the
+# API runs with --workers 2, so an in-memory dict is not shared between the
+# worker that served the preview and the one that receives the confirm.
+# SQLite is the shared cross-process store. The dataframe is serialized as
+# pandas JSON (orient='split' keeps column order and NaN).
 
 
 def pii_suspected(column_name: str) -> bool:
@@ -73,35 +76,46 @@ def parse_upload(filename: str, data: bytes) -> pd.DataFrame:
     return df
 
 
-def _purge_expired():
-    now = datetime.utcnow()
-    for tok in [t for t, v in _PREVIEW_CACHE.items() if v["expires"] < now]:
-        del _PREVIEW_CACHE[tok]
-
-
-def cache_preview(filename: str, df: pd.DataFrame) -> str:
-    _purge_expired()
+def cache_preview(user_id: str, filename: str, df: pd.DataFrame) -> str:
     token = secrets.token_urlsafe(24)
-    _PREVIEW_CACHE[token] = {
-        "expires": datetime.utcnow() + timedelta(minutes=PREVIEW_TTL_MINUTES),
-        "filename": filename,
-        "df": df,
-    }
+    payload = json.dumps({"filename": filename, "df_json": df.to_json(orient="split")})
+    expires = (datetime.utcnow() + timedelta(minutes=PREVIEW_TTL_MINUTES)).isoformat()
+    with get_db() as db:
+        # opportunistic purge keeps the table small between scheduled cleanups
+        db.execute("DELETE FROM survey_import_previews WHERE expires_at < ?",
+                   (datetime.utcnow().isoformat(),))
+        db.execute("INSERT INTO survey_import_previews (token, user_id, payload, expires_at) VALUES (?,?,?,?)",
+                   (token, user_id, payload, expires))
     return token
 
 
-def get_preview(token: str) -> Tuple[str, pd.DataFrame]:
+def get_preview(token: str, user_id: str) -> Tuple[str, pd.DataFrame]:
     """Non-destructive read — a mapping validation error must not force a
-    re-upload. Call drop_preview() only after a successful import."""
-    _purge_expired()
-    entry = _PREVIEW_CACHE.get(token)
-    if not entry:
+    re-upload. Call drop_preview() only after a successful import.
+    Tokens are bound to the uploading user."""
+    with get_db() as db:
+        row = db.execute(
+            "SELECT payload FROM survey_import_previews WHERE token=? AND user_id=? AND expires_at > ?",
+            (token, user_id, datetime.utcnow().isoformat()),
+        ).fetchone()
+    if not row:
         raise HTTPException(410, "The upload preview has expired — please upload the file again.")
-    return entry["filename"], entry["df"]
+    payload = json.loads(row["payload"])
+    df = pd.read_json(io.StringIO(payload["df_json"]), orient="split")
+    df.columns = [str(c) for c in df.columns]
+    return payload["filename"], df
 
 
 def drop_preview(token: str):
-    _PREVIEW_CACHE.pop(token, None)
+    with get_db() as db:
+        db.execute("DELETE FROM survey_import_previews WHERE token=?", (token,))
+
+
+def cleanup_expired_import_previews():
+    """Scheduled job (apscheduler, same pattern as rate-limit cleanup)."""
+    with get_db() as db:
+        db.execute("DELETE FROM survey_import_previews WHERE expires_at < ?",
+                   (datetime.utcnow().isoformat(),))
 
 
 def build_preview_response(token: str, filename: str, df: pd.DataFrame) -> dict:
