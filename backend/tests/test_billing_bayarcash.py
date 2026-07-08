@@ -237,16 +237,75 @@ def test_bayarcash_webhook_duplicate_success_blocked(bc_client_with_topup_initia
 
 
 # --- Regression: kredit_subscription -> kredit_topup deduction order is untouched by this migration ---
-def test_bayarcash_migration_does_not_alter_deduction_order():
+def _seed_user(db_path, user_id, kredit_subscription, kredit_topup):
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """INSERT INTO users (id, email, kredit_subscription, kredit_topup, kredit_remaining)
+           VALUES (?, ?, ?, ?, ?)""",
+        (user_id, f"{user_id}@test.com", kredit_subscription, kredit_topup,
+         kredit_subscription + kredit_topup)
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_deduct_credits_consumes_subscription_before_topup(tmp_path):
     """
-    This migration only changes how credit is GRANTED (payment provider swap).
-    Deduction order (kredit_subscription before kredit_topup) lives entirely
-    in the credit-spending path, which _grant_credits_for_order() never
-    touches — assert the function's source has no reference to a deduction
-    query, guarding against accidental scope creep in future edits.
+    This migration (BayarCash provider swap) only changes how credit is
+    GRANTED — it must not alter how credit is DEDUCTED. Exercise the real
+    deduct_credits() function directly (from app.routers.rag) rather than
+    inspecting billing.py source, since deduct_credits is where the actual
+    deduction order lives.
     """
-    import inspect
-    from app.routers import billing as billing_module
-    source = inspect.getsource(billing_module._grant_credits_for_order)
-    assert "kredit_subscription = kredit_subscription" not in source
-    assert "DECREMENT" not in source.upper()
+    db_path = str(tmp_path / "deduct_order.db")
+    with patch("app.database._db_path", db_path):
+        from app.database import init_db, get_db
+        init_db(db_path)
+
+        from app.routers.rag import deduct_credits
+
+        # Case 1: cost fully covered by kredit_subscription alone ->
+        # kredit_topup must remain untouched.
+        _seed_user(db_path, "user-sub-only", kredit_subscription=100, kredit_topup=50)
+        with get_db() as db:
+            new_remaining = deduct_credits(db, "user-sub-only", cost=30)
+
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT kredit_subscription, kredit_topup FROM users WHERE id = ?",
+            ("user-sub-only",)
+        ).fetchone()
+        conn.close()
+        assert row["kredit_subscription"] == 70
+        assert row["kredit_topup"] == 50  # untouched
+        assert new_remaining == 120
+
+        # Case 2: cost spans both pools -> kredit_subscription is drained to
+        # zero FIRST, and only the remainder is taken from kredit_topup.
+        # This is the exact order the BayarCash migration must not alter.
+        _seed_user(db_path, "user-spans-both", kredit_subscription=20, kredit_topup=50)
+        with get_db() as db:
+            new_remaining = deduct_credits(db, "user-spans-both", cost=45)
+
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT kredit_subscription, kredit_topup FROM users WHERE id = ?",
+            ("user-spans-both",)
+        ).fetchone()
+        conn.close()
+        assert row["kredit_subscription"] == 0  # subscription drained first
+        assert row["kredit_topup"] == 25  # 50 - (45 - 20) remainder absorbed
+        assert new_remaining == 25
+
+        # If deduction order were reversed (topup consumed before
+        # subscription), the second case would instead leave
+        # kredit_subscription == 20 - min(20, 45) ... i.e. topup would drop
+        # to 5 and kredit_subscription would drop to 0 only after topup was
+        # exhausted first — a different split entirely. The exact assertions
+        # above (subscription -> 0, topup -> 25) only hold if subscription is
+        # consumed before topup, so a reordering would flip these values and
+        # fail the assertions.
