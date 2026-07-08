@@ -5,6 +5,12 @@ from app.database import get_db
 from app.config import settings
 from app.routers.auth import get_current_user
 from app.services.billing_security import verify_toyyibpay_callback, verify_toyyibpay_payment
+from app.services.bayarcash_security import (
+    generate_payment_intent_checksum,
+    verify_callback_checksum,
+    verify_payment_intent_status,
+    BAYARCASH_API_BASE,
+)
 import sqlite3
 import httpx
 
@@ -16,7 +22,7 @@ UPGRADE_AMOUNT = 39.00  # RM39 → Free → Pro, 500 kredit/bulan
 UPGRADE_KREDIT = 500
 
 
-async def _create_toyyibpay_bill(name, description, amount, return_url, callback_url, order_ref, email):
+async def _create_toyyibpay_bill(name, description, amount, return_url, callback_url, order_ref, payer_email, payer_name=None):
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             "https://toyyibpay.com/index.php/api/createBill",
@@ -31,8 +37,8 @@ async def _create_toyyibpay_bill(name, description, amount, return_url, callback
                 "billReturnUrl": return_url,
                 "billCallbackUrl": callback_url,
                 "billExternalReferenceNo": order_ref,
-                "billTo": email,
-                "billEmail": email,
+                "billTo": payer_email,
+                "billEmail": payer_email,
                 "billPhone": "0123456789",
                 "billSplitPayment": 0,
                 "billPaymentChannel": 0,
@@ -44,100 +50,80 @@ async def _create_toyyibpay_bill(name, description, amount, return_url, callback
     if not result or not result[0].get("BillCode"):
         raise HTTPException(500, "Gagal cipta bil pembayaran.")
 
-    return result[0]["BillCode"]
+    return f"https://toyyibpay.com/{result[0]['BillCode']}", result[0]["BillCode"]
 
 
-@router.post("/topup/initiate")
-async def initiate_topup(user=Depends(get_current_user)):
-    with get_db() as db:
-        row = db.execute("SELECT tier FROM users WHERE id = ?", (user["user_id"],)).fetchone()
-    if not row or row["tier"] != "pro":
-        raise HTTPException(403, "Topup kredit hanya untuk pengguna Pro.")
+async def _create_bayarcash_payment_intent(name, description, amount, return_url, callback_url, order_ref, payer_email, payer_name):
+    # ponytail: response field names (url/id) are mirrored from BayarCash v3 docs,
+    # unverified against a live sandbox response — confirm before prod cutover
+    # (see Task 5 manual sandbox verification step).
+    checksum_fields = {
+        "payment_channel": "fpx",
+        "amount": f"{amount:.2f}",
+        "order_number": order_ref,
+        "payer_email": payer_email,
+        "payer_name": payer_name,
+    }
+    checksum = generate_payment_intent_checksum(checksum_fields)
 
-    bill_id = str(uuid.uuid4())[:8].upper()
-    order_ref = f"TOPUP-{user['user_id'][:8]}-{bill_id}"
-    callback_url = settings.frontend_url.replace("/app", "") + "/api/billing/webhook"
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            f"{BAYARCASH_API_BASE}/payment-intents",
+            data={
+                "portal_key": settings.bayarcash_portal_key,
+                "order_number": order_ref,
+                "amount": checksum_fields["amount"],
+                "payer_name": payer_name,
+                "payer_email": payer_email,
+                "payment_channel": checksum_fields["payment_channel"],
+                "return_url": return_url,
+                "callback_url": callback_url,
+                "checksum": checksum,
+            },
+            headers={"Authorization": f"Bearer {settings.bayarcash_pat}"},
+        )
+        resp.raise_for_status()
+        result = resp.json()
 
-    bill_code = await _create_toyyibpay_bill(
-        name=f"ResearcherHQ Topup {bill_id}",
-        description="Topup +200 Kredit Kajian",
-        amount=TOPUP_AMOUNT,
-        return_url=f"{settings.frontend_url.replace('/app', '')}/app/",
-        callback_url=callback_url,
-        order_ref=order_ref,
-        email=user["email"],
+    data = result.get("data", result)
+    payment_url = data.get("url")
+    transaction_id = data.get("id") or data.get("transaction_id")
+    if not payment_url or not transaction_id:
+        raise HTTPException(500, "Gagal cipta payment intent BayarCash.")
+
+    return payment_url, transaction_id
+
+
+async def _create_payment_intent(name, description, amount, return_url, callback_url, order_ref, payer_email, payer_name):
+    """Provider dispatch. TOYYIBPAY_SECRET_KEY / TOYYIBPAY_CATEGORY_CODE stay
+    wired for rollback via PAYMENT_PROVIDER=toyyibpay — config swap only."""
+    if settings.payment_provider == "bayarcash":
+        callback_url = callback_url.replace("/billing/webhook", "/billing/webhook/bayarcash")
+        return await _create_bayarcash_payment_intent(
+            name, description, amount, return_url, callback_url, order_ref, payer_email, payer_name
+        )
+    return await _create_toyyibpay_bill(
+        name, description, amount, return_url, callback_url, order_ref, payer_email, payer_name
     )
 
-    with get_db() as db:
-        db.execute(
-            "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, 'topup_initiated', ?, ?, ?, ?)",
-            (str(uuid.uuid4()), user["user_id"], TOPUP_AMOUNT, TOPUP_KREDIT, order_ref, datetime.utcnow().isoformat())
-        )
 
-    return {"payment_url": f"https://toyyibpay.com/{bill_code}", "bill_code": bill_code}
-
-
-@router.post("/upgrade/initiate")
-async def initiate_upgrade(user=Depends(get_current_user)):
-    with get_db() as db:
-        row = db.execute("SELECT tier FROM users WHERE id = ?", (user["user_id"],)).fetchone()
-    if row and row["tier"] == "pro":
-        raise HTTPException(400, "Akaun anda sudah Pro.")
-
-    bill_id = str(uuid.uuid4())[:8].upper()
-    order_ref = f"UPGRADE-{user['user_id'][:8]}-{bill_id}"
-    callback_url = settings.frontend_url.replace("/app", "") + "/api/billing/webhook"
-
-    bill_code = await _create_toyyibpay_bill(
-        name=f"ResearcherHQ Pro {bill_id}",
-        description="Naik Taraf ke Pro — 500 Kredit Kajian/bulan",
-        amount=UPGRADE_AMOUNT,
-        return_url=f"{settings.frontend_url.replace('/app', '')}/app/",
-        callback_url=callback_url,
-        order_ref=order_ref,
-        email=user["email"],
-    )
-
-    with get_db() as db:
-        db.execute(
-            "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, 'upgrade_initiated', ?, ?, ?, ?)",
-            (str(uuid.uuid4()), user["user_id"], UPGRADE_AMOUNT, UPGRADE_KREDIT, order_ref, datetime.utcnow().isoformat())
-        )
-
-    return {"payment_url": f"https://toyyibpay.com/{bill_code}", "bill_code": bill_code}
-
-
-@router.post("/webhook")
-async def toyyibpay_webhook(request: Request):
-    form = await request.form()
-    refno = form.get("refno", "")
-    status = form.get("status", "")
-    order_id = form.get("order_id", "")
-    received_hash = form.get("hash", "")
-    billcode = form.get("billcode", "")
-
-    if not verify_toyyibpay_callback(status, order_id, refno, received_hash):
-        raise HTTPException(403, "Invalid callback signature")
-
-    if status != "1":
-        return {"status": "ignored"}
-
+def _grant_credits_for_order(order_id: str) -> dict:
+    """
+    Shared success-granting logic for both the ToyyibPay and BayarCash
+    webhooks. Callers MUST already have verified (a) the callback checksum
+    and (b) an independent provider re-query confirming payment success
+    before calling this. kredit_subscription/kredit_topup deduction order
+    is untouched — this function only grants, never deducts.
+    """
     parts = order_id.split("-")
     if len(parts) < 3 or parts[0] not in ("TOPUP", "UPGRADE"):
         return {"status": "invalid_ref"}
 
-    bill_type = parts[0]  # "TOPUP" or "UPGRADE"
+    bill_type = parts[0]
     success_event = "topup_success" if bill_type == "TOPUP" else "upgrade_success"
     initiated_event = "topup_initiated" if bill_type == "TOPUP" else "upgrade_initiated"
 
-    # F1 defense-in-depth: confirm the bill is truly paid with ToyyibPay
-    # server-to-server. A forged/replayed callback (even with a leaked secret)
-    # is rejected here because ToyyibPay reports the real payment state.
-    if not await verify_toyyibpay_payment(billcode):
-        return {"status": "payment_unverified"}
-
     with get_db() as db:
-        # Defense in depth — only process if we initiated this order
         initiated = db.execute(
             "SELECT user_id FROM billing_events WHERE reference_no = ? AND event_type = ?",
             (order_id, initiated_event)
@@ -151,10 +137,6 @@ async def toyyibpay_webhook(request: Request):
         if not user:
             return {"status": "user_not_found"}
 
-        # F2 atomic idempotency: insert the success marker FIRST. The partial
-        # unique index on (reference_no, event_type) makes a duplicate raise
-        # IntegrityError, so two concurrent callbacks cannot both grant — the
-        # second rolls back before touching credits.
         try:
             db.execute(
                 "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -190,3 +172,109 @@ async def toyyibpay_webhook(request: Request):
             )
 
     return {"status": "ok"}
+
+
+@router.post("/topup/initiate")
+async def initiate_topup(user=Depends(get_current_user)):
+    with get_db() as db:
+        row = db.execute("SELECT tier, name FROM users WHERE id = ?", (user["user_id"],)).fetchone()
+    if not row or row["tier"] != "pro":
+        raise HTTPException(403, "Topup kredit hanya untuk pengguna Pro.")
+
+    bill_id = str(uuid.uuid4())[:8].upper()
+    order_ref = f"TOPUP-{user['user_id'][:8]}-{bill_id}"
+    callback_url = settings.frontend_url.replace("/app", "") + "/api/billing/webhook"
+
+    payment_url, provider_ref = await _create_payment_intent(
+        name=f"ResearcherHQ Topup {bill_id}",
+        description="Topup +200 Kredit Kajian",
+        amount=TOPUP_AMOUNT,
+        return_url=f"{settings.frontend_url.replace('/app', '')}/app/",
+        callback_url=callback_url,
+        order_ref=order_ref,
+        payer_email=user["email"],
+        payer_name=row["name"] or user["email"],
+    )
+
+    with get_db() as db:
+        db.execute(
+            "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, 'topup_initiated', ?, ?, ?, ?)",
+            (str(uuid.uuid4()), user["user_id"], TOPUP_AMOUNT, TOPUP_KREDIT, order_ref, datetime.utcnow().isoformat())
+        )
+
+    return {"payment_url": payment_url, "bill_code": provider_ref}
+
+
+@router.post("/upgrade/initiate")
+async def initiate_upgrade(user=Depends(get_current_user)):
+    with get_db() as db:
+        row = db.execute("SELECT tier, name FROM users WHERE id = ?", (user["user_id"],)).fetchone()
+    if row and row["tier"] == "pro":
+        raise HTTPException(400, "Akaun anda sudah Pro.")
+
+    bill_id = str(uuid.uuid4())[:8].upper()
+    order_ref = f"UPGRADE-{user['user_id'][:8]}-{bill_id}"
+    callback_url = settings.frontend_url.replace("/app", "") + "/api/billing/webhook"
+
+    payment_url, provider_ref = await _create_payment_intent(
+        name=f"ResearcherHQ Pro {bill_id}",
+        description="Naik Taraf ke Pro — 500 Kredit Kajian/bulan",
+        amount=UPGRADE_AMOUNT,
+        return_url=f"{settings.frontend_url.replace('/app', '')}/app/",
+        callback_url=callback_url,
+        order_ref=order_ref,
+        payer_email=user["email"],
+        payer_name=row["name"] or user["email"] if row else user["email"],
+    )
+
+    with get_db() as db:
+        db.execute(
+            "INSERT INTO billing_events (id, user_id, event_type, amount, kredit_added, reference_no, created_at) VALUES (?, ?, 'upgrade_initiated', ?, ?, ?, ?)",
+            (str(uuid.uuid4()), user["user_id"], UPGRADE_AMOUNT, UPGRADE_KREDIT, order_ref, datetime.utcnow().isoformat())
+        )
+
+    return {"payment_url": payment_url, "bill_code": provider_ref}
+
+
+@router.post("/webhook")
+async def toyyibpay_webhook(request: Request):
+    form = await request.form()
+    refno = form.get("refno", "")
+    status = form.get("status", "")
+    order_id = form.get("order_id", "")
+    received_hash = form.get("hash", "")
+    billcode = form.get("billcode", "")
+
+    if not verify_toyyibpay_callback(status, order_id, refno, received_hash):
+        raise HTTPException(403, "Invalid callback signature")
+
+    if status != "1":
+        return {"status": "ignored"}
+
+    # F1 defense-in-depth: confirm the bill is truly paid with ToyyibPay
+    # server-to-server. A forged/replayed callback (even with a leaked secret)
+    # is rejected here because ToyyibPay reports the real payment state.
+    if not await verify_toyyibpay_payment(billcode):
+        return {"status": "payment_unverified"}
+
+    return _grant_credits_for_order(order_id)
+
+
+@router.post("/webhook/bayarcash")
+async def bayarcash_webhook(request: Request):
+    data = await request.json()
+
+    if not verify_callback_checksum(data):
+        raise HTTPException(403, "Invalid callback signature")
+
+    order_id = data.get("order_number", "")
+    status = str(data.get("status", ""))
+
+    if status != "3":
+        return {"status": "ignored"}
+
+    # Defense-in-depth — mandatory, same principle as verify_toyyibpay_payment.
+    if not await verify_payment_intent_status(data.get("transaction_id", "")):
+        return {"status": "payment_unverified"}
+
+    return _grant_credits_for_order(order_id)

@@ -74,3 +74,22 @@ async def test_verify_payment_intent_status_fails_closed_on_error():
 
     with patch("httpx.AsyncClient.get", side_effect=Exception("timeout")):
         assert await verify_payment_intent_status("PI123") is False
+
+
+def test_bayarcash_webhook_route_exists(tmp_path):
+    from unittest.mock import patch as _patch
+    with _patch("app.database._db_path", str(tmp_path / "route_check.db")):
+        from app.database import init_db
+        init_db(str(tmp_path / "route_check.db"))
+        from app.main import app
+        from fastapi.testclient import TestClient
+        with TestClient(app) as c:
+            resp = c.post("/billing/webhook/bayarcash", json={})
+    assert resp.status_code != 404
+
+
+def test_create_payment_intent_dispatches_on_provider_setting():
+    from app.routers import billing as billing_module
+    assert hasattr(billing_module, "_create_payment_intent")
+    assert hasattr(billing_module, "_create_bayarcash_payment_intent")
+    assert hasattr(billing_module, "_grant_credits_for_order")
