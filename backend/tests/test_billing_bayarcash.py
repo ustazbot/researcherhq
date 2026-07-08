@@ -95,6 +95,29 @@ def test_create_payment_intent_dispatches_on_provider_setting():
     assert hasattr(billing_module, "_grant_credits_for_order")
 
 
+@pytest.mark.asyncio
+async def test_create_payment_intent_guards_incomplete_bayarcash_config():
+    from fastapi import HTTPException
+    from app.routers.billing import _create_payment_intent
+
+    with patch.object(settings, "payment_provider", "bayarcash"), \
+         patch.object(settings, "bayarcash_secret_key", "somesecret"), \
+         patch.object(settings, "bayarcash_pat", "somepat"), \
+         patch.object(settings, "bayarcash_portal_key", ""):
+        with pytest.raises(HTTPException) as exc_info:
+            await _create_payment_intent(
+                name="Test",
+                description="Test bill",
+                amount=10.0,
+                return_url="https://example.com/return",
+                callback_url="https://example.com/api/billing/webhook",
+                order_ref="TOPUP-abcd1234-AABB1122",
+                payer_email="bill@test.com",
+                payer_name="Bill Tan",
+            )
+    assert exc_info.value.status_code == 500
+
+
 import uuid as _uuid
 from fastapi.testclient import TestClient
 

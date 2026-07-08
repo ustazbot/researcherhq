@@ -98,6 +98,8 @@ async def _create_payment_intent(name, description, amount, return_url, callback
     """Provider dispatch. TOYYIBPAY_SECRET_KEY / TOYYIBPAY_CATEGORY_CODE stay
     wired for rollback via PAYMENT_PROVIDER=toyyibpay — config swap only."""
     if settings.payment_provider == "bayarcash":
+        if not settings.bayarcash_secret_key or not settings.bayarcash_pat or not settings.bayarcash_portal_key:
+            raise HTTPException(500, "Konfigurasi BayarCash tidak lengkap.")
         callback_url = callback_url.replace("/billing/webhook", "/billing/webhook/bayarcash")
         return await _create_bayarcash_payment_intent(
             name, description, amount, return_url, callback_url, order_ref, payer_email, payer_name
