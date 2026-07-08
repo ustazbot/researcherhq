@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     telegram_chat_id: str = "placeholder"
     toyyibpay_secret_key: str = ""
     toyyibpay_category_code: str = ""
+    payment_provider: str = "toyyibpay"   # "bayarcash" or "toyyibpay" (rollback)
+    bayarcash_pat: str = ""
+    bayarcash_secret_key: str = ""
+    bayarcash_portal_key: str = ""
+    bayarcash_sandbox: bool = True
     turnstile_secret_key: str = "1x0000000000000000000000000000000AA"
     frontend_url: str = "http://localhost:5173"
     embedding_workers: int = 3
