@@ -332,3 +332,20 @@ def test_deduct_credits_consumes_subscription_before_topup(tmp_path):
         # above (subscription -> 0, topup -> 25) only hold if subscription is
         # consumed before topup, so a reordering would flip these values and
         # fail the assertions.
+
+
+# --- Real BayarCash callbacks are form-encoded (verified live 2026-07-09) ---
+def test_bayarcash_webhook_accepts_form_encoded_callback(bc_client_with_topup_initiated):
+    c, order_ref = bc_client_with_topup_initiated
+    secret = "sandboxsecret"
+    payload = _bc_payload(order_ref, secret)
+
+    kredit_before = c.get("/credits", headers=_bc_headers()).json()["kredit_remaining"]
+    with patch.object(settings, "bayarcash_secret_key", secret), \
+         patch("app.routers.billing.verify_payment_intent_status", new_callable=AsyncMock, return_value=True):
+        resp = c.post("/billing/webhook/bayarcash", data=payload)  # form-encoded, not json=
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
+
+    kredit_after = c.get("/credits", headers=_bc_headers()).json()["kredit_remaining"]
+    assert kredit_after == kredit_before + 200

@@ -1,4 +1,5 @@
 import uuid
+import logging
 from datetime import datetime, date
 from fastapi import APIRouter, HTTPException, Depends, Request
 from app.database import get_db
@@ -13,6 +14,8 @@ from app.services.bayarcash_security import (
 )
 import sqlite3
 import httpx
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -54,11 +57,10 @@ async def _create_toyyibpay_bill(name, description, amount, return_url, callback
 
 
 async def _create_bayarcash_payment_intent(name, description, amount, return_url, callback_url, order_ref, payer_email, payer_name):
-    # ponytail: response field names (url/id) are mirrored from BayarCash v3 docs,
-    # unverified against a live sandbox response — confirm before prod cutover
-    # (see Task 5 manual sandbox verification step).
+    # Response shape verified live 2026-07-09: {"type":"payment_intent","id":"pi_*",
+    # ..., "url":"https://console.bayar.cash/payment-intent/pi_*"}
     checksum_fields = {
-        "payment_channel": "fpx",
+        "payment_channel": 1,  # 1 = FPX online banking (BayarCash v3 channel code)
         "amount": f"{amount:.2f}",
         "order_number": order_ref,
         "payer_email": payer_email,
@@ -82,8 +84,12 @@ async def _create_bayarcash_payment_intent(name, description, amount, return_url
             },
             headers={"Authorization": f"Bearer {settings.bayarcash_pat}"},
         )
+        if resp.status_code >= 400:
+            logger.warning("TASK5_DEBUG create-payment-intent error %s: %s", resp.status_code, resp.text[:1000])  # ponytail: remove after Task 5 verification
         resp.raise_for_status()
         result = resp.json()
+
+    logger.warning("TASK5_DEBUG create-payment-intent response: %s", result)  # ponytail: remove after Task 5 verification
 
     data = result.get("data", result)
     payment_url = data.get("url")
@@ -264,7 +270,14 @@ async def toyyibpay_webhook(request: Request):
 
 @router.post("/webhook/bayarcash")
 async def bayarcash_webhook(request: Request):
-    data = await request.json()
+    # BayarCash posts callbacks as application/x-www-form-urlencoded (verified
+    # live 2026-07-09 — request.json() on it 500'd and dropped real callbacks).
+    # Keep JSON accepted too for tests/manual replay.
+    if "json" in request.headers.get("content-type", ""):
+        data = await request.json()
+    else:
+        data = dict(await request.form())
+    logger.warning("TASK5_DEBUG webhook payload: %s", data)  # ponytail: remove after Task 5 verification complete
 
     if not verify_callback_checksum(data):
         raise HTTPException(403, "Invalid callback signature")

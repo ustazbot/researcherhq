@@ -1,12 +1,17 @@
 import hmac
 import hashlib
+import logging
 import httpx
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 BAYARCASH_API_BASE = (
     "https://api.console.bayarcash-sandbox.com/v3"
     if settings.bayarcash_sandbox
-    else "https://api.console.bayarcash.com/v3"
+    # NOTE: production domain is bayar.cash (NOT bayarcash.com — that host's TLS
+    # cert doesn't match; verified live 2026-07-09, /v3/portals returns 200 here)
+    else "https://api.console.bayar.cash/v3"
 )
 
 
@@ -49,26 +54,28 @@ def verify_callback_checksum(callback_data: dict) -> bool:
     return hmac.compare_digest(expected, received)
 
 
-async def verify_payment_intent_status(payment_intent_id: str) -> bool:
+async def verify_payment_intent_status(transaction_id: str) -> bool:
     """
     Defense-in-depth — mirrors verify_toyyibpay_payment(). Never trust the
     callback checksum alone; re-query BayarCash directly. Fail-closed: any
     error/timeout/non-200 returns False, no credit is granted.
 
-    ponytail: status value "3" below is unverified against a real BayarCash
-    sandbox response — confirm with a live test payment intent before prod
-    cutover (see Task 5 manual sandbox verification step).
+    Verified live 2026-07-09 (trx_Gv5eKK, RM10 FPX): callback carries
+    transaction_id (trx_*), and GET /transactions/{id} returns a flat object
+    with integer status; 3 = "Approved" (paid).
     """
-    if not payment_intent_id:
+    if not transaction_id:
         return False
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
-                f"{BAYARCASH_API_BASE}/payment-intents/{payment_intent_id}",
+                f"{BAYARCASH_API_BASE}/transactions/{transaction_id}",
                 headers={"Authorization": f"Bearer {settings.bayarcash_pat}"},
             )
             resp.raise_for_status()
             data = resp.json()
-    except Exception:
+    except Exception as e:
+        logger.warning("TASK5_DEBUG status re-query failed: %s", e)  # ponytail: remove after Task 5 verification complete
         return False
-    return str(data.get("status")) in ("3", "success")
+    logger.warning("TASK5_DEBUG status re-query response: %s", data)  # ponytail: remove after Task 5 verification complete
+    return str(data.get("status")) == "3"
