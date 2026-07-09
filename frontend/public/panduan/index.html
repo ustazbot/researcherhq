@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panduan Pengguna — ResearcherHQ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F8F6F1;
+  --ink: #1C1B19;
+  --ink-soft: #4A463F;
+  --accent: #F97316;
+  --accent-soft: #FCE3D0;
+  --line: #E3DFD5;
+  --card: #FFFFFF;
+  --success: #16A34A;
+  --success-soft: #D1FAE5;
+  --danger: #DC2626;
+  --danger-soft: #FEE2E2;
+  --warning: #D97706;
+  --warning-soft: #FEF3C7;
+  --info: #1D4ED8;
+  --info-soft: #EFF6FF;
+  --font-heading: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --sidebar-w: 280px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  font-family: var(--font-body);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.65;
+}
+h1, h2, h3 { font-family: var(--font-heading); font-weight: 800; color: var(--ink); line-height: 1.25; }
+
+/* ---------- Top bar (mobile) ---------- */
+.topbar {
+  display: none;
+  position: sticky; top: 0; z-index: 40;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 18px;
+  align-items: center;
+  justify-content: space-between;
+}
+.topbar .brand { font-family: var(--font-heading); font-weight: 800; font-size: 17px; }
+.topbar .brand span { color: var(--accent); }
+.menu-btn {
+  border: 1px solid var(--line); background: var(--card); border-radius: var(--radius-sm);
+  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 18px;
+}
+
+/* ---------- Layout ---------- */
+.layout { display: flex; max-width: 1240px; margin: 0 auto; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  padding: 28px 18px 40px 28px;
+  border-right: 1px solid var(--line);
+}
+.sidebar .brand {
+  font-family: var(--font-heading); font-weight: 800; font-size: 19px;
+  margin-bottom: 2px;
+}
+.sidebar .brand span { color: var(--accent); }
+.sidebar .subtitle {
+  font-size: 12.5px; color: var(--ink-soft); margin-bottom: 22px;
+}
+.nav-link {
+  display: flex; align-items: flex-start; gap: 10px;
+  text-decoration: none; color: var(--ink-soft);
+  font-size: 13.5px; font-weight: 500;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  margin-bottom: 2px;
+  transition: background .15s, color .15s;
+}
+.nav-link:hover { background: var(--accent-soft); color: var(--ink); }
+.nav-link.active { background: var(--accent-soft); color: var(--ink); font-weight: 700; }
+.nav-num {
+  font-family: var(--font-mono); font-size: 11px; color: var(--accent);
+  min-width: 18px; padding-top: 1px;
+}
+.sidebar-footer {
+  margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line);
+  font-size: 11.5px; color: var(--ink-soft);
+}
+
+/* ---------- Main content ---------- */
+.main { flex: 1; min-width: 0; padding: 48px 56px 100px; }
+.hero { margin-bottom: 36px; }
+.hero-eyebrow {
+  display: inline-block; font-family: var(--font-mono); font-size: 11.5px;
+  color: var(--accent); background: var(--accent-soft); padding: 4px 10px;
+  border-radius: 999px; margin-bottom: 14px; letter-spacing: .02em;
+}
+.hero h1 { font-size: 34px; margin: 0 0 10px; }
+.hero p.lead { font-size: 15.5px; color: var(--ink-soft); max-width: 640px; margin: 0; }
+
+.intro-block {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  padding: 22px 26px; margin-bottom: 40px;
+}
+.intro-block p { margin: 0 0 10px; font-size: 14.5px; color: var(--ink-soft); }
+.intro-block p:last-child { margin-bottom: 0; }
+
+.doc-section {
+  padding: 40px 0; border-top: 1px solid var(--line); scroll-margin-top: 24px;
+}
+.doc-section:first-of-type { border-top: none; padding-top: 0; }
+.doc-section h2 {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 24px; margin: 0 0 18px;
+}
+.sec-num {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+  color: var(--card); background: var(--accent);
+  width: 30px; height: 30px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.doc-section h3 { font-size: 16.5px; margin: 26px 0 10px; }
+.doc-section p { font-size: 14.5px; margin: 0 0 12px; }
+.doc-section ol, .doc-section ul { font-size: 14.5px; padding-left: 22px; margin: 0 0 16px; }
+.doc-section li { margin-bottom: 8px; }
+.doc-section strong { font-weight: 700; color: var(--ink); }
+.doc-section table {
+  width: 100%; border-collapse: collapse; margin: 12px 0 20px;
+  font-size: 13.5px; background: var(--card); border-radius: var(--radius-md);
+  overflow: hidden; border: 1px solid var(--line);
+}
+.doc-section th, .doc-section td {
+  text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line);
+}
+.doc-section th { background: #F1EEE6; font-family: var(--font-heading); font-weight: 700; font-size: 12.5px; }
+.doc-section tr:last-child td { border-bottom: none; }
+
+/* ---------- Callouts ---------- */
+.callout {
+  display: flex; gap: 12px; padding: 14px 16px; border-radius: var(--radius-md);
+  margin: 14px 0 18px; border: 1px solid transparent; font-size: 13.5px;
+}
+.callout-icon { font-size: 16px; line-height: 1.4; }
+.callout-body p { margin: 0 0 6px; font-size: 13.5px; }
+.callout-body p:last-child { margin-bottom: 0; }
+.callout-info { background: var(--info-soft); border-color: #C7D9F9; }
+.callout-warning { background: var(--warning-soft); border-color: #F5D9A0; }
+.callout-danger { background: var(--danger-soft); border-color: #F3B8B8; }
+
+/* ---------- Screenshots ---------- */
+figure.shot {
+  margin: 16px 0 22px; padding: 0; border: 1px solid var(--line);
+  border-radius: var(--radius-lg); overflow: hidden; background: var(--card);
+  box-shadow: 0 1px 3px rgba(28,27,25,0.06);
+  max-width: 620px;
+}
+figure.shot img { display: block; width: 100%; height: auto; border-bottom: 1px solid var(--line); }
+figure.shot figcaption {
+  padding: 8px 14px; font-size: 12px; color: var(--ink-soft); font-family: var(--font-mono);
+}
+
+/* ---------- Footer ---------- */
+.doc-footer {
+  margin-top: 50px; padding-top: 24px; border-top: 1px solid var(--line);
+  font-size: 12px; color: var(--ink-soft);
+}
+
+/* ---------- Back to top ---------- */
+.back-top {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--ink); color: var(--card);
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; font-size: 16px; opacity: 0; pointer-events: none;
+  transition: opacity .2s; box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+  z-index: 30;
+}
+.back-top.show { opacity: 1; pointer-events: auto; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .topbar { display: flex; }
+  .sidebar {
+    position: fixed; top: 0; left: 0; height: 100vh; width: 82%;
+    max-width: 320px; background: var(--bg); z-index: 50;
+    transform: translateX(-100%); transition: transform .25s ease;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.12);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar .brand-row { display: flex; justify-content: space-between; align-items: center; }
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 45;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .main { padding: 28px 20px 80px; }
+  .hero h1 { font-size: 26px; }
+  figure.shot { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Researcher<span>HQ</span> — Panduan</div>
+  <div class="menu-btn" id="menuBtn">☰</div>
+</div>
+<div class="overlay" id="overlay"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="brand-row">
+      <div>
+        <div class="brand">Researcher<span>HQ</span></div>
+        <div class="subtitle">Panduan Pengguna</div>
+      </div>
+    </div>
+    <a href="#s1-daftar-akaun" class="nav-link" data-target="s1-daftar-akaun"><span class="nav-num">1</span>Daftar Akaun</a>
+<a href="#s2-log-masuk" class="nav-link" data-target="s2-log-masuk"><span class="nav-num">2</span>Log Masuk</a>
+<a href="#s3-profil-ringkas-log-masuk-pertama-kali" class="nav-link" data-target="s3-profil-ringkas-log-masuk-pertama-kali"><span class="nav-num">3</span>Profil Ringkas (Log Masuk Pertama Kali)</a>
+<a href="#s4-cipta-projek-pertama" class="nav-link" data-target="s4-cipta-projek-pertama"><span class="nav-num">4</span>Cipta Projek Pertama</a>
+<a href="#s5-kenali-ruang-kerja" class="nav-link" data-target="s5-kenali-ruang-kerja"><span class="nav-num">5</span>Kenali Ruang Kerja</a>
+<a href="#s6-panel-sumber" class="nav-link" data-target="s6-panel-sumber"><span class="nav-num">6</span>Panel Sumber</a>
+<a href="#s7-panel-chat" class="nav-link" data-target="s7-panel-chat"><span class="nav-num">7</span>Panel Chat</a>
+<a href="#s8-editor-bab-struktur-tesis" class="nav-link" data-target="s8-editor-bab-struktur-tesis"><span class="nav-num">8</span>Editor Bab & Struktur Tesis</a>
+<a href="#s9-semak-maklum-balas-penyelia-sv-feedback" class="nav-link" data-target="s9-semak-maklum-balas-penyelia-sv-feedback"><span class="nav-num">9</span>Semak Maklum Balas Penyelia (SV Feedback)</a>
+<a href="#s10-modul-soal-selidik-survey-pro-sahaja" class="nav-link" data-target="s10-modul-soal-selidik-survey-pro-sahaja"><span class="nav-num">10</span>Modul Soal Selidik (Survey) — Pro sahaja</a>
+<a href="#s11-kredit-kajian-pelan-free-vs-pro" class="nav-link" data-target="s11-kredit-kajian-pelan-free-vs-pro"><span class="nav-num">11</span>Kredit Kajian & Pelan (Free vs Pro)</a>
+<a href="#s12-kemas-kini-profil" class="nav-link" data-target="s12-kemas-kini-profil"><span class="nav-num">12</span>Kemas Kini Profil</a>
+<a href="#s13-pusat-bantuan" class="nav-link" data-target="s13-pusat-bantuan"><span class="nav-num">13</span>Pusat Bantuan</a>
+<a href="#s14-hubungi-sokongan" class="nav-link" data-target="s14-hubungi-sokongan"><span class="nav-num">14</span>Hubungi Sokongan</a>
+    <div class="sidebar-footer">
+      Dikemaskini 9 Julai 2026 · commit <code>3f4d58d</code>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="hero">
+      <span class="hero-eyebrow">PANDUAN PENGGUNA</span>
+      <h1>Panduan Penggunaan ResearcherHQ</h1>
+      <p class="lead">Langkah demi langkah, ditulis dalam bahasa mudah, dengan tangkapan skrin
+      sebenar daripada aplikasi — untuk sesiapa sahaja yang baru menggunakan ResearcherHQ.</p>
+    </div>
+
+    <div class="intro-block">
+      <h1>SOP Pengguna — ResearcherHQ</h1>
+<p>Panduan langkah demi langkah untuk pengguna baharu ResearcherHQ. Setiap langkah dan
+setiap tangkapan skrin dalam dokumen ini diambil terus daripada aplikasi sebenar yang
+sedang berjalan (bukan mockup), pada commit <code>3f4d58d</code>.</p>
+<div class="callout callout-warning"><div class="callout-icon">⚠️</div><div class="callout-body"><p><strong>Nota penting:</strong> Sebahagian besar antara muka (butang, label, mesej sistem) dipaparkan
+dalam Bahasa Inggeris. Panduan ini menerangkan setiap langkah dalam Bahasa Melayu, tetapi
+nama butang/medan yang perlu anda cari di skrin akan ditulis dalam tanda petik seperti
+yang tertera di skrin — contoh: klik butang <strong>"Log in"</strong>.</p></div></div>
+<hr />
+    </div>
+
+    <section class="doc-section" id="s1-daftar-akaun"><h2><span class="sec-num">1</span>Daftar Akaun</h2><p>ResearcherHQ tidak menggunakan borang pendaftaran kata laluan biasa. Sebaliknya, sistem
+menghantar <strong>kata laluan sementara terus ke emel anda</strong> — anda tidak perlu mencipta kata
+laluan sendiri semasa mendaftar.</p>
+<ol>
+<li>Buka halaman log masuk ResearcherHQ. Klik butang <strong>"Create a free account"</strong> di bawah
+   borang log masuk.</li>
+</ol>
+<figure class="shot"><img src="assets/01a-daftar-akaun-kosong.png" alt="Langkah 1" loading="lazy"><figcaption>Langkah 1</figcaption></figure>
+<ol>
+<li>Masukkan alamat emel anda. Selesaikan semakan keselamatan (kotak pengesahan kecil)
+   yang muncul di bawah medan emel.</li>
+</ol>
+<figure class="shot"><img src="assets/01b-daftar-akaun-turnstile-check.png" alt="Langkah 2" loading="lazy"><figcaption>Langkah 2</figcaption></figure>
+<ol>
+<li>Klik butang <strong>"Send login password"</strong>. Sistem akan menghantar kata laluan sementara ke
+   emel yang anda daftarkan. Buka emel anda (termasuk folder spam) dan salin kata laluan
+   tersebut — anda akan memerlukannya pada langkah seterusnya (Log Masuk).</li>
+</ol>
+<hr /></section>
+<section class="doc-section" id="s2-log-masuk"><h2><span class="sec-num">2</span>Log Masuk</h2><ol>
+<li>Di halaman log masuk, masukkan emel anda dan kata laluan (kata laluan sementara yang
+   diterima melalui emel, atau kata laluan tetap jika anda sudah menetapkannya).</li>
+<li>Klik butang <strong>"Log in"</strong>.</li>
+</ol>
+<figure class="shot"><img src="assets/02-log-masuk.png" alt="Langkah 2" loading="lazy"><figcaption>Langkah 2</figcaption></figure>
+<ol>
+<li>Jika anda terlupa kata laluan, klik pautan <strong>"Forgot password?"</strong> — proses ini akan
+   menghantar kata laluan sementara baharu ke emel anda, sama seperti langkah pendaftaran.</li>
+</ol>
+<hr /></section>
+<section class="doc-section" id="s3-profil-ringkas-log-masuk-pertama-kali"><h2><span class="sec-num">3</span>Profil Ringkas (Log Masuk Pertama Kali)</h2><p>Pada log masuk pertama kali, satu tetingkap kecil akan muncul meminta maklumat ringkas
+tentang anda.</p>
+<ol>
+<li>Isikan <strong>"Your full name"</strong> (nama penuh) dan <strong>"University / Institution name"</strong>
+   (nama universiti/institusi anda).</li>
+</ol>
+<figure class="shot"><img src="assets/03-profil-ringkas.png" alt="Langkah 3a" loading="lazy"><figcaption>Langkah 3a</figcaption></figure>
+<p>Contoh borang yang telah diisi:</p>
+<figure class="shot"><img src="assets/03-profil-ringkas-isi.png" alt="Langkah 3b" loading="lazy"><figcaption>Langkah 3b</figcaption></figure>
+<ol>
+<li>Klik <strong>"Continue →"</strong> untuk simpan, atau klik <strong>"Skip for now"</strong> jika mahu langkau
+   langkah ini buat masa sekarang (anda boleh kemas kini profil kemudian — lihat
+   Bahagian 12).</li>
+<li>Selepas profil disimpan, skrin "Profile saved!" akan muncul dengan butang
+   <strong>"Create First Project →"</strong> untuk terus ke langkah mencipta projek pertama.</li>
+</ol>
+<figure class="shot"><img src="assets/03-profil-berjaya.png" alt="Langkah 3c" loading="lazy"><figcaption>Langkah 3c</figcaption></figure>
+<hr /></section>
+<section class="doc-section" id="s4-cipta-projek-pertama"><h2><span class="sec-num">4</span>Cipta Projek Pertama</h2><ol>
+<li>Klik butang <strong>"+ New Project"</strong> di halaman "My Projects".</li>
+<li><strong>Langkah 1</strong> — Masukkan tajuk kajian anda dan pilih <strong>bidang penyelidikan</strong> daripada
+   senarai (General / Quantitative-Science / Qualitative-Social Science / Law /
+   Medicine-Health).</li>
+</ol>
+<figure class="shot"><img src="assets/04a-cipta-projek-kosong.png" alt="Langkah 4a" loading="lazy"><figcaption>Langkah 4a</figcaption></figure>
+<ol>
+<li><strong>Langkah 2 (Research Details)</strong> — Lengkapkan maklumat berikut:</li>
+<li><strong>Degree Level</strong>: Master / PhD / Other</li>
+<li><strong>Output Goal</strong>: Thesis / Journal Article / Proposal</li>
+<li><strong>Proposal Status</strong>: "No proposal yet" atau "Already approved"</li>
+</ol>
+<figure class="shot"><img src="assets/04b-cipta-projek-isi.png" alt="Langkah 4b" loading="lazy"><figcaption>Langkah 4b</figcaption></figure>
+<ol>
+<li>Klik <strong>"Create Project"</strong>. Anda akan dibawa terus ke ruang kerja projek (lihat
+   Bahagian 5).</li>
+</ol>
+<h3>Menamakan Semula / Memadam Projek</h3>
+<p>Di halaman "My Projects", klik ikon <strong>"⋯"</strong> di sudut kanan kad projek untuk membuka menu
+<strong>Rename</strong> (namakan semula) atau <strong>Delete</strong> (padam).</p>
+<figure class="shot"><img src="assets/04c-projek-menu-pilihan.png" alt="Langkah 4c" loading="lazy"><figcaption>Langkah 4c</figcaption></figure>
+<hr /></section>
+<section class="doc-section" id="s5-kenali-ruang-kerja"><h2><span class="sec-num">5</span>Kenali Ruang Kerja</h2><p>Ruang kerja projek ResearcherHQ dibahagikan kepada <strong>4 panel</strong> dalam satu skrin:</p>
+<table>
+<thead>
+<tr>
+<th>Panel</th>
+<th>Kedudukan</th>
+<th>Fungsi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sumber (Sources)</strong></td>
+<td>Kiri</td>
+<td>Dokumen kajian, cari artikel, rujukan, maklum balas penyelia</td>
+</tr>
+<tr>
+<td><strong>Editor</strong></td>
+<td>Tengah</td>
+<td>Tempat menulis kandungan bab tesis</td>
+</tr>
+<tr>
+<td><strong>Chat</strong></td>
+<td>Kanan editor</td>
+<td>Berbual dengan AI berdasarkan dokumen anda</td>
+</tr>
+<tr>
+<td><strong>Struktur Tesis (Thesis Structure)</strong></td>
+<td>Paling kanan</td>
+<td>Senarai bab, sasaran perkataan, eksport</td>
+</tr>
+</tbody>
+</table>
+<p>Setiap panel Sumber dan Struktur Tesis boleh <strong>dikuncupkan (collapse)</strong> dengan klik anak
+panah bujur terapung di garis pembahagi panel.</p>
+<p>Pada log masuk pertama ke projek baharu, satu tur ringkas (tooltip bernombor) akan
+memandu anda melalui setiap panel:</p>
+<figure class="shot"><img src="assets/05a-ruang-kerja-tour.png" alt="Langkah 5a" loading="lazy"><figcaption>Langkah 5a</figcaption></figure>
+<div class="callout callout-warning"><div class="callout-icon">⚠️</div><div class="callout-body"><p><strong>Penting untuk akaun Percuma (Free):</strong> Panel <strong>Editor dan Struktur Tesis dikunci
+sepenuhnya</strong> untuk pengguna pelan Percuma — anda akan nampak overlay "Thesis Workspace
+— Manage chapters, assign AI output, and export .docx — Pro only." Untuk menulis bab
+dan mengurus struktur tesis, akaun perlu dinaik taraf ke Pro (lihat Bahagian 11).</p></div></div>
+<figure class="shot"><img src="assets/05b-ruang-kerja-free.png" alt="Langkah 5b" loading="lazy"><figcaption>Langkah 5b</figcaption></figure>
+<p>Bar menu di bahagian atas ruang kerja mengandungi:
+- <strong>File</strong> — Export Active Chapter, Upload Document, Compile Full Thesis (.docx — Pro
+  sahaja)
+- <strong>Style profile</strong> — tetapkan gaya penulisan AI (Pro sahaja, lihat Bahagian 7)
+- <strong>View</strong> — pilihan tambahan seperti "Export Google Docs" dan "Bibliography Manager"
+  yang kedua-duanya masih berlabel <strong>"Phase 3"</strong> dan tidak aktif lagi setakat ini.</p>
+<hr /></section>
+<section class="doc-section" id="s6-panel-sumber"><h2><span class="sec-num">6</span>Panel Sumber</h2><p>Di sisi kiri panel Sumber terdapat <strong>rel ikon</strong> dengan 6 fungsi:</p>
+<table>
+<thead>
+<tr>
+<th>Ikon</th>
+<th>Label</th>
+<th>Fungsi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>📁</td>
+<td>Files</td>
+<td>Senarai dokumen yang dimuat naik</td>
+</tr>
+<tr>
+<td>🔍</td>
+<td>Search</td>
+<td>Cari Artikel (rujuk akademik luar)</td>
+</tr>
+<tr>
+<td>🔖</td>
+<td>Refs</td>
+<td>Senarai rujukan automatik</td>
+</tr>
+<tr>
+<td>📋</td>
+<td>SV</td>
+<td>Maklum Balas Penyelia</td>
+</tr>
+<tr>
+<td>📝</td>
+<td>Survey</td>
+<td>Modul Soal Selidik (Pro sahaja)</td>
+</tr>
+<tr>
+<td>❓</td>
+<td>Help</td>
+<td>Bantuan &amp; dokumentasi</td>
+</tr>
+</tbody>
+</table>
+<h3>6.1 Muat Naik Dokumen</h3>
+<ol>
+<li>Klik <strong>"Upload document"</strong>.</li>
+<li>Pilih fail (PDF, DOCX, XLSX atau PPTX, maksimum 20MB).</li>
+<li>Pada tetingkap <strong>"Select Category"</strong>, pilih kategori dokumen — Reference Articles,
+   Research Proposal, SV Notes, Own Draft, Data / Transcript, atau Faculty Format Guide.</li>
+</ol>
+<figure class="shot"><img src="assets/06a-sumber-doc-dimuat-naik.png" alt="Langkah 6a" loading="lazy"><figcaption>Langkah 6a</figcaption></figure>
+<ol>
+<li>Klik <strong>"Upload"</strong>. Dokumen akan diproses (embedding) di latar belakang.</li>
+</ol>
+<figure class="shot"><img src="assets/06b-sumber-doc-siap.png" alt="Langkah 6b" loading="lazy"><figcaption>Langkah 6b</figcaption></figure>
+<div class="callout callout-info"><div class="callout-icon">💡</div><div class="callout-body"><p><strong>Had muat naik ikut pelan:</strong> Akaun <strong>Free</strong> hanya boleh muat naik <strong>1 dokumen</strong>.
+Akaun <strong>Pro</strong> boleh muat naik sehingga <strong>5 dokumen</strong>.</p></div></div>
+<h3>6.2 Cari Artikel (Search Panel)</h3>
+<ol>
+<li>Klik ikon <strong>Search</strong> (🔍) pada rel ikon.</li>
+<li>Taipkan kata kunci carian, dan (jika perlu) hadkan "From year".</li>
+</ol>
+<figure class="shot"><img src="assets/06c-cari-artikel-kosong.png" alt="Langkah 6c" loading="lazy"><figcaption>Langkah 6c</figcaption></figure>
+<ol>
+<li>Klik <strong>"Search"</strong>. Keputusan carian sebenar (dari OpenAlex/Semantic Scholar/CrossRef)
+   akan disenaraikan di kiri.</li>
+</ol>
+<figure class="shot"><img src="assets/06d-cari-artikel-hasil.png" alt="Langkah 6d" loading="lazy"><figcaption>Langkah 6d</figcaption></figure>
+<ol>
+<li>Klik mana-mana keputusan untuk lihat abstrak penuh di sebelah kanan.</li>
+</ol>
+<figure class="shot"><img src="assets/06e-cari-artikel-abstrak.png" alt="Langkah 6e" loading="lazy"><figcaption>Langkah 6e</figcaption></figure>
+<div class="callout callout-info"><div class="callout-icon">💡</div><div class="callout-body"><p><strong>Nota Pro:</strong> Butang <strong>"Add to Sources"</strong> untuk terus tambah artikel ini sebagai dokumen
+projek adalah <strong>fungsi Pro sahaja</strong>. Pengguna Free boleh melihat dan membaca abstrak,
+tetapi perlu naik taraf untuk menambah artikel ke dalam sumber projek.</p></div></div>
+<h3>6.3 Refs (Senarai Rujukan)</h3>
+<p>Ikon <strong>Refs</strong> (🔖) BUKAN pengurus rujukan manual — ia adalah <strong>senarai rujukan automatik</strong>
+yang dijana daripada dokumen yang telah dipetik (cited) dalam kandungan bab yang anda
+terima (Accept) daripada cadangan AI. Jika belum ada kandungan yang dipetik dari mana-mana
+dokumen, panel ini akan kosong dengan mesej "No references yet. Ask the AI and accept
+output to a chapter to generate a reference list."</p>
+<figure class="shot"><img src="assets/06f-refs-panel-kosong.png" alt="Langkah 6f" loading="lazy"><figcaption>Langkah 6f</figcaption></figure>
+<hr /></section>
+<section class="doc-section" id="s7-panel-chat"><h2><span class="sec-num">7</span>Panel Chat</h2><ol>
+<li>Pilih <strong>mod jawapan</strong> melalui pill di bahagian bawah panel chat. Terdapat 6 mod
+   tersedia (bukan 3): <strong>Q&amp;A</strong> (1 kredit), <strong>Key Findings</strong> (3 kredit), <strong>Executive
+   Summary</strong> (5 kredit, Pro), <strong>Literature Review</strong> (10 kredit, Pro), <strong>Research Gap</strong>
+   (10 kredit, Pro), dan <strong>Topic Discovery</strong> (1 kredit — hanya untuk projek yang belum
+   ada cadangan penyelidikan diluluskan).</li>
+<li>Taipkan soalan anda di ruangan <strong>"Ask a question..."</strong> dan hantar.</li>
+<li>Setiap jawapan AI dipaparkan bersama <strong>label sumber</strong>:</li>
+<li>📄 <strong>Your documents</strong> — jawapan berdasarkan dokumen anda, disertakan petikan bernombor.</li>
+<li>🌐 <strong>Web sources</strong> — jawapan berdasarkan carian web (Pro sahaja).</li>
+<li>⚠ <strong>General knowledge — verify independently</strong> — jawapan berdasarkan pengetahuan
+     umum AI (bukan dokumen anda) — <strong>sahkan sendiri sebelum digunakan</strong>.</li>
+</ol>
+<figure class="shot"><img src="assets/07c-chat-jawapan.png" alt="Langkah 7" loading="lazy"><figcaption>Langkah 7</figcaption></figure>
+<ol>
+<li>Setiap jawapan AI mempunyai butang <strong>"→ Send to Editor"</strong> untuk hantar jawapan
+   tersebut sebagai cadangan ke bab yang aktif (lihat Bahagian 8). Butang ini tidak aktif
+   jika tiada bab dipilih.</li>
+</ol>
+<h3>Style Profile (Profil Gaya Penulisan) — Pro sahaja</h3>
+<p>Klik <strong>"Style profile"</strong> pada bar menu atas untuk tetapkan gaya penulisan AI mengikut
+keutamaan anda: panjang ayat, gaya akademik (formal/moden), dan contoh tulisan sendiri.</p>
+<figure class="shot"><img src="assets/07a-profil-gaya-kosong.png" alt="Langkah 7a" loading="lazy"><figcaption>Langkah 7a</figcaption></figure>
+<p>Isikan pilihan yang berkaitan, kemudian klik <strong>"Save Style Profile →"</strong>.</p>
+<figure class="shot"><img src="assets/07b-profil-gaya-isi.png" alt="Langkah 7b" loading="lazy"><figcaption>Langkah 7b</figcaption></figure>
+<h3>Versi Mudah Alih (Mobile)</h3>
+<p>Pada skrin telefon, panel Chat diakses melalui tab <strong>"Chat"</strong> di bar bawah.</p>
+<figure class="shot"><img src="assets/mobile-07-chat.png" alt="Langkah 7c — Mobile" loading="lazy"><figcaption>Langkah 7c — Mobile</figcaption></figure>
+<hr /></section>
+<section class="doc-section" id="s8-editor-bab-struktur-tesis"><h2><span class="sec-num">8</span>Editor Bab & Struktur Tesis</h2><div class="callout callout-info"><div class="callout-icon">💡</div><div class="callout-body"><p><strong>Nota:</strong> Bahagian ini (Editor + Struktur Tesis) adalah <strong>fungsi Pro sahaja</strong>. Lihat
+amaran di Bahagian 5.</p></div></div>
+<h3>8.1 Tambah Bab</h3>
+<ol>
+<li>Di panel Struktur Tesis (kanan sekali), klik <strong>"+ Add Chapter"</strong>.</li>
+<li>Taipkan nama bab (contoh: "Bab 1: Pengenalan") dan klik <strong>"Add"</strong>.</li>
+</ol>
+<figure class="shot"><img src="assets/08a-editor-bab-kosong.png" alt="Editor sebelum tambah bab" loading="lazy"><figcaption>Editor sebelum tambah bab</figcaption></figure>
+<h3>8.2 Cara Cadangan AI Masuk ke Bab (Send to Editor → Accept/Reject)</h3>
+<p>Ini <strong>BUKAN</strong> proses satu langkah sahaja — ia gabungan dua langkah:</p>
+<ol>
+<li>Di panel Chat, klik <strong>"→ Send to Editor"</strong> pada jawapan AI yang mahu digunakan
+   (rujuk Bahagian 7).</li>
+<li>Panel Editor akan bertukar ke <strong>mod cadangan (Suggestion mode)</strong>, memaparkan amaran:</li>
+</ol>
+<div class="callout callout-info"><div class="callout-icon">💡</div><div class="callout-body"><p><em>"This is an AI suggestion — click </em><em>Accept</em><em> to add to chapter, or </em><em>Reject</em><em> to
+discard."</em></p></div></div>
+<figure class="shot"><img src="assets/08b-editor-cadangan-ai.png" alt="Langkah 8b" loading="lazy"><figcaption>Langkah 8b</figcaption></figure>
+<ol>
+<li>Baca cadangan dengan teliti, kemudian klik <strong>"Accept"</strong> untuk masukkan ke bab, atau
+   <strong>"Reject"</strong> untuk buang cadangan tersebut (kandungan sedia ada bab tidak akan
+   berubah jika Reject).</li>
+</ol>
+<figure class="shot"><img src="assets/08c-editor-selepas-terima.png" alt="Langkah 8c" loading="lazy"><figcaption>Langkah 8c</figcaption></figure>
+<div class="callout callout-info"><div class="callout-icon">💡</div><div class="callout-body"><p>Cadangan AI <strong>tidak pernah dimasukkan secara automatik</strong> ke dalam bab tanpa anda
+menyemak dan menekan Accept terlebih dahulu.</p></div></div>
+<h3>8.3 Sasaran Perkataan (Word Count Target)</h3>
+<ol>
+<li>Di panel Struktur Tesis, tuding tetikus (hover) pada bab, klik <strong>"+ Set target"</strong>.</li>
+<li>Masukkan sasaran jumlah perkataan (contoh: 3000) dan tekan Enter.</li>
+<li>Bar kemajuan akan menunjukkan jumlah perkataan semasa berbanding sasaran.</li>
+</ol>
+<figure class="shot"><img src="assets/08d-editor-word-target.png" alt="Langkah 8d" loading="lazy"><figcaption>Langkah 8d</figcaption></figure>
+<h3>8.4 Semak Keselarasan Penyelia (Check SV Alignment)</h3>
+<p>Klik butang <strong>"Check SV Alignment"</strong> di bahagian atas Editor untuk semak kandungan bab
+semasa terhadap senarai maklum balas penyelia yang masih terbuka (Open) — lihat
+Bahagian 9.</p>
+<h3>8.5 Eksport</h3>
+<ul>
+<li>Setiap bab boleh dieksport secara individu melalui butang <strong>".docx"</strong> di sebelah nama
+  bab dalam panel Struktur Tesis.</li>
+<li>Untuk eksport keseluruhan tesis sekali gus, klik <strong>"⬇ Compile Full Thesis"</strong> (Pro
+  sahaja) atau melalui menu <strong>File → Compile Full Thesis (.docx)</strong>.</li>
+</ul>
+<h3>Versi Mudah Alih (Mobile)</h3>
+<figure class="shot"><img src="assets/mobile-08-editor.png" alt="Langkah 8 — Mobile" loading="lazy"><figcaption>Langkah 8 — Mobile</figcaption></figure>
+<hr /></section>
+<section class="doc-section" id="s9-semak-maklum-balas-penyelia-sv-feedback"><h2><span class="sec-num">9</span>Semak Maklum Balas Penyelia (SV Feedback)</h2><ol>
+<li>Muat naik dokumen nota penyelia anda dengan kategori <strong>"SV Notes"</strong> (lihat
+   Bahagian 6.1). Sistem akan <strong>secara automatik mengekstrak setiap item maklum balas</strong>
+   daripada dokumen tersebut.</li>
+<li>Klik ikon <strong>SV</strong> pada rel ikon panel Sumber untuk lihat senarai maklum balas,
+   dikumpulkan mengikut status: <strong>Open</strong>, <strong>Addressed</strong>, <strong>Dismissed</strong>.</li>
+</ol>
+<figure class="shot"><img src="assets/09a-sv-feedback.png" alt="Langkah 9a" loading="lazy"><figcaption>Langkah 9a</figcaption></figure>
+<ol>
+<li>Tukar status setiap item melalui dropdown di sebelah kanan item tersebut, mengikut
+   sejauh mana anda telah menangani maklum balas itu dalam penulisan.</li>
+<li>Gunakan butang <strong>"Check SV Alignment"</strong> di Editor (Bahagian 8.4) untuk semak sama ada
+   kandungan bab semasa telah menangani setiap item maklum balas terbuka — hasilnya
+   dipaparkan berserta cadangan penambahbaikan untuk setiap item.</li>
+</ol>
+<figure class="shot"><img src="assets/09b-sv-alignment-check.png" alt="Langkah 9b" loading="lazy"><figcaption>Langkah 9b</figcaption></figure>
+<hr /></section>
+<section class="doc-section" id="s10-modul-soal-selidik-survey-pro-sahaja"><h2><span class="sec-num">10</span>Modul Soal Selidik (Survey) — Pro sahaja</h2><div class="callout callout-info"><div class="callout-icon">💡</div><div class="callout-body"><p><strong>Nota:</strong> Keseluruhan Modul Soal Selidik adalah <strong>fungsi Pro sahaja</strong>. Pengguna Free
+akan nampak skrin berikut apabila cuba mengaksesnya:</p>
+<figure class="shot"><img src="assets/10i-survey-free-locked.png" alt="Survey — Free tier" loading="lazy"><figcaption>Survey — Free tier</figcaption></figure></div></div>
+<p>Modul ini dibahagikan kepada 3 peringkat: <strong>1. Build → 2. Collect → 3. Analyse</strong>.</p>
+<h3>10.1 Build (Bina)</h3>
+<ol>
+<li>Klik ikon <strong>Survey</strong> pada rel ikon, atau navigasi ke Modul Soal Selidik projek anda.</li>
+<li>Klik <strong>"Generate with AI — 10 credits"</strong> untuk jana draf soal selidik berdasarkan
+   dokumen projek anda (akan diminta pengesahan kos kredit). Atau bina secara manual
+   dengan <strong>"+ Section"</strong> / <strong>"+ Question"</strong>, atau <strong>"Import from file"</strong>.</li>
+</ol>
+<figure class="shot"><img src="assets/10a-survey-build-kosong.png" alt="Langkah 10a" loading="lazy"><figcaption>Langkah 10a</figcaption></figure>
+<ol>
+<li>Draf soal selidik akan dipaparkan mengikut bahagian dan soalan.</li>
+</ol>
+<figure class="shot"><img src="assets/10b-survey-build-generated.png" alt="Langkah 10b" loading="lazy"><figcaption>Langkah 10b</figcaption></figure>
+<p>Amaran berikut <strong>sentiasa dipaparkan</strong> di bahagian Build dan <strong>wajib dikekalkan</strong>:</p>
+<div class="callout callout-danger"><div class="callout-icon">🚫</div><div class="callout-body"><p><em>"AI draft — review with your supervisor. This instrument requires expert review &amp;
+a pilot study before use."</em></p></div></div>
+<h3>10.2 Collect (Kumpul)</h3>
+<ol>
+<li>Beralih ke tab <strong>"2. Collect"</strong>.</li>
+<li>Pilih jenis kutipan data:</li>
+<li><strong>Pilot</strong> — ujian percubaan (maksimum 50 respons), boleh dibuka semula untuk
+     diedit selepas kajian rintis; respons pilot disimpan untuk analisis kebolehpercayaan.</li>
+<li><strong>Actual</strong> — kutipan data sebenar (sehingga 1,000 respons).</li>
+</ol>
+<figure class="shot"><img src="assets/10c-survey-collect.png" alt="Langkah 10c" loading="lazy"><figcaption>Langkah 10c</figcaption></figure>
+<ol>
+<li>Klik <strong>"Publish"</strong>. Anda akan diminta mengesahkan bahawa struktur soal selidik akan
+   <strong>dikunci</strong> semasa mengumpul respons.</li>
+<li>Satu pautan awam (public link) akan dijana. Responden <strong>tidak perlu mempunyai akaun</strong>
+   untuk mengisi borang.</li>
+</ol>
+<figure class="shot"><img src="assets/10d-survey-link.png" alt="Langkah 10d" loading="lazy"><figcaption>Langkah 10d</figcaption></figure>
+<p>Borang awam yang dilihat oleh responden:</p>
+<figure class="shot"><img src="assets/10e-survey-public-form.png" alt="Langkah 10e" loading="lazy"><figcaption>Langkah 10e</figcaption></figure>
+<h3>10.3 Analyse (Analisis)</h3>
+<ol>
+<li>Beralih ke tab <strong>"3. Analyse"</strong>. Halaman ini juga memaparkan amaran tetap:</li>
+</ol>
+<div class="callout callout-danger"><div class="callout-icon">🚫</div><div class="callout-body"><p><em>"Auto-generated results — review with your supervisor before using in your
+thesis."</em></p></div></div>
+<ol>
+<li>Pilih dataset (<strong>Actual</strong> atau <strong>Pilot</strong>) dan jenis ujian statistik daripada 11
+   pilihan yang tersedia: Descriptive, Reliability (Cronbach's alpha), Normality,
+   Independent t-test, Paired t-test, One-way ANOVA, Mann-Whitney U, Kruskal-Wallis,
+   Wilcoxon signed-rank, Correlation, dan Chi-square. Jika tidak pasti ujian mana yang
+   sesuai, klik <strong>"Help me choose"</strong>.</li>
+</ol>
+<figure class="shot"><img src="assets/10f-survey-analyse.png" alt="Langkah 10f" loading="lazy"><figcaption>Langkah 10f</figcaption></figure>
+<ol>
+<li>Klik <strong>"Run analysis"</strong> untuk jana keputusan (jadual statistik).</li>
+<li>Klik <strong>"Interpret (3 credits)"</strong> untuk jana naratif interpretasi automatik daripada AI
+   (boleh pilih bahasa: Bahasa Melayu / English).</li>
+</ol>
+<figure class="shot"><img src="assets/10g-survey-interpretasi-ai.png" alt="Langkah 10g" loading="lazy"><figcaption>Langkah 10g</figcaption></figure>
+<ol>
+<li>Setiap naratif interpretasi <strong>wajib</strong> disertakan ayat amaran berikut pada penghujungnya
+   (kekal verbatim, jangan diringkaskan):</li>
+</ol>
+<div class="callout callout-danger"><div class="callout-icon">🚫</div><div class="callout-body"><p><em>"Interpretasi ini dijana secara automatik. Sahkan dengan penyelia anda sebelum
+digunakan."</em></p>
+<p><em>(English: "This interpretation was generated automatically. Verify with your
+supervisor before use.")</em></p></div></div>
+<figure class="shot"><img src="assets/10h-survey-interpretasi-disclaimer.png" alt="Langkah 10h" loading="lazy"><figcaption>Langkah 10h</figcaption></figure>
+<ol>
+<li>Gunakan <strong>"→ Send to Editor"</strong> untuk hantar naratif ini (bersama sebutan APA) ke bab
+   tesis anda — ia turut melalui proses Accept/Reject yang sama seperti Bahagian 8.2.</li>
+</ol>
+<hr /></section>
+<section class="doc-section" id="s11-kredit-kajian-pelan-free-vs-pro"><h2><span class="sec-num">11</span>Kredit Kajian & Pelan (Free vs Pro)</h2><p>Baki kredit kajian anda dipaparkan di bar atas ruang kerja projek ("Research Credits"),
+dan juga di halaman <strong>Account Settings</strong>.</p>
+<p><strong>Akaun Pro:</strong></p>
+<figure class="shot"><img src="assets/11a-akaun-pro.png" alt="Langkah 11a" loading="lazy"><figcaption>Langkah 11a</figcaption></figure>
+<ul>
+<li>Baki kredit lebih tinggi (contoh: 500 kredit/bulan berbanding 50 untuk Free).</li>
+<li>Boleh <strong>top up</strong> kredit tambahan (+200 kredit — RM10) melalui bar atas ruang kerja.</li>
+<li>Untuk membatalkan langganan Pro, hubungi <strong>support@researcherhq.com</strong> secara terus
+  (tiada butang batal-sendiri dalam aplikasi).</li>
+</ul>
+<p><strong>Akaun Free:</strong></p>
+<figure class="shot"><img src="assets/11b-akaun-free.png" alt="Langkah 11b" loading="lazy"><figcaption>Langkah 11b</figcaption></figure>
+<ul>
+<li>Baki kredit lebih rendah dan pelan dipaparkan sebagai <strong>"FREE"</strong>.</li>
+<li>Butang <strong>"Upgrade to Pro — RM39/month"</strong> dipaparkan untuk naik taraf terus daripada
+  halaman ini.</li>
+</ul>
+<hr /></section>
+<section class="doc-section" id="s12-kemas-kini-profil"><h2><span class="sec-num">12</span>Kemas Kini Profil</h2><p>Di halaman <strong>Account Settings</strong> (boleh diakses melalui menu profil di bar atas):</p>
+<ol>
+<li><strong>Your Profile</strong> — kemas kini nama penuh dan nama institusi, kemudian klik
+   <strong>"Save Profile"</strong>.</li>
+<li><strong>Preferences</strong> — tukar bahasa chat AI (<strong>AI Chat Language</strong>: Bahasa Malaysia /
+   English), klik <strong>"Save"</strong>.</li>
+<li><strong>Change Password</strong> — tetapkan kata laluan tetap baharu (minimum 8 aksara), klik
+   <strong>"Update Password"</strong>.</li>
+<li><strong>Delete Account</strong> — padam akaun secara kekal. Dokumen dan perbualan akan dipadam
+   selama-lamanya; rekod transaksi pembayaran disimpan secara tanpa nama untuk tujuan
+   audit kewangan.</li>
+</ol>
+<figure class="shot"><img src="assets/12a-akaun-bawah.png" alt="Langkah 12" loading="lazy"><figcaption>Langkah 12</figcaption></figure>
+<hr /></section>
+<section class="doc-section" id="s13-pusat-bantuan"><h2><span class="sec-num">13</span>Pusat Bantuan</h2><p>Akses Pusat Bantuan melalui ikon <strong>Help</strong> (❓) pada rel ikon panel Sumber, atau terus ke
+halaman bantuan. Kandungan Pusat Bantuan sudah tersedia dalam Bahasa Melayu, dibahagikan
+kepada topik:</p>
+<p>Bermula · Urus Dokumen (Sources) · Chat dengan AI · Editor &amp; Struktur Thesis ·
+Style Profile · Maklum Balas Penyelia · Kredit &amp; Pelan · Soal Selidik (Pro sahaja) ·
+Soalan Lazim</p>
+<figure class="shot"><img src="assets/13a-pusat-bantuan.png" alt="Langkah 13a" loading="lazy"><figcaption>Langkah 13a</figcaption></figure>
+<p>Bahagian <strong>"Soalan Lazim"</strong> (FAQ) turut menjawab persoalan penting seperti keselamatan
+dokumen, kemungkinan AI "mereka" maklumat (hallucinate), dan cara menghubungi sokongan.</p>
+<figure class="shot"><img src="assets/13b-pusat-bantuan-faq.png" alt="Langkah 13b" loading="lazy"><figcaption>Langkah 13b</figcaption></figure>
+<hr /></section>
+<section class="doc-section" id="s14-hubungi-sokongan"><h2><span class="sec-num">14</span>Hubungi Sokongan</h2><ol>
+<li>Navigasi ke halaman <strong>"Report an Issue"</strong>.</li>
+<li>Pilih <strong>Category</strong> (contoh: Bug / Technical Issue).</li>
+<li>Terangkan isu anda dengan jelas di ruangan <strong>Description</strong>.</li>
+<li>Klik <strong>"Send Report"</strong>.</li>
+</ol>
+<figure class="shot"><img src="assets/14a-hubungi-sokongan.png" alt="Langkah 14" loading="lazy"><figcaption>Langkah 14</figcaption></figure>
+<hr />
+<p><em>Panduan ini disediakan oleh Claude Code berdasarkan audit langsung aplikasi ResearcherHQ
+(commit <code>3f4d58d</code>), 9 Julai 2026. Rujuk ringkasan penutup berasingan untuk senarai
+percanggahan yang dijumpai berbanding storyboard asal, dan keputusan yang perlu dibuat
+oleh Bos sebelum panduan ini digunakan sebagai bahan rasmi.</em></p></section>
+
+    <div class="doc-footer">
+      Panduan ini disediakan berdasarkan audit langsung aplikasi ResearcherHQ, dikemaskini
+      9 Julai 2026. Jika mana-mana skrin kelihatan berbeza daripada yang dipaparkan di sini,
+      sila rujuk Pusat Bantuan dalam aplikasi atau hubungi <strong>support@researcherhq.com</strong>.
+    </div>
+  </main>
+</div>
+
+<a href="#top" class="back-top" id="backTop">↑</a>
+
+<script>
+  const links = document.querySelectorAll('.nav-link');
+  const sections = document.querySelectorAll('.doc-section');
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('overlay');
+  const backTop = document.getElementById('backTop');
+
+  menuBtn?.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show');
+  });
+  overlay?.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+  });
+  links.forEach(l => l.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+  }));
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = entry.target.getAttribute('id');
+      const link = document.querySelector(`.nav-link[data-target="${id}"]`);
+      if (!link) return;
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-15% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+
+  window.addEventListener('scroll', () => {
+    backTop.classList.toggle('show', window.scrollY > 500);
+  });
+</script>
+</body>
+</html>
