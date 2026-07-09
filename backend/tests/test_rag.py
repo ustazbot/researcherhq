@@ -80,6 +80,7 @@ def test_upload_document(client_with_project):
     data = r.json()
     assert data["chunk_count"] >= 1
     assert data["filename"] == "test.pdf"
+    assert data["category"] == "artikel"  # must match GET /documents shape so the frontend list updates without a reload
 
 def test_document_set_version_bumped(client_with_project):
     client, project_id, headers = client_with_project

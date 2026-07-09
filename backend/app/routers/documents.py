@@ -166,6 +166,7 @@ async def upload_document(body: DocumentUpload, user=Depends(get_current_user)):
     return {
         "id": doc_id,
         "filename": body.filename,
+        "category": body.category,
         "chunk_count": len(all_chunks),
         "status": "uploaded",
         "message": "Dokumen berjaya dimuat naik. Embedding sedang diproses..."
@@ -287,6 +288,7 @@ async def upload_office_document(
     return {
         "id": doc_id,
         "filename": file.filename,
+        "category": category,
         "file_type": file_type,
         "chunk_count": len(all_chunks),
         "page_count": len(pages),

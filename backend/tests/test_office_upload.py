@@ -102,6 +102,7 @@ def test_docx_upload_success(client_with_project):
     assert data["file_type"] == "docx"
     assert data["chunk_count"] >= 1
     assert data["status"] == "uploaded"
+    assert data["category"] == "artikel"  # must match GET /documents shape so the frontend list updates without a reload
 
 
 # --- Test 2: XLSX upload ---
