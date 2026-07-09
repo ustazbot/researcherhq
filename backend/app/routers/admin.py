@@ -208,14 +208,20 @@ def update_support_report(report_id: str, body: SupportUpdateBody, admin=Depends
 # ---------- BILLING (view-only + adjustment action) ----------
 
 @router.get("/billing-events")
-def list_billing_events(user_id: Optional[str] = None, admin=Depends(require_admin)):
+def list_billing_events(user_id: Optional[str] = None, email: Optional[str] = None, admin=Depends(require_admin)):
+    base = ("SELECT be.*, u.email AS user_email FROM billing_events be "
+            "LEFT JOIN users u ON u.id = be.user_id")
     with get_db() as db:
         if user_id:
             rows = db.execute(
-                "SELECT * FROM billing_events WHERE user_id = ? ORDER BY created_at DESC", (user_id,)
+                base + " WHERE be.user_id = ? ORDER BY be.created_at DESC", (user_id,)
+            ).fetchall()
+        elif email:
+            rows = db.execute(
+                base + " WHERE u.email LIKE ? ORDER BY be.created_at DESC", (f"%{email}%",)
             ).fetchall()
         else:
-            rows = db.execute("SELECT * FROM billing_events ORDER BY created_at DESC LIMIT 200").fetchall()
+            rows = db.execute(base + " ORDER BY be.created_at DESC LIMIT 200").fetchall()
     return {"events": [dict(r) for r in rows]}
 
 

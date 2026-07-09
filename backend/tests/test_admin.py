@@ -436,3 +436,27 @@ def test_export_pro_csv_has_expiry_column(setup):
     body = r.text
     assert "subscription_expiry" in body
     assert "procsv@test.com" in body
+
+
+# --- Billing events listing includes user email + email filter works ---
+def test_billing_events_include_user_email(setup):
+    s = setup
+    conn = sqlite3.connect(s["db_path"])
+    _make_billing_event(conn, s["user_id"], amount=10.0)
+    conn.close()
+
+    r = s["client"].get("/admin/billing-events", headers=_admin_headers(s))
+    assert r.status_code == 200
+    events = r.json()["events"]
+    assert any(ev.get("user_email") == "pengguna@test.com" for ev in events)
+
+    # Filter by email substring — matches
+    r2 = s["client"].get("/admin/billing-events", params={"email": "pengguna"}, headers=_admin_headers(s))
+    assert r2.status_code == 200
+    assert len(r2.json()["events"]) >= 1
+    assert all(ev["user_email"] == "pengguna@test.com" for ev in r2.json()["events"])
+
+    # Filter by email with no match — empty
+    r3 = s["client"].get("/admin/billing-events", params={"email": "takwujud@x.com"}, headers=_admin_headers(s))
+    assert r3.status_code == 200
+    assert r3.json()["events"] == []

@@ -85,13 +85,20 @@ function UsersTab() {
   useEffect(() => { load() }, [])
 
   async function handleExport(tier) {
-    const { data } = await adminApi.exportUsersCsv(tier)
-    const url = URL.createObjectURL(new Blob([data]))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `rhq_users_${tier}_${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const { data } = await adminApi.exportUsersCsv(tier)
+      const url = URL.createObjectURL(new Blob([data], { type: 'text/csv' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `rhq_users_${tier}_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 100)
+    } catch (e) {
+      console.error('Export error:', e?.response?.status, e?.response?.data, e?.message)
+      setError(`Export gagal: ${e?.response?.status || e?.message || 'unknown'}`)
+    }
   }
 
   function startEdit(u) {
@@ -271,14 +278,14 @@ function SupportTab() {
 // ---------- BILLING TAB ----------
 function BillingTab() {
   const [events, setEvents] = useState([])
-  const [filterUserId, setFilterUserId] = useState('')
+  const [filterEmail, setFilterEmail] = useState('')
   const [adj, setAdj] = useState({ user_id: '', kredit_delta: '', reason: '' })
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
 
-  async function load() {
+  async function load(q = filterEmail) {
     try {
-      const { data } = await adminApi.listBillingEvents(filterUserId ? { user_id: filterUserId } : undefined)
+      const { data } = await adminApi.listBillingEvents(q ? { email: q } : undefined)
       setEvents(data.events)
     } catch (e) {
       setError(e.response?.data?.detail || 'Gagal memuatkan events.')
@@ -318,19 +325,19 @@ function BillingTab() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-        <input value={filterUserId} onChange={e => setFilterUserId(e.target.value)} placeholder="Filter by User ID..." style={{ ...inputStyle, width: 300 }} />
-        <button onClick={load} style={btn({ background: 'var(--ink)', color: 'var(--bg)' })}>Filter</button>
-        {filterUserId && <button onClick={() => { setFilterUserId(''); }} style={btn({ background: 'transparent', border: '1px solid var(--line)' })}>Clear</button>}
+        <input value={filterEmail} onChange={e => setFilterEmail(e.target.value)} placeholder="Filter by email..." style={{ ...inputStyle, width: 300 }} />
+        <button onClick={() => load()} style={btn({ background: 'var(--ink)', color: 'var(--bg)' })}>Filter</button>
+        {filterEmail && <button onClick={() => { setFilterEmail(''); load('') }} style={btn({ background: 'transparent', border: '1px solid var(--line)' })}>Clear</button>}
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr>{['User ID', 'Jenis', 'Amaun (RM)', 'Kredit', 'Rujukan', 'Tarikh'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
+            <tr>{['Email', 'Jenis', 'Amaun (RM)', 'Kredit', 'Rujukan', 'Tarikh'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {events.map(ev => (
               <tr key={ev.id}>
-                <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{ev.user_id?.slice(0, 12)}…</td>
+                <td style={td} title={ev.user_id}>{ev.user_email || <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{ev.user_id?.slice(0, 12)}…</span>}</td>
                 <td style={td}><Badge value={ev.event_type} /></td>
                 <td style={td}>{ev.amount}</td>
                 <td style={td}>{ev.kredit_added}</td>
